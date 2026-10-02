@@ -1,0 +1,126 @@
+package com.bragadev.fiscal.presentation.organizer
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.bragadev.fiscal.domain.model.DuplicateResolution
+import com.bragadev.fiscal.domain.model.OrganizeMode
+import com.bragadev.fiscal.presentation.common.Strings
+import com.bragadev.fiscal.presentation.components.LabeledValue
+
+@Composable
+fun OrganizerDialogHost(state: OrganizerUiState, viewModel: OrganizerViewModel) {
+    when (val dialog = state.dialog) {
+        is OrganizerDialog.Proposal -> ProposalDialog(dialog, state, viewModel)
+        is OrganizerDialog.Conflict -> ConflictDialog(dialog, viewModel)
+        is OrganizerDialog.Confirm -> ConfirmDialog(dialog, state, viewModel)
+        null -> Unit
+    }
+}
+
+@Composable
+private fun ProposalDialog(dialog: OrganizerDialog.Proposal, state: OrganizerUiState, viewModel: OrganizerViewModel) {
+    AlertDialog(
+        onDismissRequest = viewModel::dismissDialog,
+        title = { Text(Strings.organizeTitle(dialog.category.folderName)) },
+        text = {
+            Column(Modifier.width(460.dp)) {
+                LabeledValue(Strings.CURRENT_FILE, dialog.source.fileName.toString())
+                dialog.movePlan?.let { plan ->
+                    LabeledValue(Strings.NEW_NAME, plan.suggestedName)
+                    LabeledValue(Strings.DESTINATION, state.destinationLabel(plan.targetDirectory))
+                }
+                dialog.renamePlan?.let { plan ->
+                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                    LabeledValue(Strings.CURRENT_FOLDER, "${state.destinationLabel(plan.targetDirectory)}${plan.suggestedName}")
+                }
+            }
+        },
+        dismissButton = { TextButton(onClick = viewModel::dismissDialog) { Text(Strings.CANCEL) } },
+        confirmButton = {
+            Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = { viewModel.onModeChosen(OrganizeMode.RENAME_ONLY) },
+                    enabled = dialog.renamePlan != null,
+                ) { Text(Strings.RENAME) }
+                Button(
+                    onClick = { viewModel.onModeChosen(OrganizeMode.RENAME_AND_MOVE) },
+                    enabled = dialog.movePlan != null,
+                ) { Text(Strings.RENAME_AND_MOVE) }
+            }
+        },
+    )
+}
+
+@Composable
+private fun ConflictDialog(dialog: OrganizerDialog.Conflict, viewModel: OrganizerViewModel) {
+    var choice by remember(dialog) { mutableStateOf(DuplicateResolution.NUMBERED_COPY) }
+    val options = listOf(
+        DuplicateResolution.REPLACE to Strings.REPLACE,
+        DuplicateResolution.NUMBERED_COPY to Strings.numberedCopy(dialog.plan.numberedCopyName),
+        DuplicateResolution.CANCEL to Strings.CANCEL_OPERATION,
+    )
+    AlertDialog(
+        onDismissRequest = viewModel::dismissDialog,
+        title = { Text(Strings.CONFLICT_TITLE) },
+        text = {
+            Column(Modifier.width(460.dp)) {
+                Text(Strings.conflictMessage(dialog.plan.suggestedName), style = MaterialTheme.typography.bodyLarge)
+                Text(Strings.CONFLICT_CHOOSE, Modifier.padding(top = 12.dp, bottom = 4.dp))
+                options.forEach { (resolution, label) ->
+                    Row(
+                        Modifier.fillMaxWidth().selectable(selected = choice == resolution, onClick = { choice = resolution }),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = choice == resolution, onClick = { choice = resolution })
+                        Text(label)
+                    }
+                }
+                if (choice == DuplicateResolution.REPLACE) {
+                    Text(Strings.REPLACE_NOTE, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                }
+            }
+        },
+        dismissButton = { TextButton(onClick = viewModel::dismissDialog) { Text(Strings.CANCEL) } },
+        confirmButton = { Button(onClick = { viewModel.onConflictResolved(choice) }) { Text(Strings.CONTINUE) } },
+    )
+}
+
+@Composable
+private fun ConfirmDialog(dialog: OrganizerDialog.Confirm, state: OrganizerUiState, viewModel: OrganizerViewModel) {
+    AlertDialog(
+        onDismissRequest = viewModel::dismissDialog,
+        title = { Text(Strings.CONFIRM_TITLE) },
+        text = {
+            Column(Modifier.width(460.dp)) {
+                LabeledValue(Strings.CURRENT_FILE, dialog.plan.currentName)
+                LabeledValue(Strings.DESTINATION, state.destinationLabel(dialog.plan.targetDirectory))
+                LabeledValue(Strings.NEW_NAME, dialog.finalName)
+                if (dialog.resolution == DuplicateResolution.REPLACE) {
+                    Text(Strings.REPLACE_NOTE, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                }
+            }
+        },
+        dismissButton = { TextButton(onClick = viewModel::dismissDialog) { Text(Strings.CANCEL) } },
+        confirmButton = { Button(onClick = viewModel::onConfirmed) { Text(Strings.CONFIRM) } },
+    )
+}

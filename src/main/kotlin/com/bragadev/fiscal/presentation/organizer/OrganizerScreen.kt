@@ -1,0 +1,147 @@
+package com.bragadev.fiscal.presentation.organizer
+
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.draganddrop.dragAndDropTarget
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draganddrop.DragAndDropEvent
+import androidx.compose.ui.draganddrop.DragAndDropTarget
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.bragadev.fiscal.domain.model.AccountGroup
+import com.bragadev.fiscal.domain.model.CategoryNode
+import com.bragadev.fiscal.domain.model.DocumentCategory
+import com.bragadev.fiscal.presentation.common.Strings
+import com.bragadev.fiscal.presentation.components.DragPayload
+import com.bragadev.fiscal.presentation.components.Panel
+import java.nio.file.Path
+
+/**
+ * Árvore de categorias. Cada categoria aceita PDFs arrastados do Windows Explorer
+ * ou da lista de documentos; clicar numa categoria organiza o documento selecionado.
+ */
+@Composable
+fun OrganizerScreen(
+    groups: List<AccountGroup>,
+    selectedDocument: Path?,
+    onDrop: (paths: List<Path>, categoryId: String) -> Unit,
+    onCategoryClickedWithoutDocument: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Panel(title = Strings.CATEGORIES, modifier = modifier) {
+        Text(
+            text = Strings.DROP_HINT,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+        )
+        val onCategoryClick: (DocumentCategory) -> Unit = { category ->
+            if (selectedDocument != null) onDrop(listOf(selectedDocument), category.id) else onCategoryClickedWithoutDocument()
+        }
+        LazyColumn(Modifier.fillMaxWidth().weight(1f).padding(horizontal = 8.dp)) {
+            groups.forEach { group -> accountGroup(group, onDrop, onCategoryClick) }
+        }
+    }
+}
+
+private fun LazyListScope.accountGroup(
+    group: AccountGroup,
+    onDrop: (List<Path>, String) -> Unit,
+    onClick: (DocumentCategory) -> Unit,
+) {
+    val isSingleCatchAll = group.accountType.folderName == null
+    if (!isSingleCatchAll) {
+        item(key = "account-${group.accountType}") {
+            Text(
+                text = "📁 ${group.accountType.displayName}",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp, start = 4.dp),
+            )
+        }
+    }
+    items(flatten(group.nodes, depth = if (isSingleCatchAll) 0 else 1), key = { it.node.category.id }) { entry ->
+        CategoryRow(entry, onDrop, onClick)
+    }
+}
+
+private data class TreeEntry(val node: CategoryNode, val depth: Int)
+
+private fun flatten(nodes: List<CategoryNode>, depth: Int): List<TreeEntry> =
+    nodes.flatMap { node -> listOf(TreeEntry(node, depth)) + flatten(node.children, depth + 1) }
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun CategoryRow(
+    entry: TreeEntry,
+    onDrop: (List<Path>, String) -> Unit,
+    onClick: (DocumentCategory) -> Unit,
+) {
+    val category = entry.node.category
+    var isDragOver by remember { mutableStateOf(false) }
+    val dropTarget = remember(category.id) {
+        object : DragAndDropTarget {
+            override fun onEntered(event: DragAndDropEvent) {
+                isDragOver = true
+            }
+
+            override fun onExited(event: DragAndDropEvent) {
+                isDragOver = false
+            }
+
+            override fun onEnded(event: DragAndDropEvent) {
+                isDragOver = false
+            }
+
+            override fun onDrop(event: DragAndDropEvent): Boolean {
+                isDragOver = false
+                val paths = DragPayload.paths(event)
+                if (paths.isEmpty()) return false
+                onDrop(paths, category.id)
+                return true
+            }
+        }
+    }
+
+    val shape = RoundedCornerShape(6.dp)
+    val highlight = if (isDragOver) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+    val borderColor = if (isDragOver) MaterialTheme.colorScheme.primary else Color.Transparent
+    val icon = if (entry.node.children.isNotEmpty() || category.accountType.folderName == null) "📁" else "📄"
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(start = (entry.depth * 16).dp, top = 1.dp, bottom = 1.dp)
+            .background(highlight, shape)
+            .border(1.dp, borderColor, shape)
+            .dragAndDropTarget(shouldStartDragAndDrop = DragPayload::canAccept, target = dropTarget)
+            .clickable { onClick(category) }
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("$icon ${category.folderName}", style = MaterialTheme.typography.bodyMedium)
+        }
+        if (isDragOver) {
+            Text(Strings.DROP_HERE, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
