@@ -7,11 +7,18 @@ import java.sql.ResultSet
 
 class CategoryDao(private val database: Database) {
 
-    /** Insere as categorias que ainda não existem, preservando alterações já gravadas. */
-    suspend fun insertMissing(categories: List<DocumentCategory>) = database.use {
+    /**
+     * Grava as categorias padrão, atualizando as já existentes para que mudanças nas regras
+     * (ex.: Despesas passar a aceitar vários arquivos) cheguem a bancos criados antes.
+     */
+    suspend fun upsert(categories: List<DocumentCategory>) = database.use {
         prepareStatement(
-            "INSERT OR IGNORE INTO categories (id, name, number, account_type, parent_id, naming_rule, sort_order) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO categories (id, name, number, account_type, parent_id, naming_rule, sort_order, file_base_name) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
+                "ON CONFLICT(id) DO UPDATE SET name = excluded.name, number = excluded.number, " +
+                "account_type = excluded.account_type, parent_id = excluded.parent_id, " +
+                "naming_rule = excluded.naming_rule, sort_order = excluded.sort_order, " +
+                "file_base_name = excluded.file_base_name",
         ).use { statement ->
             categories.forEachIndexed { index, category ->
                 statement.setString(1, category.id)
@@ -21,6 +28,7 @@ class CategoryDao(private val database: Database) {
                 statement.setString(5, category.parentId)
                 statement.setString(6, category.namingRule.name)
                 statement.setInt(7, index)
+                statement.setString(8, category.fileBaseName)
                 statement.addBatch()
             }
             statement.executeBatch()
@@ -43,5 +51,6 @@ class CategoryDao(private val database: Database) {
         accountType = AccountType.valueOf(getString("account_type")),
         parentId = getString("parent_id"),
         namingRule = NamingRule.valueOf(getString("naming_rule")),
+        fileBaseName = getString("file_base_name"),
     )
 }

@@ -49,6 +49,10 @@ CONTAS CONGREGAÇÃO\ANO DE SERVIÇO 2025-2026\4. TRIMESTRE Jun-Jul-Ago\1. JUNHO
 
 - **Destino = a pasta do mês, sem subpastas.** O arquivo recebe o rótulo da categoria: `8. Extrato Bancário.pdf`,
   `5.1 Comprovante Remessa.pdf`, `1. Outros.pdf`.
+- **Despesas aceitam vários arquivos** com descrição digitada no diálogo: `3. Despesa - xxx.pdf`, `3.1 Despesa - yyy.pdf`,
+  `3.2 Despesa - xyz.pdf`. O número é o maior existente + 1 (conta também nomes fora do padrão, como `3 Despesa - ...`).
+  A descrição vem sugerida a partir do nome original. Uma despesa que já está na pasta do mês mantém o número e só
+  troca a descrição.
 - **Mês identificado pelo caminho.** Aceita `1. JUNHO`, `10.Outubro`, `AGOSTO`, `3. Março 2024`. O ano vem do nome do
   mês ou da pasta "ANO DE SERVIÇO": em `2025-2026`, setembro–dezembro são 2025 e janeiro–agosto 2026. Um
   `5. Trimestre` dentro de `2025-2026` já é o ano seguinte (setembro/2026). Conferido contra todas as pastas do pendrive.

@@ -36,7 +36,13 @@ sealed interface OrganizerDialog {
         val category: DocumentCategory,
         val renamePlan: OrganizationPlan?,
         val movePlan: OrganizationPlan?,
-    ) : OrganizerDialog
+        /** Texto editável que entra no nome (ex.: Despesas); `null` quando a categoria não usa descrição. */
+        val description: String? = null,
+        /** Problema com a descrição digitada, mostrado logo abaixo do campo. */
+        val inputError: String? = null,
+    ) : OrganizerDialog {
+        val needsDescription: Boolean get() = description != null
+    }
 
     /** O nome de destino já existe e o usuário precisa escolher o que fazer. */
     data class Conflict(val plan: OrganizationPlan) : OrganizerDialog

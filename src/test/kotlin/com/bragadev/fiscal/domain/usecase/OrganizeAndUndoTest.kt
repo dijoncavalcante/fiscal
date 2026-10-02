@@ -257,11 +257,47 @@ class OrganizeAndUndoTest {
         assertEquals(Outcome.Failure(FileOperationError.UndoNotPossible(UndoBlockReason.ALREADY_UNDONE)), result)
     }
 
+    @Test
+    fun `despesas entram em sequencia 3 3_1 3_2 na pasta do mes`() = runTest {
+        val first = downloads.createFakePdf("recibo-a.pdf")
+        val second = downloads.createFakePdf("recibo-b.pdf")
+
+        organizeDone(planFor(first, "congregacao.despesas", description = "Compra de cartazes"))
+        val secondPlan = planFor(second, "congregacao.despesas", description = "Ônibus")
+        organizeDone(secondPlan)
+
+        assertTrue(Files.exists(june.resolve("3. Despesa - Compra de cartazes.pdf")))
+        assertTrue(Files.exists(june.resolve("3.1 Despesa - Ônibus.pdf")))
+        assertFalse(secondPlan.hasConflict)
+    }
+
+    @Test
+    fun `despesa sem descricao nao gera proposta`() = runTest {
+        val source = downloads.createFakePdf("recibo.pdf")
+
+        val result = plan(source, "congregacao.despesas", OrganizeMode.RENAME_AND_MOVE, "  ")
+
+        assertEquals(Outcome.Failure(FileOperationError.DescriptionRequired), result)
+    }
+
+    @Test
+    fun `editar despesa ja no mes troca so a descricao e mantem o numero`() = runTest {
+        june.createFakePdf("3. Despesa - a.pdf")
+        val existing = june.createFakePdf("3.1 Despesa - errado.pdf")
+        june.createFakePdf("3.2 Despesa - c.pdf")
+
+        organizeDone(planFor(existing, "congregacao.despesas", description = "corrigido"))
+
+        assertTrue(Files.exists(june.resolve("3.1 Despesa - corrigido.pdf")))
+        assertFalse(Files.exists(existing))
+    }
+
     private suspend fun planFor(
         source: Path,
         categoryId: String,
         mode: OrganizeMode = OrganizeMode.RENAME_AND_MOVE,
-    ): OrganizationPlan = (plan(source, categoryId, mode) as Outcome.Success).value
+        description: String? = null,
+    ): OrganizationPlan = (plan(source, categoryId, mode, description) as Outcome.Success).value
 
     private suspend fun organizeDone(proposal: OrganizationPlan, resolution: DuplicateResolution? = null) =
         ((organize(proposal, resolution) as Outcome.Success).value as OrganizeResult.Done).operation

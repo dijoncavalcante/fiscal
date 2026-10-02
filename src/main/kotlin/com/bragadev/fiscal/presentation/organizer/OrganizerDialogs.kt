@@ -1,5 +1,6 @@
 package com.bragadev.fiscal.presentation.organizer
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +12,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,6 +47,7 @@ private fun ProposalDialog(dialog: OrganizerDialog.Proposal, state: OrganizerUiS
         text = {
             Column(Modifier.width(460.dp)) {
                 LabeledValue(Strings.CURRENT_FILE, dialog.source.fileName.toString())
+                if (dialog.needsDescription) DescriptionField(dialog, viewModel::onDescriptionChanged)
                 dialog.movePlan?.let { plan ->
                     LabeledValue(Strings.NEW_NAME, plan.suggestedName)
                     MonthLine(state)
@@ -58,7 +61,7 @@ private fun ProposalDialog(dialog: OrganizerDialog.Proposal, state: OrganizerUiS
         },
         dismissButton = { TextButton(onClick = viewModel::dismissDialog) { Text(Strings.CANCEL) } },
         confirmButton = {
-            Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = { viewModel.onModeChosen(OrganizeMode.RENAME_ONLY) },
                     enabled = dialog.renamePlan != null,
@@ -131,4 +134,19 @@ private fun ConfirmDialog(dialog: OrganizerDialog.Confirm, state: OrganizerUiSta
 @Composable
 private fun MonthLine(state: OrganizerUiState) {
     state.monthFolder?.detectedMonth?.let { LabeledValue(Strings.MONTH, Strings.monthTitle(it.month)) }
+}
+
+/** Campo da descrição (ex.: Despesas): o nome final é recalculado enquanto o usuário digita. */
+@Composable
+private fun DescriptionField(dialog: OrganizerDialog.Proposal, onChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = dialog.description.orEmpty(),
+        onValueChange = onChange,
+        label = { Text(Strings.descriptionTitle(dialog.category.fileWord)) },
+        placeholder = { Text(Strings.DESCRIPTION_HINT) },
+        singleLine = true,
+        isError = dialog.inputError != null,
+        supportingText = dialog.inputError?.let { error -> { Text(error) } },
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    )
 }

@@ -144,9 +144,9 @@ private data class TreeEntry(val node: CategoryNode, val depth: Int)
 private fun flatten(nodes: List<CategoryNode>, depth: Int): List<TreeEntry> =
     nodes.flatMap { node -> listOf(TreeEntry(node, depth)) + flatten(node.children, depth + 1) }
 
-/** Resumo do grupo: quantas categorias obrigatórias já têm arquivo ("Outros" não conta). */
+/** Resumo do grupo: quantas categorias obrigatórias já têm arquivo ("Outros" é opcional e não conta). */
 private fun summaryFor(entries: List<TreeEntry>, checklist: MonthChecklist): String {
-    val required = entries.map { it.node.category }.filter { it.namingRule == NamingRule.CATEGORY_NAME }
+    val required = entries.map { it.node.category }.filter { it.namingRule != NamingRule.SEQUENTIAL }
     return Strings.groupSummary(required.count { checklist.isPresent(it.id) }, required.size)
 }
 

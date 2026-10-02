@@ -29,10 +29,25 @@ class Database(private val file: Path) : AutoCloseable {
         connection.createStatement().use { statement ->
             Schema.statements.forEach(statement::executeUpdate)
         }
+        Schema.addedColumns.forEach { (table, column) -> addColumnIfMissing(connection, table, column) }
+    }
+
+    /** Atualiza bancos criados por versões anteriores sem perder os dados. */
+    private fun addColumnIfMissing(connection: Connection, table: String, columnDefinition: String) {
+        val column = columnDefinition.substringBefore(' ')
+        val exists = connection.createStatement().use { statement ->
+            statement.executeQuery("PRAGMA table_info($table)").use { rows ->
+                generateSequence { if (rows.next()) rows.getString("name") else null }.any { it == column }
+            }
+        }
+        if (!exists) connection.createStatement().use { it.executeUpdate("ALTER TABLE $table ADD COLUMN $columnDefinition") }
     }
 }
 
 private object Schema {
+    /** Colunas incluídas depois da primeira versão: (tabela, definição). */
+    val addedColumns = listOf("categories" to "file_base_name TEXT")
+
     val statements = listOf(
         """
         CREATE TABLE IF NOT EXISTS documents (
@@ -54,7 +69,8 @@ private object Schema {
             account_type TEXT NOT NULL,
             parent_id TEXT,
             naming_rule TEXT NOT NULL,
-            sort_order INTEGER NOT NULL
+            sort_order INTEGER NOT NULL,
+            file_base_name TEXT
         )
         """,
         """

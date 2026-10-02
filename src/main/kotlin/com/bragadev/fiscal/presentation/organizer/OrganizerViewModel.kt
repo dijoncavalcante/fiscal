@@ -1,5 +1,7 @@
 package com.bragadev.fiscal.presentation.organizer
 
+import com.bragadev.fiscal.domain.model.CategoryNode
+import com.bragadev.fiscal.domain.model.DocumentCategory
 import com.bragadev.fiscal.domain.model.DuplicatePolicy
 import com.bragadev.fiscal.domain.model.DuplicateResolution
 import com.bragadev.fiscal.domain.model.FileOperationError
@@ -23,6 +25,8 @@ import com.bragadev.fiscal.presentation.common.Strings
 import com.bragadev.fiscal.presentation.common.UserMessage
 import com.bragadev.fiscal.presentation.common.ViewModel
 import com.bragadev.fiscal.presentation.common.toUserMessage
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,6 +50,7 @@ class OrganizerViewModel(
     private val documentChanges: DocumentChangeNotifier,
     periodPolicy: EditablePeriodPolicy,
 ) : ViewModel() {
+    private var descriptionJob: Job? = null
     private val state = MutableStateFlow(OrganizerUiState(firstEditableMonth = periodPolicy.firstEditableMonth))
     val uiState: StateFlow<OrganizerUiState> = state.asStateFlow()
 
@@ -79,8 +84,13 @@ class OrganizerViewModel(
 
     fun onModeChosen(mode: OrganizeMode) {
         val proposal = state.value.dialog as? OrganizerDialog.Proposal ?: return
-        val plan = if (mode == OrganizeMode.RENAME_ONLY) proposal.renamePlan else proposal.movePlan
-        plan?.let { proceed(it, resolution = null) }
+        descriptionJob?.cancel()
+        scope.launch {
+            // Recalcula com a descrição atual: o usuário pode ter clicado antes do cálculo automático.
+            val fresh = if (proposal.needsDescription) buildProposal(proposal.source, proposal.category, proposal.description) else proposal
+            val plan = if (mode == OrganizeMode.RENAME_ONLY) fresh.renamePlan else fresh.movePlan
+            if (plan == null) state.update { it.copy(dialog = fresh) } else proceed(plan, resolution = null)
+        }
     }
 
     fun onConflictResolved(resolution: DuplicateResolution) {
@@ -144,16 +154,68 @@ class OrganizerViewModel(
         }
     }
 
-    private suspend fun proposeOrganization(source: Path, categoryId: String) {
-        val movePlan = planOrganization(source, categoryId, OrganizeMode.RENAME_AND_MOVE)
-        val renamePlan = planOrganization(source, categoryId, OrganizeMode.RENAME_ONLY)
-        val available = listOfNotNull(movePlan.getOrNull(), renamePlan.getOrNull())
-        if (available.isEmpty()) return showError(firstError(movePlan, renamePlan).toUserMessage())
-
-        val category = available.first().category
-        state.update {
-            it.copy(dialog = OrganizerDialog.Proposal(source, category, renamePlan.getOrNull(), movePlan.getOrNull()))
+    /** Descrição digitada no diálogo (ex.: Despesas): recalcula o nome final enquanto o usuário escreve. */
+    fun onDescriptionChanged(text: String) {
+        val proposal = state.value.dialog as? OrganizerDialog.Proposal ?: return
+        state.update { it.copy(dialog = proposal.copy(description = text)) }
+        descriptionJob?.cancel()
+        descriptionJob = scope.launch {
+            delay(DESCRIPTION_DEBOUNCE_MS)
+            val updated = buildProposal(proposal.source, proposal.category, text)
+            val current = state.value.dialog as? OrganizerDialog.Proposal
+            if (current?.source == proposal.source && current.category == proposal.category) {
+                state.update { it.copy(dialog = updated) }
+            }
         }
+    }
+
+    private suspend fun proposeOrganization(source: Path, categoryId: String) {
+        val category = findCategory(categoryId)
+            ?: return showError(FileOperationError.CategoryNotFound.toUserMessage())
+        val description = planOrganization.suggestDescription(source, categoryId)
+        val plans = planBoth(source, categoryId, description)
+        val proposal = proposalFrom(source, category, description, plans)
+
+        val nothingAvailable = proposal.movePlan == null && proposal.renamePlan == null
+        if (nothingAvailable && proposal.inputError == null) return showError(firstError(*plans).toUserMessage())
+        state.update { it.copy(dialog = proposal) }
+    }
+
+    /**
+     * Monta a proposta com os dois planos. Problemas na descrição viram aviso dentro do diálogo;
+     * os demais (mês bloqueado, arquivo inexistente...) são tratados por quem chamou.
+     */
+    private suspend fun buildProposal(source: Path, category: DocumentCategory, description: String?) =
+        proposalFrom(source, category, description, planBoth(source, category.id, description))
+
+    private fun proposalFrom(
+        source: Path,
+        category: DocumentCategory,
+        description: String?,
+        plans: Array<Outcome<OrganizationPlan>>,
+    ): OrganizerDialog.Proposal {
+        val (movePlan, renamePlan) = plans
+        val inputError = if (description == null) null else descriptionError(movePlan, renamePlan)
+        return OrganizerDialog.Proposal(source, category, renamePlan.getOrNull(), movePlan.getOrNull(), description, inputError)
+    }
+
+    private suspend fun planBoth(source: Path, categoryId: String, description: String?): Array<Outcome<OrganizationPlan>> = arrayOf(
+        planOrganization(source, categoryId, OrganizeMode.RENAME_AND_MOVE, description),
+        planOrganization(source, categoryId, OrganizeMode.RENAME_ONLY, description),
+    )
+
+    private fun descriptionError(vararg outcomes: Outcome<OrganizationPlan>): String? {
+        if (outcomes.any { it is Outcome.Success }) return null
+        val error = firstError(*outcomes)
+        val isInputProblem = error == FileOperationError.DescriptionRequired ||
+            error == FileOperationError.InvalidFileName || error == FileOperationError.AlreadyInPlace
+        return if (isInputProblem) error.toUserMessage() else null
+    }
+
+    private fun findCategory(id: String): DocumentCategory? {
+        fun search(nodes: List<CategoryNode>): DocumentCategory? =
+            nodes.firstNotNullOfOrNull { node -> node.category.takeIf { it.id == id } ?: search(node.children) }
+        return state.value.groups.firstNotNullOfOrNull { search(it.nodes) }
     }
 
     /** Resolve conflito (conforme configuração) e confirmação antes de executar. */
@@ -216,5 +278,9 @@ class OrganizerViewModel(
 
     private fun showMessage(message: UserMessage) {
         state.update { it.copy(message = message) }
+    }
+
+    private companion object {
+        const val DESCRIPTION_DEBOUNCE_MS = 250L
     }
 }

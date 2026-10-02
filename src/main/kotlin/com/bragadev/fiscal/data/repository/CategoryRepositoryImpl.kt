@@ -18,7 +18,7 @@ class CategoryRepositoryImpl(private val categoryDao: CategoryDao) : CategoryRep
 
     private suspend fun ensureDefaultsSeeded() = seedMutex.withLock {
         if (seeded) return@withLock
-        categoryDao.insertMissing(DefaultCategories.all)
+        categoryDao.upsert(DefaultCategories.all)
         seeded = true
     }
 }

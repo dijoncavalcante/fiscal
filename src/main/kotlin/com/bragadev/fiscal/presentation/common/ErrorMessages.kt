@@ -23,6 +23,7 @@ fun FileOperationError.toUserMessage(): String = when (this) {
     FileOperationError.CategoryNotInMonthAccount -> "Esta categoria não pertence à conta da pasta do mês em edição."
     FileOperationError.CategoryNotFound -> "A categoria escolhida não existe mais."
     FileOperationError.AlreadyInPlace -> Strings.ALREADY_ORGANIZED
+    FileOperationError.DescriptionRequired -> "Escreva a descrição para montar o nome do arquivo."
     FileOperationError.ReadError -> "Não foi possível ler o arquivo."
     FileOperationError.MoveError -> "Não foi possível mover o arquivo."
     is FileOperationError.UndoNotPossible -> reason.toUserMessage()

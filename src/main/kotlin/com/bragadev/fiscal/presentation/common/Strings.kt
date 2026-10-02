@@ -105,6 +105,9 @@ object Strings {
     const val CANCEL_OPERATION = "Cancelar"
     const val REPLACE_NOTE = "O arquivo existente será guardado em backup e pode ser restaurado com \"Desfazer\"."
     const val ALREADY_ORGANIZED = "Este documento já está com o nome e o local corretos."
+    const val DESCRIPTION_HINT = "Ex.: Compra de cartazes para o display"
+
+    fun descriptionTitle(fileWord: String) = "Descrição da $fileWord (vai no nome do arquivo)"
 
     fun organizeTitle(category: String) = "Organizar como \"$category\""
     fun conflictMessage(fileName: String) = "O arquivo \"$fileName\" já existe."

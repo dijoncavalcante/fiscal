@@ -7,7 +7,11 @@ data class DocumentCategory(
     val accountType: AccountType,
     val parentId: String? = null,
     val namingRule: NamingRule = NamingRule.CATEGORY_NAME,
+    /** Palavra usada no nome do arquivo quando difere do nome da categoria ("Despesas" → "Despesa"). */
+    val fileBaseName: String? = null,
 ) {
+    val fileWord: String get() = fileBaseName ?: name
+
     /**
      * Rótulo da categoria, também usado como nome do arquivo na pasta do mês.
      *
