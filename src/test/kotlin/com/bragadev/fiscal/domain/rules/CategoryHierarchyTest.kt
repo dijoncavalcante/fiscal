@@ -12,19 +12,26 @@ class CategoryHierarchyTest {
     @Test
     fun `arvore agrupa por conta e aninha subcategorias`() {
         val tree = hierarchy.tree()
-        assertEquals(listOf(AccountType.CONGREGACAO, AccountType.MANUTENCAO, AccountType.OUTROS), tree.map { it.accountType })
+        assertEquals(listOf(AccountType.CONGREGACAO, AccountType.MANUTENCAO), tree.map { it.accountType })
 
         val congregacao = tree.first()
-        assertEquals(9, congregacao.nodes.size)
         val remessa = congregacao.nodes.first { it.category.number == "5" }
         assertEquals(listOf("5.1"), remessa.children.map { it.category.number })
-        assertEquals(5, tree[1].nodes.size)
     }
 
     @Test
-    fun `pasta da manutencao mostra so manutencao e outros`() {
+    fun `outros fica no final de cada conta`() {
+        val tree = hierarchy.tree()
+        tree.forEach { group -> assertEquals(DefaultCategories.OUTROS_ID, group.nodes.last().category.id) }
+        assertEquals(10, tree[0].nodes.size)
+        assertEquals(6, tree[1].nodes.size)
+    }
+
+    @Test
+    fun `pasta da manutencao mostra so manutencao com outros no final`() {
         val tree = hierarchy.tree(AccountType.MANUTENCAO)
-        assertEquals(listOf(AccountType.MANUTENCAO, AccountType.OUTROS), tree.map { it.accountType })
+        assertEquals(listOf(AccountType.MANUTENCAO), tree.map { it.accountType })
+        assertEquals(DefaultCategories.OUTROS_ID, tree.single().nodes.last().category.id)
     }
 
     @Test

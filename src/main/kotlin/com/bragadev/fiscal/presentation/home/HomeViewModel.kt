@@ -43,8 +43,9 @@ class HomeViewModel(
         }
     }
 
+    /** Relê as duas pastas: a de origem (aqui) e a do mês (no organizador). */
     fun onRefresh() {
-        scope.launch { refresh(currentSourceFolder) }
+        documentChanges.notifyChanged()
     }
 
     fun onSourceFolderSelected(path: Path) {

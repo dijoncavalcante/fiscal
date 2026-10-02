@@ -60,6 +60,18 @@ object Strings {
     const val DROP_HERE = "Solte o arquivo aqui"
     const val SELECT_OR_DRAG = "Selecione um documento na lista ou arraste um PDF até a categoria."
     const val ONE_FILE_AT_A_TIME = "Arraste um arquivo por vez."
+    const val FILE_MISSING = "Faltando"
+    const val FILE_PRESENT = "Já existe"
+    const val UNMATCHED_FILES = "Arquivos sem número de categoria"
+    const val EXPAND = "Expandir"
+    const val COLLAPSE = "Recolher"
+
+    fun groupSummary(present: Int, total: Int) = "$present de $total com arquivo"
+    fun sequentialCount(count: Int) = when (count) {
+        0 -> "Nenhum arquivo"
+        1 -> "1 arquivo"
+        else -> "$count arquivos"
+    }
 
     // Preview
     const val PREVIEW = "PREVIEW"

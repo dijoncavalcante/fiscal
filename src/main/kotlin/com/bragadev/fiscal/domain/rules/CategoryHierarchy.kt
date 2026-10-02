@@ -12,14 +12,21 @@ class CategoryHierarchy(private val categories: List<DocumentCategory>) {
     fun find(id: String): DocumentCategory? = byId[id]
 
     /**
-     * Árvore agrupada por conta. Com [account] informado, mostra só aquela conta e "Outros".
+     * Árvore agrupada por conta, com "Outros" no final de cada conta.
+     * Com [account] informado, mostra só aquela conta.
      */
-    fun tree(account: AccountType? = null): List<AccountGroup> = AccountType.entries
-        .filter { account == null || it == account || it.isCatchAll }
-        .mapNotNull { type ->
-            val roots = categories.filter { it.accountType == type && it.parentId == null }
-            if (roots.isEmpty()) null else AccountGroup(type, roots.map(::nodeOf))
-        }
+    fun tree(account: AccountType? = null): List<AccountGroup> {
+        val catchAll = rootsOf { it.accountType.isCatchAll }
+        return AccountType.entries
+            .filter { !it.isCatchAll && (account == null || it == account) }
+            .mapNotNull { type ->
+                val roots = rootsOf { it.accountType == type }
+                if (roots.isEmpty()) null else AccountGroup(type, (roots + catchAll).map(::nodeOf))
+            }
+    }
+
+    private fun rootsOf(filter: (DocumentCategory) -> Boolean): List<DocumentCategory> =
+        categories.filter { it.parentId == null && filter(it) }
 
     /** Uma categoria pode ser usada numa pasta de mês da conta dela, ou sempre, se for "Outros". */
     fun isAllowedIn(category: DocumentCategory, account: AccountType?): Boolean =

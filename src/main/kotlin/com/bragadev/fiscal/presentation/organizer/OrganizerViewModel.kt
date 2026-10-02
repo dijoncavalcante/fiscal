@@ -12,6 +12,7 @@ import com.bragadev.fiscal.domain.rules.EditablePeriodPolicy
 import com.bragadev.fiscal.domain.usecase.ChangeMonthFolderUseCase
 import com.bragadev.fiscal.domain.usecase.DescribeMonthFolderUseCase
 import com.bragadev.fiscal.domain.usecase.GetCategoryTreeUseCase
+import com.bragadev.fiscal.domain.usecase.GetMonthChecklistUseCase
 import com.bragadev.fiscal.domain.usecase.ObserveSettingsUseCase
 import com.bragadev.fiscal.domain.usecase.OrganizeDocumentUseCase
 import com.bragadev.fiscal.domain.usecase.OrganizeResult
@@ -35,6 +36,7 @@ import java.util.UUID
 /** Lado direito: mês em edição, categorias e as operações de organizar e desfazer. */
 class OrganizerViewModel(
     private val getCategoryTree: GetCategoryTreeUseCase,
+    private val getMonthChecklist: GetMonthChecklistUseCase,
     private val planOrganization: PlanOrganizationUseCase,
     private val organizeDocument: OrganizeDocumentUseCase,
     private val undoOperation: UndoOperationUseCase,
@@ -53,6 +55,9 @@ class OrganizerViewModel(
         scope.launch { refreshUndoAvailability() }
         scope.launch {
             observeSettings().map { it.monthFolder }.distinctUntilChanged().collect(::showMonthFolder)
+        }
+        scope.launch {
+            documentChanges.changes.collect { refreshChecklist() }
         }
     }
 
@@ -117,6 +122,14 @@ class OrganizerViewModel(
         val info = folder?.let { describeMonthFolder(it) }
         val groups = getCategoryTree(info?.account)
         state.update { it.copy(monthFolder = info, groups = groups) }
+        refreshChecklist()
+    }
+
+    /** Relê a pasta do mês para mostrar o que já existe e o que está faltando. */
+    private suspend fun refreshChecklist() {
+        val info = state.value.monthFolder
+        val checklist = info?.let { getMonthChecklist(it.path, it.account) }
+        state.update { it.copy(checklist = checklist) }
     }
 
     /** Motivo para recusar a organização antes mesmo de calcular a proposta. */

@@ -10,20 +10,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bragadev.fiscal.domain.model.MonthFolderInfo
 import com.bragadev.fiscal.domain.model.MonthFolderStatus
 import com.bragadev.fiscal.presentation.common.Strings
 import com.bragadev.fiscal.presentation.components.FolderPathField
+import com.bragadev.fiscal.presentation.components.StatusColors
 import java.time.YearMonth
-
-private val EditableColor = Color(0xFF1B7F3B)
-private val EditableBackground = Color(0xFFE3F4E8)
-private val LockedBackground = Color(0xFFFDE7E7)
-private val UnknownBackground = Color(0xFFFFF4D6)
-private val UnknownColor = Color(0xFF8A5A00)
 
 /**
  * Cabeçalho do lado direito: o mês em edição em destaque, se ele está liberado ou bloqueado,
@@ -54,9 +48,9 @@ fun MonthHeader(
 private fun MonthBanner(monthFolder: MonthFolderInfo?, firstEditableMonth: YearMonth) {
     val (title, status, hint) = bannerTexts(monthFolder, firstEditableMonth)
     val (background, accent) = when (monthFolder?.status) {
-        MonthFolderStatus.EDITABLE -> EditableBackground to EditableColor
-        MonthFolderStatus.LOCKED -> LockedBackground to MaterialTheme.colorScheme.error
-        else -> UnknownBackground to UnknownColor
+        MonthFolderStatus.EDITABLE -> StatusColors.PositiveBackground to StatusColors.Positive
+        MonthFolderStatus.LOCKED -> StatusColors.LockedBackground to MaterialTheme.colorScheme.error
+        else -> StatusColors.WarningBackground to StatusColors.Warning
     }
     Surface(color = background, shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {

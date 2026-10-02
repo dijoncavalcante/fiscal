@@ -25,6 +25,7 @@ import com.bragadev.fiscal.domain.usecase.ChangeMonthFolderUseCase
 import com.bragadev.fiscal.domain.usecase.ChangeSourceFolderUseCase
 import com.bragadev.fiscal.domain.usecase.DescribeMonthFolderUseCase
 import com.bragadev.fiscal.domain.usecase.GetCategoryTreeUseCase
+import com.bragadev.fiscal.domain.usecase.GetMonthChecklistUseCase
 import com.bragadev.fiscal.domain.usecase.ObserveSettingsUseCase
 import com.bragadev.fiscal.domain.usecase.OrganizeDocumentUseCase
 import com.bragadev.fiscal.domain.usecase.PlanOrganizationUseCase
@@ -67,6 +68,7 @@ fun appModule(directories: AppDirectories) = module {
     factory { ObserveSettingsUseCase(get()) }
     factory { UpdateSettingsUseCase(get()) }
     factory { GetCategoryTreeUseCase(get()) }
+    factory { GetMonthChecklistUseCase(get(), get()) }
     factory { PlanOrganizationUseCase(get(), get(), get(), get()) }
     factory { OrganizeDocumentUseCase(get(), get(), get(), get(), get(), get()) }
     factory { UndoOperationUseCase(get(), get(), get(), get()) }
@@ -76,6 +78,6 @@ fun appModule(directories: AppDirectories) = module {
     single { DocumentChangeNotifier() }
     single { HomeViewModel(get(), get(), get(), get(), get()) }
     single { PdfPreviewViewModel(get()) }
-    single { OrganizerViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    single { OrganizerViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     single { SettingsViewModel(get(), get(), get(), get(), get()) }
 }
