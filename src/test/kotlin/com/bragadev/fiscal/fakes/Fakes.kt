@@ -18,7 +18,7 @@ import java.util.UUID
 class FakeSettingsRepository(initial: AppSettings) : SettingsRepository {
     private val state = MutableStateFlow(initial)
     override val settings: StateFlow<AppSettings> = state
-    override val suggestedRootPath: Path = Path.of("nao-existe", "pendriver")
+    override val suggestedSourceFolder: Path = Path.of("nao-existe", "pendriver")
 
     override suspend fun load(): AppSettings = state.value
 

@@ -3,7 +3,10 @@ package com.bragadev.fiscal.domain.model
 import java.nio.file.Path
 
 data class AppSettings(
-    val rootPath: Path? = null,
+    /** Pasta exibida à esquerda, de onde os PDFs são escolhidos. */
+    val sourceFolder: Path? = null,
+    /** Pasta do mês que está sendo editado, à direita. Destino dos documentos organizados. */
+    val monthFolder: Path? = null,
     val duplicatePolicy: DuplicatePolicy = DuplicatePolicy.ASK,
     val confirmBeforeMove: Boolean = true,
     val confirmBeforeRename: Boolean = true,

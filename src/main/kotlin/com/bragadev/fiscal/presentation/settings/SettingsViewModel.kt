@@ -3,7 +3,9 @@ package com.bragadev.fiscal.presentation.settings
 import com.bragadev.fiscal.domain.model.AppSettings
 import com.bragadev.fiscal.domain.model.DuplicatePolicy
 import com.bragadev.fiscal.domain.model.Outcome
-import com.bragadev.fiscal.domain.usecase.ChangeRootFolderUseCase
+import com.bragadev.fiscal.domain.rules.EditablePeriodPolicy
+import com.bragadev.fiscal.domain.usecase.ChangeMonthFolderUseCase
+import com.bragadev.fiscal.domain.usecase.ChangeSourceFolderUseCase
 import com.bragadev.fiscal.domain.usecase.ObserveSettingsUseCase
 import com.bragadev.fiscal.domain.usecase.UpdateSettingsUseCase
 import com.bragadev.fiscal.presentation.common.ViewModel
@@ -18,12 +20,15 @@ import java.nio.file.Path
 class SettingsViewModel(
     private val observeSettings: ObserveSettingsUseCase,
     private val updateSettings: UpdateSettingsUseCase,
-    private val changeRootFolder: ChangeRootFolderUseCase,
+    private val changeSourceFolder: ChangeSourceFolderUseCase,
+    private val changeMonthFolder: ChangeMonthFolderUseCase,
+    periodPolicy: EditablePeriodPolicy,
 ) : ViewModel() {
-    private val state = MutableStateFlow(SettingsUiState())
+    private val state = MutableStateFlow(SettingsUiState(firstEditableMonth = periodPolicy.firstEditableMonth))
     val uiState: StateFlow<SettingsUiState> = state.asStateFlow()
 
-    val currentRoot: Path? get() = observeSettings().value.rootPath
+    val currentSourceFolder: Path? get() = observeSettings().value.sourceFolder
+    val currentMonthFolder: Path? get() = observeSettings().value.monthFolder
 
     init {
         scope.launch {
@@ -31,12 +36,9 @@ class SettingsViewModel(
         }
     }
 
-    fun onRootSelected(path: Path) {
-        scope.launch {
-            val result = changeRootFolder(path)
-            if (result is Outcome.Failure) state.update { it.copy(error = result.error.toUserMessage()) }
-        }
-    }
+    fun onSourceFolderSelected(path: Path) = changeFolder { changeSourceFolder(path) }
+
+    fun onMonthFolderSelected(path: Path) = changeFolder { changeMonthFolder(path) }
 
     fun onDuplicatePolicyChanged(policy: DuplicatePolicy) = update { it.copy(duplicatePolicy = policy) }
 
@@ -44,8 +46,11 @@ class SettingsViewModel(
 
     fun onConfirmRenameChanged(enabled: Boolean) = update { it.copy(confirmBeforeRename = enabled) }
 
-    fun onErrorShown() {
-        state.update { it.copy(error = null) }
+    private fun changeFolder(change: suspend () -> Outcome<*>) {
+        scope.launch {
+            val result = change()
+            state.update { it.copy(error = (result as? Outcome.Failure)?.error?.toUserMessage()) }
+        }
     }
 
     private fun update(transform: (AppSettings) -> AppSettings) {
@@ -53,7 +58,8 @@ class SettingsViewModel(
     }
 
     private fun SettingsUiState.fromSettings(settings: AppSettings) = copy(
-        rootPath = settings.rootPath?.toString().orEmpty(),
+        sourceFolder = settings.sourceFolder?.toString().orEmpty(),
+        monthFolder = settings.monthFolder?.toString().orEmpty(),
         duplicatePolicy = settings.duplicatePolicy,
         confirmBeforeMove = settings.confirmBeforeMove,
         confirmBeforeRename = settings.confirmBeforeRename,

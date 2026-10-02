@@ -7,6 +7,7 @@ import com.bragadev.fiscal.domain.model.UndoBlockReason
 import com.bragadev.fiscal.domain.repository.DocumentRepository
 import com.bragadev.fiscal.domain.repository.FileRepository
 import com.bragadev.fiscal.domain.repository.OperationHistoryRepository
+import com.bragadev.fiscal.domain.rules.EditablePeriodPolicy
 import java.nio.file.Path
 import java.util.UUID
 
@@ -20,6 +21,7 @@ class UndoOperationUseCase(
     private val fileRepository: FileRepository,
     private val historyRepository: OperationHistoryRepository,
     private val documentRepository: DocumentRepository,
+    private val periodPolicy: EditablePeriodPolicy,
 ) {
     suspend operator fun invoke(operationId: UUID): Outcome<FileOperation> {
         val operation = historyRepository.find(operationId) ?: return blocked(UndoBlockReason.OPERATION_NOT_FOUND)
@@ -27,6 +29,9 @@ class UndoOperationUseCase(
 
         val current = Path.of(operation.newPath)
         val original = Path.of(operation.originalPath)
+        listOf(current.parent, original.parent).forEach { folder ->
+            periodPolicy.checkSource(folder)?.let { return Outcome.Failure(it) }
+        }
         val restored = fileRepository.move(current, original)
         if (restored is Outcome.Failure) return restored
 

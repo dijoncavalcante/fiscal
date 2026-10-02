@@ -13,7 +13,6 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -27,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bragadev.fiscal.domain.model.DuplicatePolicy
 import com.bragadev.fiscal.presentation.common.Strings
+import com.bragadev.fiscal.presentation.components.FolderPathField
 import com.bragadev.fiscal.presentation.components.pickFolder
 
 @Composable
@@ -39,7 +39,8 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
             Text(Strings.SETTINGS, style = MaterialTheme.typography.headlineSmall)
         }
         Column(Modifier.widthIn(max = 720.dp).padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            RootFolderSection(state.rootPath) { pickFolder(viewModel.currentRoot)?.let(viewModel::onRootSelected) }
+            FoldersSection(state, viewModel)
+            Section(Strings.SETTINGS_LOCK_SECTION) { Text(Strings.lockedHint(state.firstEditableMonth)) }
             DuplicatesSection(state.duplicatePolicy, viewModel::onDuplicatePolicyChanged)
             ConfirmationSection(state, viewModel)
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -48,10 +49,26 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun RootFolderSection(rootPath: String, onChangeFolder: () -> Unit) = Section(Strings.SETTINGS_ROOT_SECTION) {
-    Text(Strings.SETTINGS_CURRENT_FOLDER, style = MaterialTheme.typography.labelMedium)
-    Text(rootPath.ifBlank { Strings.SETTINGS_NO_FOLDER }, style = MaterialTheme.typography.bodyLarge)
-    OutlinedButton(onClick = onChangeFolder, modifier = Modifier.padding(top = 8.dp)) { Text(Strings.SETTINGS_CHANGE_FOLDER) }
+private fun FoldersSection(state: SettingsUiState, viewModel: SettingsViewModel) = Section(Strings.SETTINGS_FOLDERS_SECTION) {
+    FolderPathField(
+        label = Strings.SOURCE_FOLDER_LABEL,
+        path = state.sourceFolder,
+        emptyText = Strings.SOURCE_FOLDER_EMPTY,
+        editDescription = Strings.SOURCE_FOLDER_EDIT,
+        onEdit = {
+            pickFolder(Strings.SOURCE_FOLDER_PICKER_TITLE, viewModel.currentSourceFolder)?.let(viewModel::onSourceFolderSelected)
+        },
+    )
+    FolderPathField(
+        label = Strings.MONTH_FOLDER_LABEL,
+        path = state.monthFolder,
+        emptyText = Strings.MONTH_FOLDER_EMPTY,
+        editDescription = Strings.MONTH_FOLDER_EDIT,
+        onEdit = {
+            pickFolder(Strings.MONTH_FOLDER_PICKER_TITLE, viewModel.currentMonthFolder)?.let(viewModel::onMonthFolderSelected)
+        },
+        modifier = Modifier.padding(top = 12.dp),
+    )
 }
 
 @Composable

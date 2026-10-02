@@ -1,8 +1,6 @@
 package com.bragadev.fiscal.domain.usecase
 
-import com.bragadev.fiscal.domain.model.DocumentCategory
 import com.bragadev.fiscal.domain.model.FileOperationError
-import com.bragadev.fiscal.domain.model.NamingRule
 import com.bragadev.fiscal.domain.model.OrganizationPlan
 import com.bragadev.fiscal.domain.model.OrganizeMode
 import com.bragadev.fiscal.domain.model.Outcome
@@ -12,37 +10,52 @@ import com.bragadev.fiscal.domain.repository.SettingsRepository
 import com.bragadev.fiscal.domain.rules.CategoryHierarchy
 import com.bragadev.fiscal.domain.rules.CategoryNaming
 import com.bragadev.fiscal.domain.rules.DuplicateNameResolver
+import com.bragadev.fiscal.domain.rules.EditablePeriodPolicy
 import com.bragadev.fiscal.domain.rules.FileNameRules
-import com.bragadev.fiscal.domain.rules.SequentialNaming
 import java.nio.file.Path
 
 /**
  * Calcula destino, novo nome e conflitos de uma organização, sem alterar nada em disco.
+ *
+ * - "Renomear e Mover" leva o arquivo para a pasta do mês em edição.
+ * - "Renomear" mantém o arquivo na pasta onde ele está.
+ * Em ambos os casos, nenhuma pasta de mês bloqueado pode ser alterada.
  */
 class PlanOrganizationUseCase(
     private val categoryRepository: CategoryRepository,
     private val fileRepository: FileRepository,
     private val settingsRepository: SettingsRepository,
+    private val periodPolicy: EditablePeriodPolicy,
 ) {
     suspend operator fun invoke(source: Path, categoryId: String, mode: OrganizeMode): Outcome<OrganizationPlan> {
-        val root = settingsRepository.settings.value.rootPath
-            ?: return Outcome.Failure(FileOperationError.RootNotConfigured)
         if (!fileRepository.exists(source)) return Outcome.Failure(FileOperationError.FileNotFound)
         if (!fileRepository.isPdf(source)) return Outcome.Failure(FileOperationError.InvalidPdf)
+        periodPolicy.checkSource(source.parent)?.let { return Outcome.Failure(it) }
+
+        val targetDirectory = when (mode) {
+            OrganizeMode.RENAME_ONLY -> source.parent
+            OrganizeMode.RENAME_AND_MOVE -> settingsRepository.settings.value.monthFolder
+                ?: return Outcome.Failure(FileOperationError.MonthFolderNotSelected)
+        }
+        if (mode == OrganizeMode.RENAME_AND_MOVE) {
+            periodPolicy.checkDestination(targetDirectory)?.let { return Outcome.Failure(it) }
+        }
 
         val hierarchy = CategoryHierarchy(categoryRepository.getCategories())
         val category = hierarchy.find(categoryId) ?: return Outcome.Failure(FileOperationError.CategoryNotFound)
-        val targetDirectory = targetDirectoryFor(source, root, category, hierarchy, mode)
+        val targetAccount = periodPolicy.describe(targetDirectory).account
+        if (!hierarchy.isAllowedIn(category, targetAccount)) {
+            return Outcome.Failure(FileOperationError.CategoryNotInMonthAccount)
+        }
 
         val sourceName = source.fileName.toString()
         val isSameDirectory = targetDirectory.normalize() == source.parent.normalize()
+        if (isSameDirectory && CategoryNaming.isAlreadyNamedFor(category, sourceName)) {
+            return Outcome.Failure(FileOperationError.AlreadyInPlace)
+        }
         val existingNames = fileRepository.listFileNames(targetDirectory)
             .filterNot { isSameDirectory && it.equals(sourceName, ignoreCase = true) }
             .toSet()
-
-        if (isSameDirectory && alreadyNamedFor(category, sourceName)) {
-            return Outcome.Failure(FileOperationError.AlreadyInPlace)
-        }
 
         val suggestedName = CategoryNaming.suggestedName(category, existingNames)
         if (!FileNameRules.isValid(suggestedName)) return Outcome.Failure(FileOperationError.InvalidFileName)
@@ -58,21 +71,5 @@ class PlanOrganizationUseCase(
                 numberedCopyName = DuplicateNameResolver.nextNumberedCopy(suggestedName, existingNames),
             ),
         )
-    }
-
-    private fun targetDirectoryFor(
-        source: Path,
-        root: Path,
-        category: DocumentCategory,
-        hierarchy: CategoryHierarchy,
-        mode: OrganizeMode,
-    ): Path = when (mode) {
-        OrganizeMode.RENAME_ONLY -> source.parent
-        OrganizeMode.RENAME_AND_MOVE -> hierarchy.folderSegments(category).fold(root) { path, segment -> path.resolve(segment) }
-    }
-
-    private fun alreadyNamedFor(category: DocumentCategory, fileName: String): Boolean = when (category.namingRule) {
-        NamingRule.CATEGORY_NAME -> fileName.equals(FileNameRules.withPdfExtension(category.name), ignoreCase = true)
-        NamingRule.SEQUENTIAL -> SequentialNaming.matches(category.name, fileName)
     }
 }

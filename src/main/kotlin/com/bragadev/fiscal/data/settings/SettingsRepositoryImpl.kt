@@ -11,7 +11,7 @@ import java.nio.file.Path
 
 class SettingsRepositoryImpl(
     private val settingsDao: SettingsDao,
-    override val suggestedRootPath: Path = Path.of(DEFAULT_SUGGESTED_ROOT),
+    override val suggestedSourceFolder: Path = Path.of(DEFAULT_SUGGESTED_FOLDER),
 ) : SettingsRepository {
     private val state = MutableStateFlow(AppSettings())
     override val settings: StateFlow<AppSettings> = state.asStateFlow()
@@ -20,7 +20,8 @@ class SettingsRepositoryImpl(
         val values = settingsDao.getAll()
         val defaults = AppSettings()
         val loaded = AppSettings(
-            rootPath = values[Keys.ROOT_PATH]?.let(Path::of),
+            sourceFolder = (values[Keys.SOURCE_FOLDER] ?: values[Keys.LEGACY_ROOT_PATH])?.let(Path::of),
+            monthFolder = values[Keys.MONTH_FOLDER]?.let(Path::of),
             duplicatePolicy = values[Keys.DUPLICATE_POLICY]
                 ?.let { runCatching { DuplicatePolicy.valueOf(it) }.getOrNull() }
                 ?: defaults.duplicatePolicy,
@@ -34,7 +35,9 @@ class SettingsRepositoryImpl(
     override suspend fun save(settings: AppSettings) {
         settingsDao.putAll(
             mapOf(
-                Keys.ROOT_PATH to settings.rootPath?.toString(),
+                Keys.SOURCE_FOLDER to settings.sourceFolder?.toString(),
+                Keys.MONTH_FOLDER to settings.monthFolder?.toString(),
+                Keys.LEGACY_ROOT_PATH to null,
                 Keys.DUPLICATE_POLICY to settings.duplicatePolicy.name,
                 Keys.CONFIRM_MOVE to settings.confirmBeforeMove.toString(),
                 Keys.CONFIRM_RENAME to settings.confirmBeforeRename.toString(),
@@ -44,7 +47,9 @@ class SettingsRepositoryImpl(
     }
 
     private object Keys {
-        const val ROOT_PATH = "root_path"
+        const val SOURCE_FOLDER = "source_folder"
+        const val MONTH_FOLDER = "month_folder"
+        const val LEGACY_ROOT_PATH = "root_path"
         const val DUPLICATE_POLICY = "duplicate_policy"
         const val CONFIRM_MOVE = "confirm_before_move"
         const val CONFIRM_RENAME = "confirm_before_rename"
@@ -52,6 +57,6 @@ class SettingsRepositoryImpl(
 
     companion object {
         /** Único caminho absoluto do projeto: apenas uma sugestão inicial, usada se existir. */
-        const val DEFAULT_SUGGESTED_ROOT = "D:\\Modelo\\jw\\pendriver"
+        const val DEFAULT_SUGGESTED_FOLDER = "D:\\Modelo\\jw\\pendriver"
     }
 }

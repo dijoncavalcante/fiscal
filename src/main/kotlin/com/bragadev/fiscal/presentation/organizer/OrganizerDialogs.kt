@@ -41,17 +41,18 @@ fun OrganizerDialogHost(state: OrganizerUiState, viewModel: OrganizerViewModel) 
 private fun ProposalDialog(dialog: OrganizerDialog.Proposal, state: OrganizerUiState, viewModel: OrganizerViewModel) {
     AlertDialog(
         onDismissRequest = viewModel::dismissDialog,
-        title = { Text(Strings.organizeTitle(dialog.category.folderName)) },
+        title = { Text(Strings.organizeTitle(dialog.category.label)) },
         text = {
             Column(Modifier.width(460.dp)) {
                 LabeledValue(Strings.CURRENT_FILE, dialog.source.fileName.toString())
                 dialog.movePlan?.let { plan ->
                     LabeledValue(Strings.NEW_NAME, plan.suggestedName)
-                    LabeledValue(Strings.DESTINATION, state.destinationLabel(plan.targetDirectory))
+                    MonthLine(state)
+                    LabeledValue(Strings.DESTINATION, plan.targetDirectory.toString())
                 }
                 dialog.renamePlan?.let { plan ->
                     HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                    LabeledValue(Strings.CURRENT_FOLDER, "${state.destinationLabel(plan.targetDirectory)}${plan.suggestedName}")
+                    LabeledValue(Strings.CURRENT_FOLDER, plan.targetPath.toString())
                 }
             }
         },
@@ -113,7 +114,8 @@ private fun ConfirmDialog(dialog: OrganizerDialog.Confirm, state: OrganizerUiSta
         text = {
             Column(Modifier.width(460.dp)) {
                 LabeledValue(Strings.CURRENT_FILE, dialog.plan.currentName)
-                LabeledValue(Strings.DESTINATION, state.destinationLabel(dialog.plan.targetDirectory))
+                if (dialog.plan.mode == OrganizeMode.RENAME_AND_MOVE) MonthLine(state)
+                LabeledValue(Strings.DESTINATION, dialog.plan.targetDirectory.toString())
                 LabeledValue(Strings.NEW_NAME, dialog.finalName)
                 if (dialog.resolution == DuplicateResolution.REPLACE) {
                     Text(Strings.REPLACE_NOTE, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
@@ -123,4 +125,10 @@ private fun ConfirmDialog(dialog: OrganizerDialog.Confirm, state: OrganizerUiSta
         dismissButton = { TextButton(onClick = viewModel::dismissDialog) { Text(Strings.CANCEL) } },
         confirmButton = { Button(onClick = viewModel::onConfirmed) { Text(Strings.CONFIRM) } },
     )
+}
+
+/** Mês de destino, repetido nos diálogos para evitar organizar no mês errado. */
+@Composable
+private fun MonthLine(state: OrganizerUiState) {
+    state.monthFolder?.detectedMonth?.let { LabeledValue(Strings.MONTH, Strings.monthTitle(it.month)) }
 }

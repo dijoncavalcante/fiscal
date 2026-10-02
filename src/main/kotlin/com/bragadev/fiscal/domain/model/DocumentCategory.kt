@@ -9,13 +9,13 @@ data class DocumentCategory(
     val namingRule: NamingRule = NamingRule.CATEGORY_NAME,
 ) {
     /**
-     * Nome da pasta da categoria.
+     * Rótulo da categoria, também usado como nome do arquivo na pasta do mês.
      *
      * - "8" + "Extrato Bancário"         → "8. Extrato Bancário"
      * - "5.1" + "Comprovante Remessa"    → "5.1 Comprovante Remessa"
      * - sem número + "Outros"            → "Outros"
      */
-    val folderName: String
+    val label: String
         get() = when {
             number.isBlank() -> name
             number.contains('.') -> "$number $name"

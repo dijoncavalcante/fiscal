@@ -1,28 +1,53 @@
 package com.bragadev.fiscal.presentation.common
 
+import java.time.YearMonth
+import java.time.format.TextStyle
+import java.util.Locale
+
 /** Textos da interface concentrados em um único lugar. */
 object Strings {
     const val APP_TITLE = "Organizador de Documentos"
+    private val ptBr: Locale = Locale.forLanguageTag("pt-BR")
 
-    // Barra superior e pasta raiz
-    const val ROOT_LABEL = "Pasta raiz:"
-    const val ROOT_CHANGE = "Alterar"
-    const val ROOT_SELECT = "Selecionar pasta raiz"
-    const val ROOT_NOT_CONFIGURED_TITLE = "Nenhuma pasta raiz selecionada"
-    const val ROOT_NOT_CONFIGURED_BODY = "Escolha a pasta onde estão os documentos PDF para começar."
-    const val ROOT_PICKER_TITLE = "Selecione a pasta raiz dos documentos"
+    // Barra superior
     const val SETTINGS = "Configurações"
     const val UNDO_LAST = "Desfazer última"
     const val REFRESH = "Atualizar"
 
-    fun rootMissing(path: String) = "A pasta \"$path\" não foi encontrada. Conecte o pendrive ou selecione outra pasta."
+    // Pasta de origem (esquerda)
+    const val SOURCE_FOLDER_LABEL = "Pasta de origem"
+    const val SOURCE_FOLDER_EDIT = "Escolher a pasta do computador para visualizar"
+    const val SOURCE_FOLDER_PICKER_TITLE = "Escolha a pasta com os PDFs que deseja visualizar"
+    const val SOURCE_FOLDER_EMPTY = "Nenhuma pasta selecionada"
+    const val SOURCE_FOLDER_SELECT = "Clique no lápis para escolher uma pasta do computador."
+    const val SOURCE_FOLDER_MISSING = "Pasta não encontrada. Conecte o pendrive ou escolha outra pasta."
+
+    // Pasta do mês (direita)
+    const val MONTH_PANEL = "MÊS EM EDIÇÃO"
+    const val MONTH_FOLDER_LABEL = "Caminho completo da pasta do mês"
+    const val MONTH_FOLDER_EDIT = "Trocar a pasta do mês em edição"
+    const val MONTH_FOLDER_PICKER_TITLE = "Escolha a pasta do mês que deseja editar"
+    const val MONTH_FOLDER_EMPTY = "Nenhuma pasta de mês selecionada"
+    const val MONTH_NOT_SELECTED = "Selecione a pasta do mês"
+    const val MONTH_NOT_SELECTED_HINT = "Clique no lápis e escolha a pasta de um mês, por exemplo \"1. JUNHO\"."
+    const val MONTH_UNKNOWN = "Mês não identificado"
+    const val MONTH_UNKNOWN_HINT = "Esta pasta não é a pasta de um mês. Escolha a pasta do mês (ex.: \"1. JUNHO\")."
+    const val STATUS_EDITABLE = "✓ Liberado para edição"
+    const val STATUS_LOCKED = "🔒 Somente leitura"
+
+    fun monthTitle(month: YearMonth): String =
+        "${month.month.getDisplayName(TextStyle.FULL, ptBr).replaceFirstChar { it.titlecase(ptBr) }} de ${month.year}"
+
+    fun lockedHint(firstEditable: YearMonth) =
+        "Meses anteriores a ${monthTitle(firstEditable)} não podem ser alterados."
+
+    fun accountLabel(account: String) = "Conta: $account"
 
     // Documentos
     const val DOCUMENTS = "DOCUMENTOS"
     const val CATEGORIES = "CATEGORIAS"
-    const val NO_DOCUMENTS = "Nenhum PDF encontrado nesta pasta."
+    const val NO_DOCUMENTS = "Nenhum PDF nesta pasta."
     const val LOADING = "Carregando..."
-    const val ROOT_FOLDER_LABEL = "(pasta raiz)"
 
     fun statusDocuments(count: Int) = when (count) {
         0 -> "Status: nenhum documento encontrado"
@@ -54,7 +79,8 @@ object Strings {
     const val CURRENT_FILE = "Arquivo atual:"
     const val NEW_NAME = "Novo nome:"
     const val DESTINATION = "Destino:"
-    const val CURRENT_FOLDER = "Pasta atual (somente renomear):"
+    const val MONTH = "Mês:"
+    const val CURRENT_FOLDER = "Somente renomear (fica na pasta atual):"
     const val CANCEL = "Cancelar"
     const val RENAME = "Renomear"
     const val RENAME_AND_MOVE = "Renomear e Mover"
@@ -68,7 +94,7 @@ object Strings {
     const val REPLACE_NOTE = "O arquivo existente será guardado em backup e pode ser restaurado com \"Desfazer\"."
     const val ALREADY_ORGANIZED = "Este documento já está com o nome e o local corretos."
 
-    fun organizeTitle(category: String) = "Organizar em \"$category\""
+    fun organizeTitle(category: String) = "Organizar como \"$category\""
     fun conflictMessage(fileName: String) = "O arquivo \"$fileName\" já existe."
     fun numberedCopy(fileName: String) = "Criar cópia numerada ($fileName)"
 
@@ -79,10 +105,7 @@ object Strings {
 
     // Configurações
     const val BACK = "← Voltar"
-    const val SETTINGS_ROOT_SECTION = "Pasta raiz"
-    const val SETTINGS_CURRENT_FOLDER = "Pasta atual:"
-    const val SETTINGS_NO_FOLDER = "(nenhuma)"
-    const val SETTINGS_CHANGE_FOLDER = "Alterar pasta"
+    const val SETTINGS_FOLDERS_SECTION = "Pastas"
     const val SETTINGS_DUPLICATES_SECTION = "Arquivos duplicados"
     const val SETTINGS_DUPLICATE_ASK = "Perguntar sempre"
     const val SETTINGS_DUPLICATE_AUTO = "Criar cópia numerada automaticamente"
@@ -92,4 +115,5 @@ object Strings {
     const val SETTINGS_CONFIRM_RENAME = "Confirmar antes de renomear arquivos"
     const val SETTINGS_CONFIRM_NOTE =
         "Mesmo sem esta confirmação, o destino e o novo nome são sempre mostrados antes de qualquer alteração."
+    const val SETTINGS_LOCK_SECTION = "Proteção de meses"
 }

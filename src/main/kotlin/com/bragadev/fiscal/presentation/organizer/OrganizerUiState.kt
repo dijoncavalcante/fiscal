@@ -3,31 +3,29 @@ package com.bragadev.fiscal.presentation.organizer
 import com.bragadev.fiscal.domain.model.AccountGroup
 import com.bragadev.fiscal.domain.model.DocumentCategory
 import com.bragadev.fiscal.domain.model.DuplicateResolution
+import com.bragadev.fiscal.domain.model.MonthFolderInfo
 import com.bragadev.fiscal.domain.model.OrganizationPlan
 import com.bragadev.fiscal.presentation.common.UserMessage
 import java.nio.file.Path
+import java.time.YearMonth
 import java.util.UUID
 
 data class OrganizerUiState(
     val groups: List<AccountGroup> = emptyList(),
-    val rootPath: Path? = null,
+    val monthFolder: MonthFolderInfo? = null,
+    val firstEditableMonth: YearMonth = YearMonth.now(),
     val dialog: OrganizerDialog? = null,
     val isWorking: Boolean = false,
     val lastUndoableOperationId: UUID? = null,
     val message: UserMessage? = null,
 ) {
-    /** Destino mostrado ao usuário, relativo à pasta raiz: "Conta da Congregação/8. Extrato Bancário/". */
-    fun destinationLabel(directory: Path): String {
-        val root = rootPath
-        val relative = if (root != null && directory.startsWith(root)) root.relativize(directory) else directory
-        val segments = relative.map { it.toString() }.filter { it.isNotBlank() }
-        return if (segments.isEmpty()) "${root?.fileName ?: directory}/" else segments.joinToString("/", postfix = "/")
-    }
+    /** Só é possível organizar documentos com um mês identificado e liberado. */
+    val canOrganize: Boolean get() = monthFolder?.isEditable == true
 }
 
 sealed interface OrganizerDialog {
     /**
-     * Proposta inicial após soltar o arquivo: mostra nome atual, novo nome e destino.
+     * Proposta inicial após soltar o arquivo: mostra nome atual, novo nome, mês e destino.
      * Um dos planos pode ser nulo quando aquela opção não se aplica.
      */
     data class Proposal(

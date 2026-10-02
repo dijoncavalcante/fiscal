@@ -1,5 +1,7 @@
 package com.bragadev.fiscal.domain.model
 
+import java.time.YearMonth
+
 sealed class FileOperationError {
     data object FileNotFound : FileOperationError()
     data object PermissionDenied : FileOperationError()
@@ -8,8 +10,12 @@ sealed class FileOperationError {
     data object DuplicatesNotAllowed : FileOperationError()
     data object InvalidFileName : FileOperationError()
     data object InvalidPdf : FileOperationError()
-    data object RootNotConfigured : FileOperationError()
-    data object RootNotFound : FileOperationError()
+    data object FolderNotSelected : FileOperationError()
+    data object FolderNotFound : FileOperationError()
+    data object MonthFolderNotSelected : FileOperationError()
+    data object MonthNotIdentified : FileOperationError()
+    data class MonthLocked(val month: YearMonth, val firstEditableMonth: YearMonth) : FileOperationError()
+    data object CategoryNotInMonthAccount : FileOperationError()
     data object CategoryNotFound : FileOperationError()
     data object AlreadyInPlace : FileOperationError()
     data object ReadError : FileOperationError()

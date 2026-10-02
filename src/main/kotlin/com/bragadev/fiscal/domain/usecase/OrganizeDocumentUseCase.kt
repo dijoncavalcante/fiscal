@@ -14,6 +14,7 @@ import com.bragadev.fiscal.domain.repository.SettingsRepository
 import com.bragadev.fiscal.domain.rules.ConflictDecision
 import com.bragadev.fiscal.domain.rules.ConflictPolicy
 import com.bragadev.fiscal.domain.rules.DuplicateNameResolver
+import com.bragadev.fiscal.domain.rules.EditablePeriodPolicy
 import java.nio.file.Path
 import java.time.LocalDateTime
 import java.util.UUID
@@ -40,11 +41,14 @@ class OrganizeDocumentUseCase(
     private val documentRepository: DocumentRepository,
     private val backupStorage: BackupStorage,
     private val settingsRepository: SettingsRepository,
+    private val periodPolicy: EditablePeriodPolicy,
     private val now: () -> LocalDateTime = LocalDateTime::now,
     private val newId: () -> UUID = UUID::randomUUID,
 ) {
     suspend operator fun invoke(plan: OrganizationPlan, userChoice: DuplicateResolution? = null): Outcome<OrganizeResult> {
         if (!fileRepository.exists(plan.source)) return Outcome.Failure(FileOperationError.FileNotFound)
+        periodPolicy.checkSource(plan.source.parent)?.let { return Outcome.Failure(it) }
+        periodPolicy.checkSource(plan.targetDirectory)?.let { return Outcome.Failure(it) }
         if (!fileRepository.exists(plan.targetPath)) return moveAndRecord(plan, plan.targetPath, backupPath = null)
 
         val policy = settingsRepository.settings.value.duplicatePolicy

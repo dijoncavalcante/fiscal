@@ -24,11 +24,13 @@ Escopo por fases e decisões sobre as regras: [docs/MVP.md](docs/MVP.md).
 
 ## Como usar
 
-1. Na primeira execução, o app usa `D:\Modelo\jw\pendriver` se a pasta existir; senão, pede para selecionar a pasta raiz.
-2. Clique em um PDF da lista para ver o preview.
-3. Arraste o PDF (da lista ou do Windows Explorer) até uma categoria — ou selecione o PDF e clique na categoria.
-4. Confira o nome atual, o novo nome e o destino e escolha **Renomear** ou **Renomear e Mover**.
-5. Use **Desfazer** no aviso ou no topo da tela para reverter a última operação.
+1. **Esquerda:** clique no ✏️ e escolha a pasta do computador com os PDFs (sugestão inicial: `D:\Modelo\jw\pendriver`).
+2. **Direita:** clique no ✏️ e escolha a pasta do mês (ex.: `...\4. TRIMESTRE Jun-Jul-Ago\1. JUNHO`).
+   Confira o mês em destaque. Meses anteriores a junho de 2026 ficam **somente leitura**.
+3. Clique em um PDF da lista para ver o preview.
+4. Arraste o PDF (da lista ou do Windows Explorer) até uma categoria — ou selecione o PDF e clique na categoria.
+5. Confira o nome atual, o novo nome, o mês e o destino e escolha **Renomear** ou **Renomear e Mover**.
+6. Use **Desfazer** no aviso ou no topo da tela para reverter a última operação.
 
 ## Estrutura
 

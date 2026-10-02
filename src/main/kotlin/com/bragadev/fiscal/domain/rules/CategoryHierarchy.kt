@@ -12,32 +12,19 @@ class CategoryHierarchy(private val categories: List<DocumentCategory>) {
     fun find(id: String): DocumentCategory? = byId[id]
 
     /**
-     * Pastas, a partir da raiz, onde os documentos da categoria são guardados.
-     *
-     * "5.1 Comprovante Remessa" → ["Conta da Congregação", "5. Remessa Betel", "5.1 Comprovante Remessa"]
+     * Árvore agrupada por conta. Com [account] informado, mostra só aquela conta e "Outros".
      */
-    fun folderSegments(category: DocumentCategory): List<String> {
-        val chain = ancestorsOf(category).reversed() + category
-        return listOfNotNull(category.accountType.folderName) + chain.map { it.folderName }
-    }
+    fun tree(account: AccountType? = null): List<AccountGroup> = AccountType.entries
+        .filter { account == null || it == account || it.isCatchAll }
+        .mapNotNull { type ->
+            val roots = categories.filter { it.accountType == type && it.parentId == null }
+            if (roots.isEmpty()) null else AccountGroup(type, roots.map(::nodeOf))
+        }
 
-    fun tree(): List<AccountGroup> = AccountType.entries.mapNotNull { account ->
-        val roots = categories.filter { it.accountType == account && it.parentId == null }
-        if (roots.isEmpty()) null else AccountGroup(account, roots.map(::nodeOf))
-    }
+    /** Uma categoria pode ser usada numa pasta de mês da conta dela, ou sempre, se for "Outros". */
+    fun isAllowedIn(category: DocumentCategory, account: AccountType?): Boolean =
+        account == null || category.accountType == account || category.accountType.isCatchAll
 
     private fun nodeOf(category: DocumentCategory): CategoryNode =
         CategoryNode(category, categories.filter { it.parentId == category.id }.map(::nodeOf))
-
-    private fun ancestorsOf(category: DocumentCategory): List<DocumentCategory> {
-        val ancestors = mutableListOf<DocumentCategory>()
-        var parentId = category.parentId
-        while (parentId != null) {
-            val parent = byId[parentId] ?: break
-            if (parent in ancestors) break
-            ancestors += parent
-            parentId = parent.parentId
-        }
-        return ancestors
-    }
 }

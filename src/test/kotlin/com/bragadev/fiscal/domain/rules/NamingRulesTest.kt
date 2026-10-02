@@ -12,33 +12,32 @@ class NamingRulesTest {
     private val outros = DefaultCategories.all.first { it.id == DefaultCategories.OUTROS_ID }
 
     @Test
-    fun `nome da categoria gera nome do arquivo sem o numero`() {
-        assertEquals("Extrato Bancário.pdf", CategoryNaming.suggestedName(extratoBancario, emptySet()))
+    fun `nome do arquivo segue o padrao da pasta do mes com numero`() {
+        assertEquals("8. Extrato Bancário.pdf", CategoryNaming.suggestedName(extratoBancario, emptySet()))
     }
 
     @Test
-    fun `subcategoria gera nome sem o numero`() {
+    fun `subcategoria usa numero composto sem ponto extra`() {
         val comprovante = DefaultCategories.all.first { it.number == "5.1" }
-        assertEquals("Comprovante Remessa.pdf", CategoryNaming.suggestedName(comprovante, emptySet()))
+        assertEquals("5.1 Comprovante Remessa.pdf", CategoryNaming.suggestedName(comprovante, emptySet()))
     }
 
     @Test
-    fun `nome da pasta separa numero e nome`() {
-        assertEquals("8. Extrato Bancário", extratoBancario.folderName)
-        assertEquals("5.1 Comprovante Remessa", DefaultCategories.all.first { it.number == "5.1" }.folderName)
-        assertEquals("Outros", outros.folderName)
+    fun `rotulo separa numero e nome`() {
+        assertEquals("8. Extrato Bancário", extratoBancario.label)
+        assertEquals("Outros", outros.label)
     }
 
     @Test
     fun `arquivo duplicado gera copia numerada a partir de 2`() {
-        val existing = setOf("Extrato Bancário.pdf")
-        assertEquals("Extrato Bancário (2).pdf", DuplicateNameResolver.nextNumberedCopy("Extrato Bancário.pdf", existing))
+        val existing = setOf("8. Extrato Bancário.pdf")
+        assertEquals("8. Extrato Bancário (2).pdf", DuplicateNameResolver.nextNumberedCopy("8. Extrato Bancário.pdf", existing))
     }
 
     @Test
     fun `copia numerada pula numeros ocupados`() {
-        val existing = setOf("Extrato Bancário.pdf", "Extrato Bancário (2).pdf", "extrato bancário (3).PDF")
-        assertEquals("Extrato Bancário (4).pdf", DuplicateNameResolver.nextNumberedCopy("Extrato Bancário.pdf", existing))
+        val existing = setOf("8. Extrato Bancário.pdf", "8. Extrato Bancário (2).pdf", "8. extrato bancário (3).PDF")
+        assertEquals("8. Extrato Bancário (4).pdf", DuplicateNameResolver.nextNumberedCopy("8. Extrato Bancário.pdf", existing))
     }
 
     @Test
@@ -48,7 +47,7 @@ class NamingRulesTest {
 
     @Test
     fun `outros continua apos o maior numero existente`() {
-        val existing = setOf("1. Outros.pdf", "2. Outros.pdf")
+        val existing = setOf("1. Outros.pdf", "2. Outros.pdf", "1. Folha de Contas.pdf")
         assertEquals("3. Outros.pdf", CategoryNaming.suggestedName(outros, existing))
     }
 
@@ -60,7 +59,7 @@ class NamingRulesTest {
 
     @Test
     fun `nomes invalidos no windows sao rejeitados`() {
-        assertTrue(FileNameRules.isValid("Extrato Bancário.pdf"))
+        assertTrue(FileNameRules.isValid("8. Extrato Bancário.pdf"))
         assertFalse(FileNameRules.isValid("a:b.pdf"))
         assertFalse(FileNameRules.isValid("CON.pdf"))
         assertFalse(FileNameRules.isValid("  "))

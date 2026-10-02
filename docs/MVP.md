@@ -8,8 +8,9 @@ Organizador de documentos PDF **100% offline** para Windows. Sem IA, sem interne
 
 | # | Entrega | Onde |
 |---|---------|------|
-| 1 | Selecionar/alterar pasta raiz (sugestão inicial `D:\Modelo\jw\pendriver`, usada só se existir) | `ResolveRootFolderUseCase`, `ChangeRootFolderUseCase` |
-| 2 | Listar PDFs da pasta raiz e subpastas (demais arquivos ignorados) | `ScanDocumentsUseCase`, `FileRepositoryImpl` |
+| 1 | **Esquerda:** escolher qualquer pasta do computador (lápis) e listar os PDFs dela | `ChangeSourceFolderUseCase`, `ScanDocumentsUseCase` |
+| 2 | **Direita:** pasta do mês em edição, com mês em destaque e caminho completo protegido (só o lápis troca) | `MonthHeader`, `FolderPathField`, `ChangeMonthFolderUseCase` |
+| 2.1 | Mês e conta identificados pelo caminho; meses anteriores a junho/2026 ficam somente leitura | `MonthFolderParser`, `EditablePeriodPolicy` |
 | 3 | Preview com PDFBox: páginas, zoom +/−, ajustar à largura/página | `PdfPreviewViewModel`, `PdfRepositoryImpl` |
 | 4 | Árvore de categorias hierárquica (Congregação, Manutenção, Outros) | `CategoryHierarchy`, `DefaultCategories` |
 | 5 | Arrastar PDF do Windows Explorer ou da lista para uma categoria | `OrganizerScreen`, `DragPayload` |
@@ -33,6 +34,32 @@ Organizador de documentos PDF **100% offline** para Windows. Sem IA, sem interne
 - Editar categorias pela interface (o modelo e a tabela `categories` já suportam).
 - Novos tipos de conta.
 - Ponto de extensão `DocumentClassifier` para sugerir categoria (**não implementado** — a arquitetura apenas permite incluí-lo depois, entre `PlanOrganizationUseCase` e a UI).
+
+## Pasta do mês e proteção de meses fechados
+
+Estrutura real do pendrive:
+
+```
+CONTAS CONGREGAÇÃO\ANO DE SERVIÇO 2025-2026\4. TRIMESTRE Jun-Jul-Ago\1. JUNHO\
+├── 1. Folha de Contas.pdf
+├── 5. Remessa Betel.pdf
+├── 5.1 Comprovante Remessa.pdf
+└── 8. Extrato Bancário.pdf
+```
+
+- **Destino = a pasta do mês, sem subpastas.** O arquivo recebe o rótulo da categoria: `8. Extrato Bancário.pdf`,
+  `5.1 Comprovante Remessa.pdf`, `1. Outros.pdf`.
+- **Mês identificado pelo caminho.** Aceita `1. JUNHO`, `10.Outubro`, `AGOSTO`, `3. Março 2024`. O ano vem do nome do
+  mês ou da pasta "ANO DE SERVIÇO": em `2025-2026`, setembro–dezembro são 2025 e janeiro–agosto 2026. Um
+  `5. Trimestre` dentro de `2025-2026` já é o ano seguinte (setembro/2026). Conferido contra todas as pastas do pendrive.
+- **Conta identificada pelo caminho** (`CONTAS CONGREGAÇÃO` / `CONTAS MANUTENÇÃO`): só as categorias daquela conta e
+  "Outros" aparecem, e o app recusa categoria de outra conta.
+- **Bloqueio:** nada anterior a **junho de 2026** pode ser alterado — nem como destino, nem como origem (renomear um
+  arquivo que está numa pasta de mês fechado também é bloqueado). Junho/2026 em diante é editável. Pastas fora de um mês
+  (ex.: Downloads) podem ser origem, mas nunca destino. A regra é verificada ao propor, ao executar e ao desfazer.
+  O primeiro mês editável fica em `EditablePeriodPolicy.FIRST_EDITABLE_MONTH`.
+- **Caminho protegido:** o caminho completo fica sempre visível, com a pasta do mês em negrito; o texto pode ser
+  copiado, mas não editado. Só o ícone de lápis abre o seletor de pastas.
 
 ## Conflitos encontrados no prompt e como foram resolvidos
 
@@ -63,7 +90,7 @@ Organizador de documentos PDF **100% offline** para Windows. Sem IA, sem interne
 ### Outras regras
 
 6. **Pasta raiz:** o prompt cita `D:\Modelo\jw-teste\pendriver` e `D:\Modelo\jw\pendriver`. Adotado `D:\Modelo\jw\pendriver`
-   (seções 6, 7 e 19) como único valor sugerido, usado apenas se existir. Se a pasta salva sumir (pendrive desconectado),
+   como pasta de origem sugerida, usada apenas se existir. Se a pasta salva sumir (pendrive desconectado),
    o app avisa e pede para reconectar ou escolher outra.
 
 7. **"Confirmar antes de mover" desligado × "Nunca mover sem mostrar o destino".**
@@ -71,13 +98,13 @@ Organizador de documentos PDF **100% offline** para Windows. Sem IA, sem interne
    Renomear e Mover. As caixas de confirmação controlam apenas o passo extra "Confirmar operação?".
 
 8. **Renomear × Renomear e Mover.** "Renomear" mantém o arquivo na pasta atual com o nome da categoria;
-   "Renomear e Mover" leva para a pasta da categoria. As duas opções seguem as mesmas regras de duplicidade.
+   "Renomear e Mover" leva para a pasta do mês em edição. As duas opções seguem as mesmas regras de duplicidade e de bloqueio.
 
 9. **Mesmo nome em contas diferentes** ("Folha de Contas" existe nas duas contas): os ids das categorias levam o prefixo
    da conta (`congregacao.folha_de_contas`, `manutencao.folha_de_contas`).
 
-10. **Nome das pastas:** número e nome são campos separados. Pasta = `"8. Extrato Bancário"`; subcategoria com número
-    composto = `"5.1 Comprovante Remessa"`; arquivo = só o nome (`"Extrato Bancário.pdf"`). "Outros" fica direto na raiz.
+10. **Nome dos arquivos (substitui a regra 11 do prompt original):** número e nome são campos separados e o arquivo usa o rótulo
+    completo, como nas pastas reais: `"8. Extrato Bancário.pdf"`, `"5.1 Comprovante Remessa.pdf"`. Não há subpastas por categoria.
 
 11. **Documento já organizado:** se o arquivo já tem o nome e o local corretos, nenhuma proposta é feita
     (evita renomear `2. Outros.pdf` para `3. Outros.pdf`, por exemplo).

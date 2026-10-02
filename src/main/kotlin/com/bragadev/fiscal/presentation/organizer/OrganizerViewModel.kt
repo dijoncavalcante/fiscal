@@ -3,10 +3,14 @@ package com.bragadev.fiscal.presentation.organizer
 import com.bragadev.fiscal.domain.model.DuplicatePolicy
 import com.bragadev.fiscal.domain.model.DuplicateResolution
 import com.bragadev.fiscal.domain.model.FileOperationError
+import com.bragadev.fiscal.domain.model.MonthFolderStatus
 import com.bragadev.fiscal.domain.model.OrganizationPlan
 import com.bragadev.fiscal.domain.model.OrganizeMode
 import com.bragadev.fiscal.domain.model.Outcome
 import com.bragadev.fiscal.domain.model.getOrNull
+import com.bragadev.fiscal.domain.rules.EditablePeriodPolicy
+import com.bragadev.fiscal.domain.usecase.ChangeMonthFolderUseCase
+import com.bragadev.fiscal.domain.usecase.DescribeMonthFolderUseCase
 import com.bragadev.fiscal.domain.usecase.GetCategoryTreeUseCase
 import com.bragadev.fiscal.domain.usecase.ObserveSettingsUseCase
 import com.bragadev.fiscal.domain.usecase.OrganizeDocumentUseCase
@@ -21,34 +25,47 @@ import com.bragadev.fiscal.presentation.common.toUserMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.nio.file.Path
 import java.util.UUID
 
+/** Lado direito: mês em edição, categorias e as operações de organizar e desfazer. */
 class OrganizerViewModel(
     private val getCategoryTree: GetCategoryTreeUseCase,
     private val planOrganization: PlanOrganizationUseCase,
     private val organizeDocument: OrganizeDocumentUseCase,
     private val undoOperation: UndoOperationUseCase,
+    private val changeMonthFolder: ChangeMonthFolderUseCase,
+    private val describeMonthFolder: DescribeMonthFolderUseCase,
     private val observeSettings: ObserveSettingsUseCase,
     private val documentChanges: DocumentChangeNotifier,
+    periodPolicy: EditablePeriodPolicy,
 ) : ViewModel() {
-    private val state = MutableStateFlow(OrganizerUiState())
+    private val state = MutableStateFlow(OrganizerUiState(firstEditableMonth = periodPolicy.firstEditableMonth))
     val uiState: StateFlow<OrganizerUiState> = state.asStateFlow()
 
+    val currentMonthFolder: Path? get() = observeSettings().value.monthFolder
+
     init {
+        scope.launch { refreshUndoAvailability() }
         scope.launch {
-            state.update { it.copy(groups = getCategoryTree()) }
-            refreshUndoAvailability()
+            observeSettings().map { it.monthFolder }.distinctUntilChanged().collect(::showMonthFolder)
         }
+    }
+
+    fun onMonthFolderSelected(path: Path) {
         scope.launch {
-            observeSettings().collect { settings -> state.update { it.copy(rootPath = settings.rootPath) } }
+            val result = changeMonthFolder(path)
+            if (result is Outcome.Failure) showError(result.error.toUserMessage())
         }
     }
 
     /** Arquivo(s) solto(s) sobre uma categoria, ou documento selecionado + clique na categoria. */
     fun onFilesDropped(paths: List<Path>, categoryId: String) {
+        blockedReason()?.let { return showError(it) }
         val source = paths.singleOrNull() ?: return showError(Strings.ONE_FILE_AT_A_TIME)
         scope.launch { proposeOrganization(source, categoryId) }
     }
@@ -94,6 +111,24 @@ class OrganizerViewModel(
 
     fun onMessageShown() {
         state.update { it.copy(message = null) }
+    }
+
+    private suspend fun showMonthFolder(folder: Path?) {
+        val info = folder?.let { describeMonthFolder(it) }
+        val groups = getCategoryTree(info?.account)
+        state.update { it.copy(monthFolder = info, groups = groups) }
+    }
+
+    /** Motivo para recusar a organização antes mesmo de calcular a proposta. */
+    private fun blockedReason(): String? {
+        val current = state.value
+        val info = current.monthFolder ?: return FileOperationError.MonthFolderNotSelected.toUserMessage()
+        return when (info.status) {
+            MonthFolderStatus.EDITABLE -> null
+            MonthFolderStatus.UNKNOWN_MONTH -> FileOperationError.MonthNotIdentified.toUserMessage()
+            MonthFolderStatus.LOCKED ->
+                FileOperationError.MonthLocked(info.detectedMonth!!.month, current.firstEditableMonth).toUserMessage()
+        }
     }
 
     private suspend fun proposeOrganization(source: Path, categoryId: String) {

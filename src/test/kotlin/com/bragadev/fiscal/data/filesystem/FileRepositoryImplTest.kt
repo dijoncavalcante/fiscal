@@ -31,15 +31,16 @@ class FileRepositoryImplTest {
     }
 
     @Test
-    fun `lista apenas pdfs incluindo subpastas`() = runTest {
+    fun `lista apenas pdfs da propria pasta`() = runTest {
         val root = temp.root.toPath()
         root.createFakePdf("um.pdf")
         root.resolve("sub").createFakePdf("dois.PDF")
+        root.createFakePdf("._um.pdf")
         Files.writeString(root.resolve("planilha.xlsx"), "x")
 
         val documents = (repository.listPdfFiles(root) as Outcome.Success).value
 
-        assertEquals(setOf("um.pdf", "dois.PDF"), documents.map { it.name }.toSet())
+        assertEquals(setOf("um.pdf"), documents.map { it.name }.toSet())
     }
 
     @Test

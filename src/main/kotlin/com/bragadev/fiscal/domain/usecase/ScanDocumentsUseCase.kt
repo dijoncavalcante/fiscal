@@ -7,12 +7,11 @@ import com.bragadev.fiscal.domain.model.map
 import com.bragadev.fiscal.domain.repository.FileRepository
 import java.nio.file.Path
 
+/** Lista os PDFs de uma pasta (sem entrar nas subpastas). */
 class ScanDocumentsUseCase(private val fileRepository: FileRepository) {
-    suspend operator fun invoke(root: Path?): Outcome<List<Document>> {
-        if (root == null) return Outcome.Failure(FileOperationError.RootNotConfigured)
-        if (!fileRepository.isDirectory(root)) return Outcome.Failure(FileOperationError.RootNotFound)
-        return fileRepository.listPdfFiles(root).map { documents ->
-            documents.sortedWith(compareBy({ it.path.parent?.toString()?.lowercase() }, { it.name.lowercase() }))
-        }
+    suspend operator fun invoke(folder: Path?): Outcome<List<Document>> {
+        if (folder == null) return Outcome.Failure(FileOperationError.FolderNotSelected)
+        if (!fileRepository.isDirectory(folder)) return Outcome.Failure(FileOperationError.FolderNotFound)
+        return fileRepository.listPdfFiles(folder).map { documents -> documents.sortedBy { it.name.lowercase() } }
     }
 }

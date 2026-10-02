@@ -13,8 +13,14 @@ fun FileOperationError.toUserMessage(): String = when (this) {
         "Já existe um arquivo com este nome no destino e as configurações não permitem duplicados."
     FileOperationError.InvalidFileName -> "O nome do arquivo não é válido."
     FileOperationError.InvalidPdf -> "Este arquivo não é um PDF válido."
-    FileOperationError.RootNotConfigured -> "Selecione a pasta raiz antes de continuar."
-    FileOperationError.RootNotFound -> "A pasta selecionada não foi encontrada."
+    FileOperationError.FolderNotSelected -> "Escolha uma pasta antes de continuar."
+    FileOperationError.FolderNotFound -> "A pasta não foi encontrada. Verifique se o pendrive está conectado."
+    FileOperationError.MonthFolderNotSelected -> "Escolha a pasta do mês em edição (lápis à direita) antes de mover."
+    FileOperationError.MonthNotIdentified ->
+        "Não foi possível identificar o mês da pasta de destino. Escolha a pasta de um mês, como \"1. JUNHO\"."
+    is FileOperationError.MonthLocked ->
+        "${Strings.monthTitle(month)} está bloqueado. ${Strings.lockedHint(firstEditableMonth)}"
+    FileOperationError.CategoryNotInMonthAccount -> "Esta categoria não pertence à conta da pasta do mês em edição."
     FileOperationError.CategoryNotFound -> "A categoria escolhida não existe mais."
     FileOperationError.AlreadyInPlace -> Strings.ALREADY_ORGANIZED
     FileOperationError.ReadError -> "Não foi possível ler o arquivo."

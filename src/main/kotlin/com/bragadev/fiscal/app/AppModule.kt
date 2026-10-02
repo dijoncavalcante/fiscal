@@ -20,13 +20,16 @@ import com.bragadev.fiscal.domain.repository.FileRepository
 import com.bragadev.fiscal.domain.repository.OperationHistoryRepository
 import com.bragadev.fiscal.domain.repository.PdfRepository
 import com.bragadev.fiscal.domain.repository.SettingsRepository
-import com.bragadev.fiscal.domain.usecase.ChangeRootFolderUseCase
+import com.bragadev.fiscal.domain.rules.EditablePeriodPolicy
+import com.bragadev.fiscal.domain.usecase.ChangeMonthFolderUseCase
+import com.bragadev.fiscal.domain.usecase.ChangeSourceFolderUseCase
+import com.bragadev.fiscal.domain.usecase.DescribeMonthFolderUseCase
 import com.bragadev.fiscal.domain.usecase.GetCategoryTreeUseCase
 import com.bragadev.fiscal.domain.usecase.ObserveSettingsUseCase
 import com.bragadev.fiscal.domain.usecase.OrganizeDocumentUseCase
 import com.bragadev.fiscal.domain.usecase.PlanOrganizationUseCase
 import com.bragadev.fiscal.domain.usecase.PreviewPdfUseCase
-import com.bragadev.fiscal.domain.usecase.ResolveRootFolderUseCase
+import com.bragadev.fiscal.domain.usecase.LoadInitialFoldersUseCase
 import com.bragadev.fiscal.domain.usecase.ScanDocumentsUseCase
 import com.bragadev.fiscal.domain.usecase.UndoOperationUseCase
 import com.bragadev.fiscal.domain.usecase.UpdateSettingsUseCase
@@ -56,20 +59,23 @@ fun appModule(directories: AppDirectories) = module {
 
     // Domain
     factory { ScanDocumentsUseCase(get()) }
-    factory { ResolveRootFolderUseCase(get(), get()) }
-    factory { ChangeRootFolderUseCase(get(), get()) }
+    single { EditablePeriodPolicy() }
+    factory { LoadInitialFoldersUseCase(get(), get()) }
+    factory { ChangeSourceFolderUseCase(get(), get()) }
+    factory { ChangeMonthFolderUseCase(get(), get(), get()) }
+    factory { DescribeMonthFolderUseCase(get()) }
     factory { ObserveSettingsUseCase(get()) }
     factory { UpdateSettingsUseCase(get()) }
     factory { GetCategoryTreeUseCase(get()) }
-    factory { PlanOrganizationUseCase(get(), get(), get()) }
-    factory { OrganizeDocumentUseCase(get(), get(), get(), get(), get()) }
-    factory { UndoOperationUseCase(get(), get(), get()) }
+    factory { PlanOrganizationUseCase(get(), get(), get(), get()) }
+    factory { OrganizeDocumentUseCase(get(), get(), get(), get(), get(), get()) }
+    factory { UndoOperationUseCase(get(), get(), get(), get()) }
     factory { PreviewPdfUseCase(get()) }
 
     // Presentation
     single { DocumentChangeNotifier() }
     single { HomeViewModel(get(), get(), get(), get(), get()) }
     single { PdfPreviewViewModel(get()) }
-    single { OrganizerViewModel(get(), get(), get(), get(), get(), get()) }
-    single { SettingsViewModel(get(), get(), get()) }
+    single { OrganizerViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    single { SettingsViewModel(get(), get(), get(), get(), get()) }
 }

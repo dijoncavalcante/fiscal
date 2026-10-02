@@ -7,8 +7,8 @@ import java.nio.file.Path
 interface SettingsRepository {
     val settings: StateFlow<AppSettings>
 
-    /** Valor inicial sugerido para a pasta raiz. Nunca deve ser assumido como existente. */
-    val suggestedRootPath: Path
+    /** Pasta sugerida como origem na primeira execução. Nunca deve ser assumido como existente. */
+    val suggestedSourceFolder: Path
 
     suspend fun load(): AppSettings
 

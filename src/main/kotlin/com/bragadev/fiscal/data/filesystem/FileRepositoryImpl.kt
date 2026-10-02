@@ -33,10 +33,10 @@ class FileRepositoryImpl(
         Files.list(directory).use { entries -> entries.map { it.fileName.toString() }.toList().toSet() }
     }
 
-    override suspend fun listPdfFiles(root: Path): Outcome<List<Document>> = io {
+    override suspend fun listPdfFiles(folder: Path): Outcome<List<Document>> = io {
         catching {
             val documents = mutableListOf<Document>()
-            Files.walkFileTree(root, PdfCollector(documents))
+            Files.walkFileTree(folder, emptySet(), SINGLE_LEVEL, PdfCollector(documents))
             documents.toList()
         }
     }
@@ -70,7 +70,9 @@ class FileRepositoryImpl(
     /** Coleta PDFs e ignora pastas sem permissão de leitura em vez de interromper a busca. */
     private class PdfCollector(private val documents: MutableList<Document>) : SimpleFileVisitor<Path>() {
         override fun visitFile(file: Path, attributes: BasicFileAttributes): FileVisitResult {
-            if (attributes.isRegularFile && FileNameRules.hasPdfExtension(file.fileName.toString())) {
+            val name = file.fileName.toString()
+            // "._arquivo.pdf" são metadados criados pelo macOS no pendrive, não PDFs de verdade.
+            if (attributes.isRegularFile && FileNameRules.hasPdfExtension(name) && !name.startsWith(MAC_METADATA_PREFIX)) {
                 documents += Document(file, attributes.size(), attributes.lastModifiedTime().toInstant())
             }
             return FileVisitResult.CONTINUE
@@ -82,5 +84,7 @@ class FileRepositoryImpl(
     private companion object {
         const val PDF_SIGNATURE = "%PDF-"
         const val PDF_HEADER_SEARCH_BYTES = 1024
+        const val SINGLE_LEVEL = 1
+        const val MAC_METADATA_PREFIX = "._"
     }
 }
