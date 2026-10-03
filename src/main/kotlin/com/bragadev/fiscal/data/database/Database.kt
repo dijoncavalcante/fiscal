@@ -46,7 +46,10 @@ class Database(private val file: Path) : AutoCloseable {
 
 private object Schema {
     /** Colunas incluídas depois da primeira versão: (tabela, definição). */
-    val addedColumns = listOf("categories" to "file_base_name TEXT")
+    val addedColumns = listOf(
+        "categories" to "file_base_name TEXT",
+        "categories" to "optional INTEGER NOT NULL DEFAULT 0",
+    )
 
     val statements = listOf(
         """
@@ -70,7 +73,8 @@ private object Schema {
             parent_id TEXT,
             naming_rule TEXT NOT NULL,
             sort_order INTEGER NOT NULL,
-            file_base_name TEXT
+            file_base_name TEXT,
+            optional INTEGER NOT NULL DEFAULT 0
         )
         """,
         """

@@ -21,17 +21,20 @@ class CategoryHierarchyTest {
 
     @Test
     fun `outros fica no final de cada conta`() {
-        val tree = hierarchy.tree()
-        tree.forEach { group -> assertEquals(DefaultCategories.OUTROS_ID, group.nodes.last().category.id) }
-        assertEquals(10, tree[0].nodes.size)
-        assertEquals(6, tree[1].nodes.size)
+        val (congregacao, manutencao) = hierarchy.tree()
+        assertEquals(DefaultCategories.OUTROS_ID, congregacao.nodes.last().category.id)
+        assertEquals("manutencao.outros", manutencao.nodes.last().category.id)
+        assertEquals("6. Outros", manutencao.nodes.last().category.label)
+        assertEquals(10, congregacao.nodes.size)
+        assertEquals(6, manutencao.nodes.size)
     }
 
     @Test
-    fun `pasta da manutencao mostra so manutencao com outros no final`() {
+    fun `pasta da manutencao mostra so manutencao com 6 outros no final`() {
         val tree = hierarchy.tree(AccountType.MANUTENCAO)
         assertEquals(listOf(AccountType.MANUTENCAO), tree.map { it.accountType })
-        assertEquals(DefaultCategories.OUTROS_ID, tree.single().nodes.last().category.id)
+        assertEquals("manutencao.outros", tree.single().nodes.last().category.id)
+        assertTrue(tree.single().nodes.none { it.category.id == DefaultCategories.OUTROS_ID })
     }
 
     @Test
@@ -40,7 +43,10 @@ class CategoryHierarchyTest {
         val outros = hierarchy.find(DefaultCategories.OUTROS_ID)!!
         assertFalse(hierarchy.isAllowedIn(extratoBetel, AccountType.MANUTENCAO))
         assertTrue(hierarchy.isAllowedIn(extratoBetel, AccountType.CONGREGACAO))
-        assertTrue(hierarchy.isAllowedIn(outros, AccountType.MANUTENCAO))
+        assertTrue(hierarchy.isAllowedIn(outros, AccountType.CONGREGACAO))
+        // Na Manutenção, o "Outros" geral é substituído pelo "6. Outros".
+        assertFalse(hierarchy.isAllowedIn(outros, AccountType.MANUTENCAO))
+        assertTrue(hierarchy.isAllowedIn(hierarchy.find("manutencao.outros")!!, AccountType.MANUTENCAO))
         assertTrue(hierarchy.isAllowedIn(extratoBetel, null))
     }
 }

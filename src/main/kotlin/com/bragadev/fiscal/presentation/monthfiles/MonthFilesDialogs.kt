@@ -42,7 +42,7 @@ private fun RenameDialog(dialog: MonthFileDialog.Rename, isWorking: Boolean, vie
             value = dialog.input,
             onValueChange = viewModel::onRenameInputChanged,
             label = {
-                Text(if (dialog.keepsNumber) Strings.descriptionTitle(dialog.category.fileWord) else Strings.NEW_FILE_NAME)
+                Text(if (dialog.keepsNumber) Strings.DESCRIPTION_TITLE else Strings.NEW_FILE_NAME)
             },
             singleLine = true,
             isError = dialog.inputError != null,

@@ -57,4 +57,16 @@ class DescribedSequenceNamingTest {
         assertEquals("ônibus para o congresso", DescribedSequenceNaming.suggestDescription(despesas, "3.1 Despesa - ônibus para o congresso.pdf"))
         assertEquals("Resolução Manutenção - AGOSTO 2026 assinado", DescribedSequenceNaming.suggestDescription(despesas, "Resolução Manutenção - AGOSTO 2026 assinado.pdf"))
     }
+
+    @Test
+    fun `outros da manutencao segue 6 6_1 6_2`() {
+        val outros = DefaultCategories.all.first { it.id == "manutencao.outros" }
+        assertEquals("6. Outros - xxx.pdf", CategoryNaming.suggestedName(outros, emptySet(), "xxx"))
+        assertEquals("6.1 Outros - yyyy.pdf", CategoryNaming.suggestedName(outros, setOf("6. Outros - xxx.pdf"), "yyyy"))
+        assertEquals(
+            "6.2 Outros - z.pdf",
+            CategoryNaming.suggestedName(outros, setOf("6. Outros - xxx.pdf", "6.1 Outros - yyyy.pdf", "5. Extrato Bancário.pdf"), "z"),
+        )
+        assertEquals("Nota fiscal", DescribedSequenceNaming.suggestDescription(outros, "Outros - Nota fiscal.pdf"))
+    }
 }

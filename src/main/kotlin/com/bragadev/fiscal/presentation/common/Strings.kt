@@ -107,7 +107,7 @@ object Strings {
     const val ALREADY_ORGANIZED = "Este documento já está com o nome e o local corretos."
     const val DESCRIPTION_HINT = "Ex.: Compra de cartazes para o display"
 
-    fun descriptionTitle(fileWord: String) = "Descrição da $fileWord (vai no nome do arquivo)"
+    const val DESCRIPTION_TITLE = "Descrição (vai no nome do arquivo)"
 
     fun organizeTitle(category: String) = "Organizar como \"$category\""
     fun conflictMessage(fileName: String) = "O arquivo \"$fileName\" já existe."
@@ -119,7 +119,7 @@ object Strings {
     const val RENAME_FILE_TITLE = "Renomear arquivo"
     const val NEW_FILE_NAME = "Novo nome do arquivo"
     const val NAME_PREVIEW = "Vai ficar assim:"
-    const val KEEPS_NUMBER = "O número da despesa é mantido; só a descrição muda."
+    const val KEEPS_NUMBER = "O número é mantido; só a descrição muda."
     const val NAME_TAKEN = "Já existe um arquivo com este nome nesta pasta."
     const val REMOVE_FROM_MONTH = "Retirar do mês"
     const val REMOVE_FROM_MONTH_TITLE = "Retirar arquivo da pasta do mês"

@@ -13,12 +13,13 @@ class CategoryDao(private val database: Database) {
      */
     suspend fun upsert(categories: List<DocumentCategory>) = database.use {
         prepareStatement(
-            "INSERT INTO categories (id, name, number, account_type, parent_id, naming_rule, sort_order, file_base_name) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
+            "INSERT INTO categories " +
+                "(id, name, number, account_type, parent_id, naming_rule, sort_order, file_base_name, optional) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) " +
                 "ON CONFLICT(id) DO UPDATE SET name = excluded.name, number = excluded.number, " +
                 "account_type = excluded.account_type, parent_id = excluded.parent_id, " +
                 "naming_rule = excluded.naming_rule, sort_order = excluded.sort_order, " +
-                "file_base_name = excluded.file_base_name",
+                "file_base_name = excluded.file_base_name, optional = excluded.optional",
         ).use { statement ->
             categories.forEachIndexed { index, category ->
                 statement.setString(1, category.id)
@@ -29,6 +30,7 @@ class CategoryDao(private val database: Database) {
                 statement.setString(6, category.namingRule.name)
                 statement.setInt(7, index)
                 statement.setString(8, category.fileBaseName)
+                statement.setInt(9, if (category.optional) 1 else 0)
                 statement.addBatch()
             }
             statement.executeBatch()
@@ -52,5 +54,6 @@ class CategoryDao(private val database: Database) {
         parentId = getString("parent_id"),
         namingRule = NamingRule.valueOf(getString("naming_rule")),
         fileBaseName = getString("file_base_name"),
+        optional = getInt("optional") == 1,
     )
 }

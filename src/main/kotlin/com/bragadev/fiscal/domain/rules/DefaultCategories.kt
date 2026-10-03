@@ -11,6 +11,15 @@ import com.bragadev.fiscal.domain.model.NamingRule
 object DefaultCategories {
     const val OUTROS_ID = "outros"
 
+    /**
+     * Outros da Conta da Manutenção: "6. Outros - xxx", "6.1 Outros - yyy"... Substitui, nessa conta,
+     * o "Outros" geral ("1. Outros.pdf"), que continua valendo para a Conta da Congregação.
+     */
+    private val outrosManutencao = DocumentCategory(
+        "manutencao.outros", "Outros", "6", MANUTENCAO,
+        namingRule = NamingRule.DESCRIBED_SEQUENCE, optional = true,
+    )
+
     /** Despesas aceitam vários arquivos: "3. Despesa - xxx", "3.1 Despesa - yyy"... */
     private fun despesas(prefix: String, account: AccountType) = DocumentCategory(
         "$prefix.despesas", "Despesas", "3", account,
@@ -37,7 +46,8 @@ object DefaultCategories {
         despesas("manutencao", MANUTENCAO),
         DocumentCategory("manutencao.relatorio_mensal", "Relatório Mensal", "4", MANUTENCAO),
         DocumentCategory("manutencao.extrato_bancario", "Extrato Bancário", "5", MANUTENCAO),
+        outrosManutencao,
 
-        DocumentCategory(OUTROS_ID, "Outros", "", OUTROS, namingRule = NamingRule.SEQUENTIAL),
+        DocumentCategory(OUTROS_ID, "Outros", "", OUTROS, namingRule = NamingRule.SEQUENTIAL, optional = true),
     )
 }

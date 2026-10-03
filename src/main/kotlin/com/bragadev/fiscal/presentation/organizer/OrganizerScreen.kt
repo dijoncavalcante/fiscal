@@ -38,7 +38,6 @@ import com.bragadev.fiscal.domain.model.AccountGroup
 import com.bragadev.fiscal.domain.model.CategoryNode
 import com.bragadev.fiscal.domain.model.DocumentCategory
 import com.bragadev.fiscal.domain.model.MonthChecklist
-import com.bragadev.fiscal.domain.model.NamingRule
 import com.bragadev.fiscal.presentation.common.Strings
 import com.bragadev.fiscal.presentation.components.DragPayload
 import com.bragadev.fiscal.presentation.components.Panel
@@ -152,10 +151,10 @@ private fun flatten(nodes: List<CategoryNode>, depth: Int): List<TreeEntry> =
 
 /**
  * Resumo do grupo: quantas categorias obrigatórias estão resolvidas — com arquivo e sem pendência.
- * "Outros" é opcional e não conta.
+ * Categorias opcionais ("Outros") não contam.
  */
 private fun summaryFor(entries: List<TreeEntry>, checklist: MonthChecklist): String {
-    val required = entries.map { it.node.category }.filter { it.namingRule != NamingRule.SEQUENTIAL }
+    val required = entries.map { it.node.category }.filterNot { it.optional }
     val done = required.count { checklist.isPresent(it.id) && !checklist.hasPendingIssue(it.id) }
     return Strings.groupSummary(done, required.size)
 }
@@ -259,12 +258,12 @@ private fun CategoryRow(entry: TreeEntry, context: MonthContext) {
 
 /**
  * Selo à direita da categoria: ✓ Já existe (verde), ⚠ Com pendência (vermelho claro) ou ○ Faltando (âmbar).
- * "Outros" mostra só a quantidade de arquivos.
+ * Categorias opcionais ("Outros") mostram só a quantidade de arquivos.
  */
 @Composable
 private fun FileStatus(category: DocumentCategory, files: List<String>, checklist: MonthChecklist) {
     val (text, color, background) = when {
-        category.namingRule == NamingRule.SEQUENTIAL ->
+        category.optional ->
             Triple(Strings.sequentialCount(files.size), MaterialTheme.colorScheme.onSurfaceVariant, Color.Transparent)
         checklist.hasPendingIssue(category.id) ->
             Triple(Strings.STATUS_ISSUE, MaterialTheme.colorScheme.error, StatusColors.LockedBackground)

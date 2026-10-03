@@ -139,7 +139,7 @@ private fun DescriptionField(dialog: OrganizerDialog.Proposal, onChange: (String
     OutlinedTextField(
         value = dialog.description.orEmpty(),
         onValueChange = onChange,
-        label = { Text(Strings.descriptionTitle(dialog.category.fileWord)) },
+        label = { Text(Strings.DESCRIPTION_TITLE) },
         placeholder = { Text(Strings.DESCRIPTION_HINT) },
         singleLine = true,
         isError = dialog.inputError != null,

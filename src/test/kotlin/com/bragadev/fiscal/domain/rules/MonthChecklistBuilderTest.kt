@@ -64,4 +64,14 @@ class MonthChecklistBuilderTest {
         assertTrue(checklist.isPresent("manutencao.donativos_congregacoes"))
         assertEquals(listOf("9. Extrato Betel.pdf"), checklist.unmatchedFiles)
     }
+
+    @Test
+    fun `outros da manutencao e reconhecido pelo numero 6`() {
+        val manutencao = DefaultCategories.all.filter { hierarchy.isAllowedIn(it, AccountType.MANUTENCAO) }
+
+        val checklist = MonthChecklistBuilder.build(manutencao, listOf("6. Outros - a.pdf", "6.1 Outros - b.pdf", "1. Outros.pdf"))
+
+        assertEquals(2, checklist.filesFor("manutencao.outros").size)
+        assertTrue(checklist.isPresent("manutencao.folha_de_contas"))
+    }
 }

@@ -9,6 +9,8 @@ data class DocumentCategory(
     val namingRule: NamingRule = NamingRule.CATEGORY_NAME,
     /** Palavra usada no nome do arquivo quando difere do nome da categoria ("Despesas" → "Despesa"). */
     val fileBaseName: String? = null,
+    /** Categoria opcional (ex.: Outros): mostra a quantidade de arquivos e não conta como "Faltando". */
+    val optional: Boolean = false,
 ) {
     val fileWord: String get() = fileBaseName ?: name
 

@@ -292,6 +292,23 @@ class OrganizeAndUndoTest {
         assertFalse(Files.exists(existing))
     }
 
+    @Test
+    fun `outros da manutencao entram como 6 e 6_1 com descricao`() = runTest {
+        settings.save(settings.settings.value.copy(monthFolder = maintenanceJune))
+        val first = downloads.createFakePdf("nota.pdf")
+        val second = downloads.createFakePdf("recibo.pdf")
+
+        organizeDone(planFor(first, "manutencao.outros", description = "Nota fiscal"))
+        organizeDone(planFor(second, "manutencao.outros", description = "Recibo"))
+
+        assertTrue(Files.exists(maintenanceJune.resolve("6. Outros - Nota fiscal.pdf")))
+        assertTrue(Files.exists(maintenanceJune.resolve("6.1 Outros - Recibo.pdf")))
+        assertEquals(
+            Outcome.Failure(FileOperationError.CategoryNotInMonthAccount),
+            plan(downloads.createFakePdf("x.pdf"), "outros", OrganizeMode.RENAME_AND_MOVE),
+        )
+    }
+
     private suspend fun planFor(
         source: Path,
         categoryId: String,
