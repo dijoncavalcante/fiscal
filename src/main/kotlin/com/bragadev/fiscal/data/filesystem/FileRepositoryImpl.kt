@@ -6,13 +6,22 @@ import com.bragadev.fiscal.domain.repository.FileRepository
 import com.bragadev.fiscal.domain.rules.FileNameRules
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.SimpleFileVisitor
+import java.nio.file.StandardWatchEventKinds.ENTRY_CREATE
+import java.nio.file.StandardWatchEventKinds.ENTRY_DELETE
+import java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY
 import java.nio.file.attribute.BasicFileAttributes
+import java.util.concurrent.TimeUnit
 
 class FileRepositoryImpl(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -47,6 +56,29 @@ class FileRepositoryImpl(
             // Sem REPLACE_EXISTING: o NIO falha se o destino existir, impedindo sobrescrita.
             Files.move(source, target)
             Unit
+        }
+    }
+
+    override fun watch(folder: Path): Flow<Unit> = callbackFlow {
+        val watcher = try {
+            folder.fileSystem.newWatchService().also {
+                folder.register(it, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY)
+            }
+        } catch (_: IOException) {
+            // Pasta inacessível (ex.: pendrive removido): sem avisos; o botão Atualizar continua funcionando.
+            close()
+            return@callbackFlow
+        }
+        val poller = launch(ioDispatcher) {
+            while (isActive) {
+                val key = runCatching { watcher.poll(WATCH_POLL_MS, TimeUnit.MILLISECONDS) }.getOrNull() ?: continue
+                if (key.pollEvents().isNotEmpty()) trySend(Unit)
+                if (!key.reset()) break
+            }
+        }
+        awaitClose {
+            poller.cancel()
+            runCatching { watcher.close() }
         }
     }
 
@@ -86,5 +118,6 @@ class FileRepositoryImpl(
         const val PDF_HEADER_SEARCH_BYTES = 1024
         const val SINGLE_LEVEL = 1
         const val MAC_METADATA_PREFIX = "._"
+        const val WATCH_POLL_MS = 500L
     }
 }

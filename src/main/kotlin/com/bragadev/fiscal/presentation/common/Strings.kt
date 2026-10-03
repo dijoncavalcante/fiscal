@@ -113,6 +113,45 @@ object Strings {
     fun conflictMessage(fileName: String) = "O arquivo \"$fileName\" já existe."
     fun numberedCopy(fileName: String) = "Criar cópia numerada ($fileName)"
 
+    // Ações nos arquivos do mês
+    const val FILE_ACTIONS = "Mais ações"
+    const val RENAME_FILE = "Renomear arquivo"
+    const val RENAME_FILE_TITLE = "Renomear arquivo"
+    const val NEW_FILE_NAME = "Novo nome do arquivo"
+    const val NAME_PREVIEW = "Vai ficar assim:"
+    const val KEEPS_NUMBER = "O número da despesa é mantido; só a descrição muda."
+    const val NAME_TAKEN = "Já existe um arquivo com este nome nesta pasta."
+    const val REMOVE_FROM_MONTH = "Retirar do mês"
+    const val REMOVE_FROM_MONTH_TITLE = "Retirar arquivo da pasta do mês"
+    const val REMOVE_EXPLANATION =
+        "O arquivo sai da pasta do mês e volta para a pasta de origem. Nada é apagado e você pode desfazer."
+    const val MOVE_TO = "Vai para:"
+    const val REMOVE = "Retirar"
+    const val MARK_ISSUE = "Marcar pendência"
+    const val CLEAR_ISSUE = "Remover pendência"
+    const val ISSUE_TITLE = "Marcar pendência no arquivo"
+    const val ISSUE_NOTE = "O que está errado?"
+    const val ISSUE_DEFAULT_NOTE = "Arquivo errado — trocar"
+    const val ISSUE_EXPLANATION = "A pendência aparece em destaque no mês até ser removida. O arquivo não é alterado."
+    const val MARK = "Marcar"
+    const val STATUS_ISSUE = "⚠ Com pendência"
+    const val PREVIEW_FILE = "Ver no preview"
+    const val FILE_RENAMED = "✓ Arquivo renomeado."
+    const val FILE_REMOVED = "✓ Arquivo retirado do mês."
+    const val ISSUE_MARKED = "⚠ Pendência marcada."
+    const val ISSUE_CLEARED = "✓ Pendência removida."
+
+    fun issueLabel(note: String) = "⚠ Pendência: $note"
+
+    // Documentos: ordenação e busca
+    const val REFRESH_FOLDER = "Atualizar a pasta"
+    const val SORT_NEWEST = "Mais recentes"
+    const val SORT_NAME = "Nome"
+    const val SEARCH = "Buscar nesta pasta"
+    const val NO_SEARCH_RESULTS = "Nenhum PDF com esse nome."
+
+    fun modifiedAt(text: String) = "Modificado em $text"
+
     // Resultado
     const val ORGANIZED = "✓ Documento organizado."
     const val UNDONE = "✓ Operação desfeita."

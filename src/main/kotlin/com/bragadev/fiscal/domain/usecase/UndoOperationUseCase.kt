@@ -5,6 +5,7 @@ import com.bragadev.fiscal.domain.model.FileOperationError
 import com.bragadev.fiscal.domain.model.Outcome
 import com.bragadev.fiscal.domain.model.UndoBlockReason
 import com.bragadev.fiscal.domain.repository.DocumentRepository
+import com.bragadev.fiscal.domain.repository.FileFlagRepository
 import com.bragadev.fiscal.domain.repository.FileRepository
 import com.bragadev.fiscal.domain.repository.OperationHistoryRepository
 import com.bragadev.fiscal.domain.rules.EditablePeriodPolicy
@@ -21,6 +22,7 @@ class UndoOperationUseCase(
     private val fileRepository: FileRepository,
     private val historyRepository: OperationHistoryRepository,
     private val documentRepository: DocumentRepository,
+    private val flagRepository: FileFlagRepository,
     private val periodPolicy: EditablePeriodPolicy,
 ) {
     suspend operator fun invoke(operationId: UUID): Outcome<FileOperation> {
@@ -38,6 +40,7 @@ class UndoOperationUseCase(
         operation.backupPath?.let { fileRepository.move(Path.of(it), current) }
         historyRepository.markUndone(operation.id)
         documentRepository.recordRestored(current, original)
+        flagRepository.move(current, original)
         return Outcome.Success(operation.copy(undone = true))
     }
 

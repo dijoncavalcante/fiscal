@@ -49,6 +49,7 @@ presentation/
   home/         Lado esquerdo (pasta de origem + lista) e HomeScreen (layout geral, snackbar, barra superior)
   preview/      Preview do PDF (zoom, páginas, ajustar)
   organizer/    Lado direito: mês em edição, árvore de categorias, diálogos de organizar
+  monthfiles/   Ações sobre arquivos já no mês: renomear, retirar do mês, marcar pendência (MonthFilesViewModel)
   settings/     Tela de configurações
 ```
 
@@ -62,13 +63,20 @@ Regras de camada:
 
 ## Layout da tela
 
-- **Esquerda — pasta de origem:** qualquer pasta do PC, escolhida pelo lápis. Lista só os PDFs da própria pasta
-  (sem subpastas; ignora `._*.pdf` do macOS). Itens podem ser arrastados.
+- **Esquerda — pasta de origem:** qualquer pasta do PC, escolhida pelo lápis; botão 🔄 atualiza. Lista só os PDFs da
+  própria pasta (sem subpastas; ignora `._*.pdf` do macOS), com busca por nome e ordem "Mais recentes" (padrão, como
+  "Data de modificação" do Explorer) ou "Nome" (salva em `document_sort`). Itens podem ser arrastados.
 - **Centro — preview** (PDFBox). O PDF é lido para memória: o arquivo nunca fica bloqueado nem é alterado.
 - **Direita — mês em edição:** mês em destaque ("Junho de 2026 ✓ Liberado" / "🔒 Somente leitura"), conta detectada,
   caminho completo **somente leitura** (texto copiável, pasta do mês em negrito) e lápis para trocar. Abaixo, grupos
   recolhíveis por conta com as categorias, cada uma com **✓ Já existe** (e os arquivos encontrados) ou **○ Faltando**;
   "Outros" no fim de cada conta; grupo "Arquivos sem número de categoria" (recolhido por padrão).
+- **Arquivos já no mês:** clicar no nome abre no preview central; ✏️ renomeia (Despesas: só a descrição, mantém o
+  número; demais: nome livre, sem sobrescrever); menu ⋮ → "Retirar do mês" (volta para a pasta de origem, com
+  Desfazer; nunca apaga) e "Marcar/Remover pendência" (nota ⚠ no arquivo; a categoria vira "⚠ Com pendência" e não
+  conta no resumo). Diálogos de organizar/renomear/retirar/confirmar mostram o PDF ao lado (`PreviewDialog`).
+- **Atualização automática:** as duas pastas são observadas (`FileRepository.watch`, WatchService) e a tela se
+  atualiza quando algo muda no Explorer.
 - Arrastar um PDF (da lista ou do Windows Explorer) para uma categoria, ou selecionar e clicar na categoria, abre a
   proposta: nome atual, novo nome, mês, destino → **Cancelar / Renomear / Renomear e Mover**.
 
@@ -118,6 +126,9 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   sempre cria `Nome (2).pdf` e nunca substitui; `FORBID` bloqueia. Conflito é rechecado na execução.
 - **Nunca sobrescrever:** `Files.move` sempre **sem** `REPLACE_EXISTING`. "Substituir" move o arquivo existente para
   `%APPDATA%\Fiscal\backup` e o Desfazer restaura os dois. Nomes comparados sem diferenciar maiúsculas (Windows).
+- **Histórico:** toda movimentação/renomeação passa por `RecordedFileMover` (grava `file_operations` e leva a
+  pendência junto). Organizar (`OrganizeDocumentUseCase`), renomear (`PlanRenameUseCase` / `PlanOrganizationUseCase`
+  com descrição) e retirar do mês (`RemoveFromMonthUseCase`) usam o mesmo caminho e podem ser desfeitos.
 - **Desfazer (`UndoOperationUseCase`):** valida antes (operação existe, não desfeita, arquivo no destino, origem livre,
   backup presente, meses liberados); nada é alterado se não for seguro.
 - **Renomear** mantém na pasta atual; **Renomear e Mover** leva para a pasta do mês. A proposta (com destino) é sempre
@@ -126,7 +137,8 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
 ## Dados locais
 
 - `%APPDATA%\Fiscal\fiscal.db` (SQLite) e `%APPDATA%\Fiscal\backup\`.
-- Tabelas: `documents`, `categories` (+ `file_base_name`), `file_operations` (+ `backup_path`, `undone`), `settings`.
+- Tabelas: `documents`, `categories` (+ `file_base_name`), `file_operations` (+ `backup_path`, `undone`), `settings`,
+  `file_flags` (pendências por pasta + nome, em minúsculas).
 - Colunas novas: adicionar em `Schema.statements` **e** em `Schema.addedColumns` (migração por `ALTER TABLE` se faltar).
 - Settings: `source_folder`, `month_folder`, `duplicate_policy`, `confirm_before_move`, `confirm_before_rename`
   (`root_path` é chave legada, migrada para `source_folder`). Único caminho absoluto no código:

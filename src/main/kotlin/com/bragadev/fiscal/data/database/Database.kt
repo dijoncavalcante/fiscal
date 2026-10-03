@@ -92,5 +92,14 @@ private object Schema {
             value TEXT NOT NULL
         )
         """,
+        """
+        CREATE TABLE IF NOT EXISTS file_flags (
+            folder TEXT NOT NULL,
+            file_name TEXT NOT NULL,
+            note TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (folder, file_name)
+        )
+        """,
     )
 }

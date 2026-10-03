@@ -2,6 +2,7 @@ package com.bragadev.fiscal.domain.repository
 
 import com.bragadev.fiscal.domain.model.Document
 import com.bragadev.fiscal.domain.model.Outcome
+import kotlinx.coroutines.flow.Flow
 import java.nio.file.Path
 
 /** Acesso ao sistema de arquivos. Única porta de entrada para ler, mover e renomear arquivos. */
@@ -24,4 +25,7 @@ interface FileRepository {
      * Nunca sobrescreve: falha com DestinationAlreadyExists se o destino existir.
      */
     suspend fun move(source: Path, target: Path): Outcome<Unit>
+
+    /** Emite um aviso sempre que algo muda dentro da pasta (criar, apagar, renomear). */
+    fun watch(folder: Path): Flow<Unit>
 }

@@ -12,6 +12,7 @@ import com.bragadev.fiscal.domain.model.UndoBlockReason
 import com.bragadev.fiscal.domain.rules.EditablePeriodPolicy
 import com.bragadev.fiscal.fakes.FakeCategoryRepository
 import com.bragadev.fiscal.fakes.FakeSettingsRepository
+import com.bragadev.fiscal.fakes.InMemoryFlagRepository
 import com.bragadev.fiscal.fakes.InMemoryHistoryRepository
 import com.bragadev.fiscal.fakes.NoOpDocumentRepository
 import com.bragadev.fiscal.fakes.TempBackupStorage
@@ -47,13 +48,12 @@ class OrganizeAndUndoTest {
     private val policy = EditablePeriodPolicy(YearMonth.of(2026, 6))
     private val settings by lazy { FakeSettingsRepository(AppSettings(sourceFolder = downloads, monthFolder = june)) }
     private val plan by lazy { PlanOrganizationUseCase(FakeCategoryRepository(), fileRepository, settings, policy) }
+    private val flags = InMemoryFlagRepository()
+    private val mover by lazy { RecordedFileMover(fileRepository, history, NoOpDocumentRepository(), flags) }
     private val organize by lazy {
-        OrganizeDocumentUseCase(
-            fileRepository, history, NoOpDocumentRepository(), TempBackupStorage(temp.newFolder("backup").toPath()),
-            settings, policy,
-        )
+        OrganizeDocumentUseCase(fileRepository, mover, TempBackupStorage(temp.newFolder("backup").toPath()), settings, policy)
     }
-    private val undo by lazy { UndoOperationUseCase(fileRepository, history, NoOpDocumentRepository(), policy) }
+    private val undo by lazy { UndoOperationUseCase(fileRepository, history, NoOpDocumentRepository(), flags, policy) }
 
     @Test
     fun `organiza no mes em edicao e desfaz devolvendo o nome original`() = runTest {

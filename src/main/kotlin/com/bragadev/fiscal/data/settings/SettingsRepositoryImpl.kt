@@ -2,6 +2,7 @@ package com.bragadev.fiscal.data.settings
 
 import com.bragadev.fiscal.data.database.SettingsDao
 import com.bragadev.fiscal.domain.model.AppSettings
+import com.bragadev.fiscal.domain.model.DocumentSort
 import com.bragadev.fiscal.domain.model.DuplicatePolicy
 import com.bragadev.fiscal.domain.repository.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +28,9 @@ class SettingsRepositoryImpl(
                 ?: defaults.duplicatePolicy,
             confirmBeforeMove = values[Keys.CONFIRM_MOVE]?.toBooleanStrictOrNull() ?: defaults.confirmBeforeMove,
             confirmBeforeRename = values[Keys.CONFIRM_RENAME]?.toBooleanStrictOrNull() ?: defaults.confirmBeforeRename,
+            documentSort = values[Keys.DOCUMENT_SORT]
+                ?.let { runCatching { DocumentSort.valueOf(it) }.getOrNull() }
+                ?: defaults.documentSort,
         )
         state.value = loaded
         return loaded
@@ -41,6 +45,7 @@ class SettingsRepositoryImpl(
                 Keys.DUPLICATE_POLICY to settings.duplicatePolicy.name,
                 Keys.CONFIRM_MOVE to settings.confirmBeforeMove.toString(),
                 Keys.CONFIRM_RENAME to settings.confirmBeforeRename.toString(),
+                Keys.DOCUMENT_SORT to settings.documentSort.name,
             ),
         )
         state.value = settings
@@ -53,6 +58,7 @@ class SettingsRepositoryImpl(
         const val DUPLICATE_POLICY = "duplicate_policy"
         const val CONFIRM_MOVE = "confirm_before_move"
         const val CONFIRM_RENAME = "confirm_before_rename"
+        const val DOCUMENT_SORT = "document_sort"
     }
 
     companion object {

@@ -75,7 +75,7 @@ private fun EditButton(description: String, onEdit: () -> Unit) {
         state = rememberTooltipState(),
     ) {
         IconButton(onClick = onEdit) {
-            Icon(PencilIcon, contentDescription = description, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+            Icon(AppIcons.Pencil, contentDescription = description, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
         }
     }
 }

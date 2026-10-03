@@ -20,6 +20,7 @@ import com.bragadev.fiscal.domain.usecase.OrganizeDocumentUseCase
 import com.bragadev.fiscal.domain.usecase.OrganizeResult
 import com.bragadev.fiscal.domain.usecase.PlanOrganizationUseCase
 import com.bragadev.fiscal.domain.usecase.UndoOperationUseCase
+import com.bragadev.fiscal.domain.usecase.WatchFolderUseCase
 import com.bragadev.fiscal.presentation.common.DocumentChangeNotifier
 import com.bragadev.fiscal.presentation.common.Strings
 import com.bragadev.fiscal.presentation.common.UserMessage
@@ -30,6 +31,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
@@ -47,6 +49,7 @@ class OrganizerViewModel(
     private val changeMonthFolder: ChangeMonthFolderUseCase,
     private val describeMonthFolder: DescribeMonthFolderUseCase,
     private val observeSettings: ObserveSettingsUseCase,
+    private val watchFolder: WatchFolderUseCase,
     private val documentChanges: DocumentChangeNotifier,
     periodPolicy: EditablePeriodPolicy,
 ) : ViewModel() {
@@ -59,10 +62,17 @@ class OrganizerViewModel(
     init {
         scope.launch { refreshUndoAvailability() }
         scope.launch {
-            observeSettings().map { it.monthFolder }.distinctUntilChanged().collect(::showMonthFolder)
+            observeSettings().map { it.monthFolder }.distinctUntilChanged().collectLatest { folder ->
+                showMonthFolder(folder)
+                // Mudanças feitas fora do app (ex.: no Explorer) atualizam o "já existe / faltando" sozinhas.
+                folder?.let { watchFolder(it).collect { refreshChecklist() } }
+            }
         }
         scope.launch {
-            documentChanges.changes.collect { refreshChecklist() }
+            documentChanges.changes.collect {
+                refreshChecklist()
+                refreshUndoAvailability()
+            }
         }
     }
 

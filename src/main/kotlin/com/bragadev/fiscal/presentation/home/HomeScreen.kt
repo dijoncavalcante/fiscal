@@ -36,12 +36,16 @@ import androidx.compose.ui.unit.dp
 import com.bragadev.fiscal.presentation.common.Strings
 import com.bragadev.fiscal.presentation.common.UserMessage
 import com.bragadev.fiscal.presentation.components.pickFolder
+import com.bragadev.fiscal.presentation.monthfiles.MonthFilesDialogHost
+import com.bragadev.fiscal.presentation.monthfiles.MonthFilesViewModel
+import com.bragadev.fiscal.presentation.organizer.MonthFileActions
 import com.bragadev.fiscal.presentation.organizer.OrganizerDialogHost
 import com.bragadev.fiscal.presentation.organizer.OrganizerScreen
 import com.bragadev.fiscal.presentation.organizer.OrganizerUiState
 import com.bragadev.fiscal.presentation.organizer.OrganizerViewModel
 import com.bragadev.fiscal.presentation.preview.PdfPreviewScreen
 import com.bragadev.fiscal.presentation.preview.PdfPreviewViewModel
+import java.util.UUID
 
 private val WIDE_LAYOUT_MIN_WIDTH = 1100.dp
 
@@ -50,13 +54,16 @@ fun HomeScreen(
     homeViewModel: HomeViewModel,
     previewViewModel: PdfPreviewViewModel,
     organizerViewModel: OrganizerViewModel,
+    monthFilesViewModel: MonthFilesViewModel,
     onOpenSettings: () -> Unit,
 ) {
     val home by homeViewModel.uiState.collectAsState()
     val organizer by organizerViewModel.uiState.collectAsState()
+    val monthFiles by monthFilesViewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    MessageEffect(organizer.message, snackbarHostState, organizerViewModel)
+    MessageEffect(organizer.message, snackbarHostState, organizerViewModel::undo, organizerViewModel::onMessageShown)
+    MessageEffect(monthFiles.message, snackbarHostState, organizerViewModel::undo, monthFilesViewModel::onMessageShown)
     ErrorEffect(home.error, snackbarHostState, homeViewModel::onErrorShown)
 
     Scaffold(
@@ -72,11 +79,12 @@ fun HomeScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
-            Workspace(home, organizer, previewViewModel, homeViewModel, organizerViewModel)
-            if (organizer.isWorking) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
+            Workspace(home, organizer, previewViewModel, homeViewModel, organizerViewModel, monthFilesViewModel)
+            if (organizer.isWorking || monthFiles.isWorking) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
         }
     }
     OrganizerDialogHost(organizer, organizerViewModel)
+    MonthFilesDialogHost(monthFiles, monthFilesViewModel)
 }
 
 @Composable
@@ -86,12 +94,23 @@ private fun Workspace(
     previewViewModel: PdfPreviewViewModel,
     homeViewModel: HomeViewModel,
     organizerViewModel: OrganizerViewModel,
+    monthFilesViewModel: MonthFilesViewModel,
 ) {
     val selectedPath = home.selectedDocument?.path
+    val fileActions = MonthFileActions(
+        onPreview = homeViewModel::onPreviewFile,
+        onRename = monthFilesViewModel::onRenameRequested,
+        onRemove = monthFilesViewModel::onRemoveRequested,
+        onFlag = monthFilesViewModel::onFlagRequested,
+        onClearFlag = monthFilesViewModel::onFlagCleared,
+    )
     val documents: @Composable (Modifier) -> Unit = { modifier ->
         DocumentList(
             state = home,
             onSelect = homeViewModel::onDocumentSelected,
+            onRefresh = homeViewModel::onRefresh,
+            onSortChanged = homeViewModel::onSortChanged,
+            onQueryChanged = homeViewModel::onQueryChanged,
             onChangeFolder = {
                 pickFolder(Strings.SOURCE_FOLDER_PICKER_TITLE, homeViewModel.currentSourceFolder)
                     ?.let(homeViewModel::onSourceFolderSelected)
@@ -109,6 +128,7 @@ private fun Workspace(
                 val initial = organizerViewModel.currentMonthFolder ?: homeViewModel.currentSourceFolder
                 pickFolder(Strings.MONTH_FOLDER_PICKER_TITLE, initial)?.let(organizerViewModel::onMonthFolderSelected)
             },
+            fileActions = fileActions,
             modifier = modifier,
         )
     }
@@ -179,7 +199,12 @@ private fun StatusBar(home: HomeUiState) {
 }
 
 @Composable
-private fun MessageEffect(message: UserMessage?, snackbarHostState: SnackbarHostState, viewModel: OrganizerViewModel) {
+private fun MessageEffect(
+    message: UserMessage?,
+    snackbarHostState: SnackbarHostState,
+    onUndo: (UUID?) -> Unit,
+    onShown: () -> Unit,
+) {
     LaunchedEffect(message?.id) {
         message ?: return@LaunchedEffect
         val result = snackbarHostState.showSnackbar(
@@ -188,8 +213,8 @@ private fun MessageEffect(message: UserMessage?, snackbarHostState: SnackbarHost
             withDismissAction = true,
             duration = if (message.undoOperationId != null) SnackbarDuration.Long else SnackbarDuration.Short,
         )
-        if (result == SnackbarResult.ActionPerformed) viewModel.undo(message.undoOperationId)
-        viewModel.onMessageShown()
+        if (result == SnackbarResult.ActionPerformed) onUndo(message.undoOperationId)
+        onShown()
     }
 }
 

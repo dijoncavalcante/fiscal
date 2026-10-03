@@ -24,6 +24,9 @@ fun FileOperationError.toUserMessage(): String = when (this) {
     FileOperationError.CategoryNotFound -> "A categoria escolhida não existe mais."
     FileOperationError.AlreadyInPlace -> Strings.ALREADY_ORGANIZED
     FileOperationError.DescriptionRequired -> "Escreva a descrição para montar o nome do arquivo."
+    FileOperationError.NameRequired -> "Escreva o novo nome do arquivo."
+    FileOperationError.ReturnFolderIsMonthFolder ->
+        "A pasta de origem (à esquerda) é a própria pasta do mês. Escolha outra pasta de origem para receber o arquivo."
     FileOperationError.ReadError -> "Não foi possível ler o arquivo."
     FileOperationError.MoveError -> "Não foi possível mover o arquivo."
     is FileOperationError.UndoNotPossible -> reason.toUserMessage()

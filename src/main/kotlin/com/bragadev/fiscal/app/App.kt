@@ -35,6 +35,7 @@ fun App() {
                     homeViewModel = koinInject(),
                     previewViewModel = koinInject(),
                     organizerViewModel = koinInject(),
+                    monthFilesViewModel = koinInject(),
                     onOpenSettings = { screen = Screen.SETTINGS },
                 )
                 Screen.SETTINGS -> SettingsScreen(

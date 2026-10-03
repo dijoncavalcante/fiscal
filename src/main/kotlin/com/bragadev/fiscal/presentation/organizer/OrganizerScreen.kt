@@ -29,12 +29,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draganddrop.DragAndDropEvent
 import androidx.compose.ui.draganddrop.DragAndDropTarget
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bragadev.fiscal.domain.model.AccountGroup
 import com.bragadev.fiscal.domain.model.CategoryNode
@@ -50,10 +48,23 @@ import java.nio.file.Path
 private const val LOCKED_ALPHA = 0.45f
 private const val UNMATCHED_GROUP_KEY = "unmatched"
 
+/** Tudo o que as linhas da lista precisam saber sobre a pasta do mês. */
+private class MonthContext(
+    val checklist: MonthChecklist?,
+    val monthFolder: Path?,
+    val editable: Boolean,
+    val fileActions: MonthFileActions,
+    val onDrop: (List<Path>, String) -> Unit,
+    val onCategoryClick: (DocumentCategory) -> Unit,
+) {
+    fun fileIn(name: String): Path? = monthFolder?.resolve(name)
+}
+
 /**
  * Lado direito: mês em edição e categorias agrupadas por conta (cada grupo pode ser recolhido).
- * Cada categoria mostra se já existe arquivo na pasta do mês ou se está faltando, e aceita PDFs
- * arrastados do Windows Explorer ou da lista; com o mês bloqueado, as categorias ficam desativadas.
+ * Cada categoria mostra se já existe arquivo na pasta do mês, se está faltando ou com pendência,
+ * e aceita PDFs arrastados do Windows Explorer ou da lista. Os arquivos listados podem ser vistos,
+ * renomeados, retirados do mês ou marcados com pendência.
  */
 @Composable
 fun OrganizerScreen(
@@ -62,10 +73,21 @@ fun OrganizerScreen(
     onDrop: (paths: List<Path>, categoryId: String) -> Unit,
     onCategoryClickedWithoutDocument: () -> Unit,
     onEditMonthFolder: () -> Unit,
+    fileActions: MonthFileActions,
     modifier: Modifier = Modifier,
 ) {
     // Grupos começam expandidos, exceto a lista de arquivos sem número.
     val expanded = remember { mutableStateMapOf<String, Boolean>() }
+    val context = MonthContext(
+        checklist = state.checklist,
+        monthFolder = state.monthFolder?.path,
+        editable = state.canOrganize,
+        fileActions = fileActions,
+        onDrop = onDrop,
+        onCategoryClick = { category ->
+            if (selectedDocument != null) onDrop(listOf(selectedDocument), category.id) else onCategoryClickedWithoutDocument()
+        },
+    )
 
     Panel(title = Strings.MONTH_PANEL, modifier = modifier) {
         MonthHeader(state.monthFolder, state.firstEditableMonth, onEditMonthFolder)
@@ -76,48 +98,30 @@ fun OrganizerScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
         )
-        val onCategoryClick: (DocumentCategory) -> Unit = { category ->
-            if (selectedDocument != null) onDrop(listOf(selectedDocument), category.id) else onCategoryClickedWithoutDocument()
-        }
-        val rowsAlpha = if (state.canOrganize) 1f else LOCKED_ALPHA
         LazyColumn(Modifier.fillMaxWidth().weight(1f).padding(horizontal = 8.dp)) {
-            state.groups.forEach { group ->
-                accountGroup(group, state.checklist, state.canOrganize, rowsAlpha, expanded, onDrop, onCategoryClick)
-            }
-            state.checklist?.unmatchedFiles?.takeIf { it.isNotEmpty() }?.let { files ->
-                unmatchedFiles(files, expanded)
-            }
+            state.groups.forEach { group -> accountGroup(group, context, expanded) }
+            state.checklist?.unmatchedFiles?.takeIf { it.isNotEmpty() }?.let { files -> unmatchedFiles(files, context, expanded) }
         }
     }
 }
 
-private fun LazyListScope.accountGroup(
-    group: AccountGroup,
-    checklist: MonthChecklist?,
-    enabled: Boolean,
-    rowsAlpha: Float,
-    expanded: SnapshotStateMap<String, Boolean>,
-    onDrop: (List<Path>, String) -> Unit,
-    onClick: (DocumentCategory) -> Unit,
-) {
+private fun LazyListScope.accountGroup(group: AccountGroup, context: MonthContext, expanded: SnapshotStateMap<String, Boolean>) {
     val key = group.accountType.name
     val isExpanded = expanded[key] ?: true
     val entries = flatten(group.nodes, depth = 1)
     item(key = "header-$key") {
         GroupHeader(
             title = "📁 ${group.accountType.displayName}",
-            summary = checklist?.let { summaryFor(entries, it) },
+            summary = context.checklist?.let { summaryFor(entries, it) },
             isExpanded = isExpanded,
             onToggle = { expanded[key] = !isExpanded },
         )
     }
     if (!isExpanded) return
-    items(entries, key = { "$key-${it.node.category.id}" }) { entry ->
-        CategoryRow(entry, checklist, enabled, onDrop, onClick, Modifier.alpha(rowsAlpha))
-    }
+    items(entries, key = { "$key-${it.node.category.id}" }) { entry -> CategoryRow(entry, context) }
 }
 
-private fun LazyListScope.unmatchedFiles(files: List<String>, expanded: SnapshotStateMap<String, Boolean>) {
+private fun LazyListScope.unmatchedFiles(files: List<String>, context: MonthContext, expanded: SnapshotStateMap<String, Boolean>) {
     val isExpanded = expanded[UNMATCHED_GROUP_KEY] ?: false
     item(key = "header-$UNMATCHED_GROUP_KEY") {
         GroupHeader(
@@ -129,12 +133,14 @@ private fun LazyListScope.unmatchedFiles(files: List<String>, expanded: Snapshot
     }
     if (!isExpanded) return
     items(files, key = { "$UNMATCHED_GROUP_KEY-$it" }) { name ->
-        Text(
-            text = "📄 $name",
-            style = MaterialTheme.typography.bodySmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 24.dp, top = 2.dp, bottom = 2.dp),
+        val file = context.fileIn(name) ?: return@items
+        MonthFileRow(
+            file = file,
+            category = null,
+            issue = context.checklist?.flagFor(name),
+            editable = context.editable,
+            actions = context.fileActions,
+            modifier = Modifier.padding(start = 20.dp),
         )
     }
 }
@@ -144,10 +150,14 @@ private data class TreeEntry(val node: CategoryNode, val depth: Int)
 private fun flatten(nodes: List<CategoryNode>, depth: Int): List<TreeEntry> =
     nodes.flatMap { node -> listOf(TreeEntry(node, depth)) + flatten(node.children, depth + 1) }
 
-/** Resumo do grupo: quantas categorias obrigatórias já têm arquivo ("Outros" é opcional e não conta). */
+/**
+ * Resumo do grupo: quantas categorias obrigatórias estão resolvidas — com arquivo e sem pendência.
+ * "Outros" é opcional e não conta.
+ */
 private fun summaryFor(entries: List<TreeEntry>, checklist: MonthChecklist): String {
     val required = entries.map { it.node.category }.filter { it.namingRule != NamingRule.SEQUENTIAL }
-    return Strings.groupSummary(required.count { checklist.isPresent(it.id) }, required.size)
+    val done = required.count { checklist.isPresent(it.id) && !checklist.hasPendingIssue(it.id) }
+    return Strings.groupSummary(done, required.size)
 }
 
 @Composable
@@ -172,16 +182,9 @@ private fun GroupHeader(title: String, summary: String?, isExpanded: Boolean, on
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun CategoryRow(
-    entry: TreeEntry,
-    checklist: MonthChecklist?,
-    enabled: Boolean,
-    onDrop: (List<Path>, String) -> Unit,
-    onClick: (DocumentCategory) -> Unit,
-    modifier: Modifier = Modifier,
-) {
+private fun CategoryRow(entry: TreeEntry, context: MonthContext) {
     val category = entry.node.category
-    val currentOnDrop by rememberUpdatedState(onDrop)
+    val currentOnDrop by rememberUpdatedState(context.onDrop)
     var isDragOver by remember { mutableStateOf(false) }
     val dropTarget = remember(category.id) {
         object : DragAndDropTarget {
@@ -207,35 +210,45 @@ private fun CategoryRow(
         }
     }
 
-    val showDropHighlight = isDragOver && enabled
+    val checklist = context.checklist
+    val showDropHighlight = isDragOver && context.editable
     val shape = RoundedCornerShape(6.dp)
     val highlight = if (showDropHighlight) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
     val borderColor = if (showDropHighlight) MaterialTheme.colorScheme.primary else Color.Transparent
     val files = checklist?.filesFor(category.id).orEmpty()
 
     Column(
-        modifier
+        Modifier
             .fillMaxWidth()
             .padding(start = (entry.depth * 16).dp, top = 1.dp, bottom = 1.dp)
             .background(highlight, shape)
             .border(1.dp, borderColor, shape)
             // Mesmo bloqueada, a categoria recebe o arquivo para avisar o motivo; o ViewModel recusa.
             .dragAndDropTarget(shouldStartDragAndDrop = DragPayload::canAccept, target = dropTarget)
-            .clickable { onClick(category) }
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .padding(horizontal = 8.dp, vertical = 4.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(category.label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-            checklist?.let { FileStatus(category, files) }
+        Row(
+            Modifier.fillMaxWidth().clickable { context.onCategoryClick(category) }.padding(vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val labelAlpha = if (context.editable) 1f else LOCKED_ALPHA
+            Text(
+                category.label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = labelAlpha),
+                modifier = Modifier.weight(1f),
+            )
+            checklist?.let { FileStatus(category, files, it) }
         }
         files.forEach { name ->
-            Text(
-                text = "📄 $name",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 4.dp, top = 1.dp),
+            val file = context.fileIn(name) ?: return@forEach
+            MonthFileRow(
+                file = file,
+                category = category,
+                issue = checklist?.flagFor(name),
+                editable = context.editable,
+                actions = context.fileActions,
+                modifier = Modifier.padding(start = 4.dp),
             )
         }
         if (showDropHighlight) {
@@ -244,12 +257,17 @@ private fun CategoryRow(
     }
 }
 
-/** Selo à direita da categoria: ✓ Já existe (verde) ou ○ Faltando (âmbar). "Outros" mostra só a quantidade. */
+/**
+ * Selo à direita da categoria: ✓ Já existe (verde), ⚠ Com pendência (vermelho claro) ou ○ Faltando (âmbar).
+ * "Outros" mostra só a quantidade de arquivos.
+ */
 @Composable
-private fun FileStatus(category: DocumentCategory, files: List<String>) {
+private fun FileStatus(category: DocumentCategory, files: List<String>, checklist: MonthChecklist) {
     val (text, color, background) = when {
         category.namingRule == NamingRule.SEQUENTIAL ->
             Triple(Strings.sequentialCount(files.size), MaterialTheme.colorScheme.onSurfaceVariant, Color.Transparent)
+        checklist.hasPendingIssue(category.id) ->
+            Triple(Strings.STATUS_ISSUE, MaterialTheme.colorScheme.error, StatusColors.LockedBackground)
         files.isNotEmpty() -> Triple("✓ ${Strings.FILE_PRESENT}", StatusColors.Positive, StatusColors.PositiveBackground)
         else -> Triple("○ ${Strings.FILE_MISSING}", StatusColors.Warning, StatusColors.WarningBackground)
     }

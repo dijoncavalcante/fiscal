@@ -10,7 +10,15 @@ data class AppSettings(
     val duplicatePolicy: DuplicatePolicy = DuplicatePolicy.ASK,
     val confirmBeforeMove: Boolean = true,
     val confirmBeforeRename: Boolean = true,
+    val documentSort: DocumentSort = DocumentSort.MODIFIED_NEWEST_FIRST,
 )
+
+/** Ordem da lista de documentos (lado esquerdo). */
+enum class DocumentSort {
+    /** Mais recentes primeiro, como "Data de modificação" no Explorer. */
+    MODIFIED_NEWEST_FIRST,
+    NAME,
+}
 
 /** Comportamento padrão quando o nome de destino já existe. */
 enum class DuplicatePolicy {

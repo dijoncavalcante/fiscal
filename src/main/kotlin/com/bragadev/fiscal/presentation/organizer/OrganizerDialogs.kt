@@ -28,6 +28,7 @@ import com.bragadev.fiscal.domain.model.DuplicateResolution
 import com.bragadev.fiscal.domain.model.OrganizeMode
 import com.bragadev.fiscal.presentation.common.Strings
 import com.bragadev.fiscal.presentation.components.LabeledValue
+import com.bragadev.fiscal.presentation.components.PreviewDialog
 
 @Composable
 fun OrganizerDialogHost(state: OrganizerUiState, viewModel: OrganizerViewModel) {
@@ -41,38 +42,34 @@ fun OrganizerDialogHost(state: OrganizerUiState, viewModel: OrganizerViewModel) 
 
 @Composable
 private fun ProposalDialog(dialog: OrganizerDialog.Proposal, state: OrganizerUiState, viewModel: OrganizerViewModel) {
-    AlertDialog(
-        onDismissRequest = viewModel::dismissDialog,
-        title = { Text(Strings.organizeTitle(dialog.category.label)) },
-        text = {
-            Column(Modifier.width(460.dp)) {
-                LabeledValue(Strings.CURRENT_FILE, dialog.source.fileName.toString())
-                if (dialog.needsDescription) DescriptionField(dialog, viewModel::onDescriptionChanged)
-                dialog.movePlan?.let { plan ->
-                    LabeledValue(Strings.NEW_NAME, plan.suggestedName)
-                    MonthLine(state)
-                    LabeledValue(Strings.DESTINATION, plan.targetDirectory.toString())
-                }
-                dialog.renamePlan?.let { plan ->
-                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                    LabeledValue(Strings.CURRENT_FOLDER, plan.targetPath.toString())
-                }
-            }
+    PreviewDialog(
+        title = Strings.organizeTitle(dialog.category.label),
+        file = dialog.source,
+        onDismiss = viewModel::dismissDialog,
+        buttons = {
+            TextButton(onClick = viewModel::dismissDialog) { Text(Strings.CANCEL) }
+            OutlinedButton(
+                onClick = { viewModel.onModeChosen(OrganizeMode.RENAME_ONLY) },
+                enabled = dialog.renamePlan != null,
+            ) { Text(Strings.RENAME) }
+            Button(
+                onClick = { viewModel.onModeChosen(OrganizeMode.RENAME_AND_MOVE) },
+                enabled = dialog.movePlan != null,
+            ) { Text(Strings.RENAME_AND_MOVE) }
         },
-        dismissButton = { TextButton(onClick = viewModel::dismissDialog) { Text(Strings.CANCEL) } },
-        confirmButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = { viewModel.onModeChosen(OrganizeMode.RENAME_ONLY) },
-                    enabled = dialog.renamePlan != null,
-                ) { Text(Strings.RENAME) }
-                Button(
-                    onClick = { viewModel.onModeChosen(OrganizeMode.RENAME_AND_MOVE) },
-                    enabled = dialog.movePlan != null,
-                ) { Text(Strings.RENAME_AND_MOVE) }
-            }
-        },
-    )
+    ) {
+        LabeledValue(Strings.CURRENT_FILE, dialog.source.fileName.toString())
+        if (dialog.needsDescription) DescriptionField(dialog, viewModel::onDescriptionChanged)
+        dialog.movePlan?.let { plan ->
+            LabeledValue(Strings.NEW_NAME, plan.suggestedName)
+            MonthLine(state)
+            LabeledValue(Strings.DESTINATION, plan.targetDirectory.toString())
+        }
+        dialog.renamePlan?.let { plan ->
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            LabeledValue(Strings.CURRENT_FOLDER, plan.targetPath.toString())
+        }
+    }
 }
 
 @Composable
@@ -111,23 +108,23 @@ private fun ConflictDialog(dialog: OrganizerDialog.Conflict, viewModel: Organize
 
 @Composable
 private fun ConfirmDialog(dialog: OrganizerDialog.Confirm, state: OrganizerUiState, viewModel: OrganizerViewModel) {
-    AlertDialog(
-        onDismissRequest = viewModel::dismissDialog,
-        title = { Text(Strings.CONFIRM_TITLE) },
-        text = {
-            Column(Modifier.width(460.dp)) {
-                LabeledValue(Strings.CURRENT_FILE, dialog.plan.currentName)
-                if (dialog.plan.mode == OrganizeMode.RENAME_AND_MOVE) MonthLine(state)
-                LabeledValue(Strings.DESTINATION, dialog.plan.targetDirectory.toString())
-                LabeledValue(Strings.NEW_NAME, dialog.finalName)
-                if (dialog.resolution == DuplicateResolution.REPLACE) {
-                    Text(Strings.REPLACE_NOTE, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                }
-            }
+    PreviewDialog(
+        title = Strings.CONFIRM_TITLE,
+        file = dialog.plan.source,
+        onDismiss = viewModel::dismissDialog,
+        buttons = {
+            TextButton(onClick = viewModel::dismissDialog) { Text(Strings.CANCEL) }
+            Button(onClick = viewModel::onConfirmed) { Text(Strings.CONFIRM) }
         },
-        dismissButton = { TextButton(onClick = viewModel::dismissDialog) { Text(Strings.CANCEL) } },
-        confirmButton = { Button(onClick = viewModel::onConfirmed) { Text(Strings.CONFIRM) } },
-    )
+    ) {
+        LabeledValue(Strings.CURRENT_FILE, dialog.plan.currentName)
+        if (dialog.plan.mode == OrganizeMode.RENAME_AND_MOVE) MonthLine(state)
+        LabeledValue(Strings.DESTINATION, dialog.plan.targetDirectory.toString())
+        LabeledValue(Strings.NEW_NAME, dialog.finalName)
+        if (dialog.resolution == DuplicateResolution.REPLACE) {
+            Text(Strings.REPLACE_NOTE, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
+    }
 }
 
 /** Mês de destino, repetido nos diálogos para evitar organizar no mês errado. */

@@ -3,7 +3,12 @@ package com.bragadev.fiscal.data.filesystem
 import com.bragadev.fiscal.domain.model.FileOperationError
 import com.bragadev.fiscal.domain.model.Outcome
 import com.bragadev.fiscal.fakes.createFakePdf
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -47,5 +52,15 @@ class FileRepositoryImplTest {
     fun `arquivo com extensao pdf mas sem assinatura nao e pdf`() = runTest {
         val fake = temp.root.toPath().resolve("falso.pdf").also { Files.writeString(it, "nao sou pdf") }
         assertEquals(false, repository.isPdf(fake))
+    }
+
+    @Test
+    fun `avisa quando um arquivo muda na pasta`() = runBlocking {
+        val root = temp.root.toPath()
+        val changes = async { withTimeout(10_000) { repository.watch(root).first() } }
+        delay(500)
+        root.createFakePdf("novo.pdf")
+
+        assertEquals(Unit, changes.await())
     }
 }

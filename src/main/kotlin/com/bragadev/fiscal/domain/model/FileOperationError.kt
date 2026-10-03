@@ -19,6 +19,8 @@ sealed class FileOperationError {
     data object CategoryNotFound : FileOperationError()
     data object AlreadyInPlace : FileOperationError()
     data object DescriptionRequired : FileOperationError()
+    data object NameRequired : FileOperationError()
+    data object ReturnFolderIsMonthFolder : FileOperationError()
     data object ReadError : FileOperationError()
     data object MoveError : FileOperationError()
     data class UndoNotPossible(val reason: UndoBlockReason) : FileOperationError()

@@ -3,21 +3,16 @@ package com.bragadev.fiscal.domain.usecase
 import com.bragadev.fiscal.domain.model.DuplicateResolution
 import com.bragadev.fiscal.domain.model.FileOperation
 import com.bragadev.fiscal.domain.model.FileOperationError
-import com.bragadev.fiscal.domain.model.OperationType
 import com.bragadev.fiscal.domain.model.OrganizationPlan
 import com.bragadev.fiscal.domain.model.Outcome
 import com.bragadev.fiscal.domain.repository.BackupStorage
-import com.bragadev.fiscal.domain.repository.DocumentRepository
 import com.bragadev.fiscal.domain.repository.FileRepository
-import com.bragadev.fiscal.domain.repository.OperationHistoryRepository
 import com.bragadev.fiscal.domain.repository.SettingsRepository
 import com.bragadev.fiscal.domain.rules.ConflictDecision
 import com.bragadev.fiscal.domain.rules.ConflictPolicy
 import com.bragadev.fiscal.domain.rules.DuplicateNameResolver
 import com.bragadev.fiscal.domain.rules.EditablePeriodPolicy
 import java.nio.file.Path
-import java.time.LocalDateTime
-import java.util.UUID
 
 sealed interface OrganizeResult {
     data class Done(val operation: FileOperation) : OrganizeResult
@@ -37,13 +32,10 @@ sealed interface OrganizeResult {
  */
 class OrganizeDocumentUseCase(
     private val fileRepository: FileRepository,
-    private val historyRepository: OperationHistoryRepository,
-    private val documentRepository: DocumentRepository,
+    private val mover: RecordedFileMover,
     private val backupStorage: BackupStorage,
     private val settingsRepository: SettingsRepository,
     private val periodPolicy: EditablePeriodPolicy,
-    private val now: () -> LocalDateTime = LocalDateTime::now,
-    private val newId: () -> UUID = UUID::randomUUID,
 ) {
     suspend operator fun invoke(plan: OrganizationPlan, userChoice: DuplicateResolution? = null): Outcome<OrganizeResult> {
         if (!fileRepository.exists(plan.source)) return Outcome.Failure(FileOperationError.FileNotFound)
@@ -76,22 +68,9 @@ class OrganizeDocumentUseCase(
         return result
     }
 
-    private suspend fun moveAndRecord(plan: OrganizationPlan, target: Path, backupPath: Path?): Outcome<OrganizeResult> {
-        val moved = fileRepository.move(plan.source, target)
-        if (moved is Outcome.Failure) return moved
-
-        val operation = FileOperation(
-            id = newId(),
-            type = if (plan.source.parent.normalize() == target.parent.normalize()) OperationType.RENAME else OperationType.MOVE,
-            originalPath = plan.source.toString(),
-            originalName = plan.source.fileName.toString(),
-            newPath = target.toString(),
-            newName = target.fileName.toString(),
-            timestamp = now(),
-            backupPath = backupPath?.toString(),
-        )
-        historyRepository.save(operation)
-        documentRepository.recordOrganized(plan.source, target, plan.category.id)
-        return Outcome.Success(OrganizeResult.Done(operation))
-    }
+    private suspend fun moveAndRecord(plan: OrganizationPlan, target: Path, backupPath: Path?): Outcome<OrganizeResult> =
+        when (val moved = mover.move(plan.source, target, plan.category.id, backupPath)) {
+            is Outcome.Success -> Outcome.Success(OrganizeResult.Done(moved.value))
+            is Outcome.Failure -> moved
+        }
 }

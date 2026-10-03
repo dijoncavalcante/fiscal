@@ -6,6 +6,7 @@ import com.bragadev.fiscal.domain.model.FileOperation
 import com.bragadev.fiscal.domain.repository.BackupStorage
 import com.bragadev.fiscal.domain.repository.CategoryRepository
 import com.bragadev.fiscal.domain.repository.DocumentRepository
+import com.bragadev.fiscal.domain.repository.FileFlagRepository
 import com.bragadev.fiscal.domain.repository.OperationHistoryRepository
 import com.bragadev.fiscal.domain.repository.SettingsRepository
 import com.bragadev.fiscal.domain.rules.DefaultCategories
@@ -64,4 +65,23 @@ class TempBackupStorage(private val directory: Path) : BackupStorage {
 fun Path.createFakePdf(name: String, content: String = name): Path {
     Files.createDirectories(this)
     return resolve(name).also { Files.writeString(it, "%PDF-1.4\n% $content\n%%EOF") }
+}
+
+class InMemoryFlagRepository : FileFlagRepository {
+    val flags = mutableMapOf<Path, String>()
+
+    override suspend fun flagsIn(folder: Path): Map<String, String> =
+        flags.filterKeys { it.parent == folder }.mapKeys { it.key.fileName.toString().lowercase() }
+
+    override suspend fun set(file: Path, note: String) {
+        flags[file] = note
+    }
+
+    override suspend fun clear(file: Path) {
+        flags.remove(file)
+    }
+
+    override suspend fun move(from: Path, to: Path) {
+        flags.remove(from)?.let { flags[to] = it }
+    }
 }
