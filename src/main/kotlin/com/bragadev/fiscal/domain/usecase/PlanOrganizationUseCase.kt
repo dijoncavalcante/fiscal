@@ -1,5 +1,6 @@
 package com.bragadev.fiscal.domain.usecase
 
+import com.bragadev.fiscal.domain.model.DocumentCategory
 import com.bragadev.fiscal.domain.model.FileOperationError
 import com.bragadev.fiscal.domain.model.NamingRule
 import com.bragadev.fiscal.domain.model.OrganizationPlan
@@ -31,12 +32,14 @@ class PlanOrganizationUseCase(
 ) {
     /**
      * @param description descrição informada pelo usuário; obrigatória para categorias como Despesas.
+     * @param sequenceIndex número escolhido pelo usuário nessas categorias (0 = "3.", 2 = "3.2"); `null` = automático.
      */
     suspend operator fun invoke(
         source: Path,
         categoryId: String,
         mode: OrganizeMode,
         description: String? = null,
+        sequenceIndex: Int? = null,
     ): Outcome<OrganizationPlan> {
         if (!fileRepository.exists(source)) return Outcome.Failure(FileOperationError.FileNotFound)
         if (!fileRepository.isPdf(source)) return Outcome.Failure(FileOperationError.InvalidPdf)
@@ -68,7 +71,9 @@ class PlanOrganizationUseCase(
             .toSet()
 
         val suggestedName = CategoryNaming.suggestedName(
-            category, existingNames, description, currentFileName = sourceName.takeIf { isSameDirectory },
+            category, existingNames, description,
+            currentFileName = sourceName.takeIf { isSameDirectory },
+            sequenceIndex = sequenceIndex,
         ) ?: return Outcome.Failure(FileOperationError.DescriptionRequired)
         if (!FileNameRules.isValid(suggestedName)) return Outcome.Failure(FileOperationError.InvalidFileName)
         if (isSameDirectory && suggestedName == sourceName) return Outcome.Failure(FileOperationError.AlreadyInPlace)
@@ -82,8 +87,17 @@ class PlanOrganizationUseCase(
                 suggestedName = suggestedName,
                 hasConflict = FileNameRules.containsIgnoringCase(existingNames, suggestedName),
                 numberedCopyName = DuplicateNameResolver.nextNumberedCopy(suggestedName, existingNames),
+                sameNumberFiles = sameNumberFiles(category, suggestedName, existingNames),
             ),
         )
+    }
+
+    /** Arquivos com o mesmo número na sequência (ex.: outro "3.2 Despesa - ..."), só para categorias descritas. */
+    private fun sameNumberFiles(category: DocumentCategory, newName: String, existingNames: Set<String>): List<String> {
+        if (category.namingRule != NamingRule.DESCRIBED_SEQUENCE) return emptyList()
+        val index = DescribedSequenceNaming.indexOf(category, newName) ?: return emptyList()
+        return existingNames.filter { DescribedSequenceNaming.indexOf(category, it) == index && !it.equals(newName, ignoreCase = true) }
+            .sorted()
     }
 
     /** Descrição sugerida para categorias descritas (ex.: Despesas); `null` para as demais. */
@@ -91,5 +105,12 @@ class PlanOrganizationUseCase(
         val category = CategoryHierarchy(categoryRepository.getCategories()).find(categoryId) ?: return null
         if (category.namingRule != NamingRule.DESCRIBED_SEQUENCE) return null
         return DescribedSequenceNaming.suggestDescription(category, source.fileName.toString())
+    }
+
+    /** Número atual do arquivo na sequência ("3", "3.2"); vazio se ele ainda não tiver número desta categoria. */
+    suspend fun currentNumber(source: Path, categoryId: String): String {
+        val category = CategoryHierarchy(categoryRepository.getCategories()).find(categoryId) ?: return ""
+        val index = DescribedSequenceNaming.indexOf(category, source.fileName.toString()) ?: return ""
+        return DescribedSequenceNaming.numberText(category, index)
     }
 }

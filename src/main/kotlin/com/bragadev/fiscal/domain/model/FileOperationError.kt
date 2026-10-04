@@ -20,6 +20,7 @@ sealed class FileOperationError {
     data object AlreadyInPlace : FileOperationError()
     data object DescriptionRequired : FileOperationError()
     data object NameRequired : FileOperationError()
+    data object InvalidSequenceNumber : FileOperationError()
     data object ReturnFolderIsMonthFolder : FileOperationError()
     data object ReadError : FileOperationError()
     data object MoveError : FileOperationError()

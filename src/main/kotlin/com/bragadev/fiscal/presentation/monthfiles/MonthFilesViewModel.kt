@@ -9,6 +9,7 @@ import com.bragadev.fiscal.domain.model.NamingRule
 import com.bragadev.fiscal.domain.model.OrganizationPlan
 import com.bragadev.fiscal.domain.model.OrganizeMode
 import com.bragadev.fiscal.domain.model.Outcome
+import com.bragadev.fiscal.domain.rules.DescribedSequenceNaming
 import com.bragadev.fiscal.domain.rules.FileNameRules
 import com.bragadev.fiscal.domain.usecase.FileFlagUseCase
 import com.bragadev.fiscal.domain.usecase.ObserveSettingsUseCase
@@ -49,27 +50,28 @@ class MonthFilesViewModel(
 
     fun onRenameRequested(file: Path, category: DocumentCategory) {
         scope.launch {
-            val keepsNumber = category.namingRule == NamingRule.DESCRIBED_SEQUENCE
-            val input = if (keepsNumber) {
-                planOrganization.suggestDescription(file, category.id).orEmpty()
-            } else {
-                FileNameRules.baseName(file.fileName.toString())
-            }
-            // Ainda sem alteração: o botão fica desativado até o usuário mudar o nome.
-            state.update { it.copy(dialog = MonthFileDialog.Rename(file, category, input, keepsNumber)) }
+            val numbered = category.namingRule == NamingRule.DESCRIBED_SEQUENCE
+            // Ainda sem alteração: o botão fica desativado até o usuário mudar algo.
+            val dialog = MonthFileDialog.Rename(
+                file = file,
+                category = category,
+                mode = if (numbered) RenameMode.NUMBER_AND_DESCRIPTION else RenameMode.FULL_NAME,
+                numberedModeAvailable = numbered,
+                number = if (numbered) planOrganization.currentNumber(file, category.id) else "",
+                description = if (numbered) planOrganization.suggestDescription(file, category.id).orEmpty() else "",
+                fullName = FileNameRules.baseName(file.fileName.toString()),
+            )
+            state.update { it.copy(dialog = dialog) }
         }
     }
 
-    fun onRenameInputChanged(text: String) {
-        val dialog = state.value.dialog as? MonthFileDialog.Rename ?: return
-        state.update { it.copy(dialog = dialog.copy(input = text, plan = null, inputError = null)) }
-        inputJob?.cancel()
-        inputJob = scope.launch {
-            delay(INPUT_DEBOUNCE_MS)
-            val updated = withPlan(dialog.copy(input = text))
-            state.update { current -> if (current.dialog?.file == dialog.file) current.copy(dialog = updated) else current }
-        }
-    }
+    fun onRenameModeChanged(mode: RenameMode) = editRename { it.copy(mode = mode) }
+
+    fun onRenameNumberChanged(text: String) = editRename { it.copy(number = text) }
+
+    fun onRenameDescriptionChanged(text: String) = editRename { it.copy(description = text) }
+
+    fun onRenameFullNameChanged(text: String) = editRename { it.copy(fullName = text) }
 
     fun onRenameConfirmed() {
         val dialog = state.value.dialog as? MonthFileDialog.Rename ?: return
@@ -136,14 +138,37 @@ class MonthFilesViewModel(
 
     // ---- Internos ----
 
+    /** Aplica a edição no diálogo e recalcula o novo nome depois de uma pausa na digitação. */
+    private fun editRename(transform: (MonthFileDialog.Rename) -> MonthFileDialog.Rename) {
+        val dialog = state.value.dialog as? MonthFileDialog.Rename ?: return
+        val edited = transform(dialog).copy(plan = null, inputError = null, warning = null)
+        state.update { it.copy(dialog = edited) }
+        inputJob?.cancel()
+        inputJob = scope.launch {
+            delay(INPUT_DEBOUNCE_MS)
+            val updated = withPlan(edited)
+            state.update { current -> if (current.dialog == edited) current.copy(dialog = updated) else current }
+        }
+    }
+
     private suspend fun withPlan(dialog: MonthFileDialog.Rename): MonthFileDialog.Rename {
-        val outcome = if (dialog.keepsNumber) {
-            planOrganization(dialog.file, dialog.category.id, OrganizeMode.RENAME_ONLY, dialog.input)
-        } else {
-            planRename(dialog.file, dialog.category.id, dialog.input)
+        val outcome = when (dialog.mode) {
+            RenameMode.FULL_NAME -> planRename(dialog.file, dialog.category.id, dialog.fullName)
+            RenameMode.NUMBER_AND_DESCRIPTION -> {
+                // Número vazio = próximo livre; número de outra categoria é recusado.
+                val index = dialog.number.takeIf { it.isNotBlank() }?.let {
+                    DescribedSequenceNaming.parseIndex(dialog.category, it)
+                        ?: return dialog.copy(plan = null, inputError = FileOperationError.InvalidSequenceNumber.toUserMessage())
+                }
+                planOrganization(dialog.file, dialog.category.id, OrganizeMode.RENAME_ONLY, dialog.description, index)
+            }
         }
         return when (outcome) {
-            is Outcome.Success -> dialog.copy(plan = outcome.value, inputError = conflictError(outcome.value))
+            is Outcome.Success -> dialog.copy(
+                plan = outcome.value,
+                inputError = conflictError(outcome.value),
+                warning = outcome.value.sameNumberFiles.takeIf { it.isNotEmpty() }?.let(Strings::sameNumberWarning),
+            )
             // Nome igual ao atual não é erro: só não há o que renomear.
             is Outcome.Failure -> dialog.copy(
                 plan = null,

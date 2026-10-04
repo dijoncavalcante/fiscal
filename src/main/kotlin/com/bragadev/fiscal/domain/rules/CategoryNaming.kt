@@ -15,17 +15,20 @@ object CategoryNaming {
      * @param description obrigatória para [NamingRule.DESCRIBED_SEQUENCE]; ignorada nas demais regras.
      * @param currentFileName nome atual quando o arquivo já está na pasta de destino: uma despesa
      *   já numerada mantém o número e só troca a descrição.
+     * @param sequenceIndex posição escolhida pelo usuário (0 = "3.", 2 = "3.2"); tem prioridade sobre as demais.
      */
     fun suggestedName(
         category: DocumentCategory,
         existingNamesInTarget: Set<String>,
         description: String? = null,
         currentFileName: String? = null,
+        sequenceIndex: Int? = null,
     ): String? = when (category.namingRule) {
         NamingRule.CATEGORY_NAME -> FileNameRules.withPdfExtension(category.label)
         NamingRule.SEQUENTIAL -> SequentialNaming.nextName(category.name, existingNamesInTarget)
         NamingRule.DESCRIBED_SEQUENCE -> description?.takeIf { it.isNotBlank() }?.let {
-            val index = currentFileName?.let { name -> DescribedSequenceNaming.indexOf(category, name) }
+            val index = sequenceIndex
+                ?: currentFileName?.let { name -> DescribedSequenceNaming.indexOf(category, name) }
                 ?: DescribedSequenceNaming.nextIndex(category, existingNamesInTarget)
             DescribedSequenceNaming.fileName(category, index, it)
         }

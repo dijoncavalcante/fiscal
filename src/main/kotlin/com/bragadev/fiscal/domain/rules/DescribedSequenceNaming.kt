@@ -17,6 +17,20 @@ object DescribedSequenceNaming {
     fun fileName(category: DocumentCategory, index: Int, description: String): String =
         FileNameRules.withPdfExtension("${prefix(category.number, index)} ${category.fileWord} - ${description.trim()}")
 
+    /**
+     * Número digitado pelo usuário → posição na sequência: "3" ou "3." → 0, "3.1" → 1, "3.2" → 2.
+     * Retorna `null` se não for um número desta categoria (ex.: "4.1" em Despesas).
+     */
+    fun parseIndex(category: DocumentCategory, text: String): Int? {
+        val match = Regex("""^\s*${Regex.escape(category.number)}(?:\.(\d*))?\s*$""").matchEntire(text) ?: return null
+        val sub = match.groupValues[1]
+        return if (sub.isEmpty()) 0 else sub.toIntOrNull()?.takeIf { it > 0 }
+    }
+
+    /** Texto do número para mostrar ao usuário: 0 → "3", 2 → "3.2". */
+    fun numberText(category: DocumentCategory, index: Int): String =
+        if (index == 0) category.number else "${category.number}.$index"
+
     fun nextIndex(category: DocumentCategory, existingNames: Collection<String>): Int {
         val used = existingNames.mapNotNull { indexOf(category, it) }
         return if (used.isEmpty()) 0 else used.max() + 1

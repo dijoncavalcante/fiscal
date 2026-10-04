@@ -77,4 +77,16 @@ class DescribedSequenceNamingTest {
         )
         assertEquals("Nota fiscal", DescribedSequenceNaming.suggestDescription(outros, "Outros - Nota fiscal.pdf"))
     }
+
+    @Test
+    fun `numero digitado vira posicao na sequencia`() {
+        assertEquals(0, DescribedSequenceNaming.parseIndex(despesas, "3"))
+        assertEquals(0, DescribedSequenceNaming.parseIndex(despesas, " 3. "))
+        assertEquals(2, DescribedSequenceNaming.parseIndex(despesas, "3.2"))
+        assertNull(DescribedSequenceNaming.parseIndex(despesas, "4.1"))
+        assertNull(DescribedSequenceNaming.parseIndex(despesas, "3.0"))
+        assertNull(DescribedSequenceNaming.parseIndex(despesas, "3.x"))
+        assertEquals("3.2", DescribedSequenceNaming.numberText(despesas, 2))
+        assertEquals("3", DescribedSequenceNaming.numberText(despesas, 0))
+    }
 }

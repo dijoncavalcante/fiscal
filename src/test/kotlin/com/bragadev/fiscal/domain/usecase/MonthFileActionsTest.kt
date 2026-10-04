@@ -146,4 +146,41 @@ class MonthFileActionsTest {
         FileFlagUseCase(flags).clear(june.resolve("8. Extrato Bancário.pdf"))
         assertNull(checklist(june, AccountType.CONGREGACAO).flagFor("8. Extrato Bancário.pdf"))
     }
+
+    @Test
+    fun `trocar o numero de uma despesa na ordem errada`() = runTest {
+        june.createFakePdf("3. Despesa - Conta de energia.pdf")
+        june.createFakePdf("3.1 Despesa - Conta de agua.pdf")
+        val wrong = june.createFakePdf("3. Despesa - Objetivos especificos.pdf")
+
+        val plan = (
+            planDescribed(wrong, "congregacao.despesas", OrganizeMode.RENAME_ONLY, "Objetivos especificos", sequenceIndex = 2)
+                as Outcome.Success
+            ).value
+        assertTrue(plan.sameNumberFiles.isEmpty())
+        organize(plan)
+
+        assertTrue(Files.exists(june.resolve("3.2 Despesa - Objetivos especificos.pdf")))
+        assertFalse(Files.exists(wrong))
+    }
+
+    @Test
+    fun `numero repetido gera aviso mas nao bloqueia`() = runTest {
+        june.createFakePdf("3. Despesa - a.pdf")
+        val other = june.createFakePdf("3.1 Despesa - b.pdf")
+
+        val plan = (planDescribed(other, "congregacao.despesas", OrganizeMode.RENAME_ONLY, "b", sequenceIndex = 0) as Outcome.Success).value
+
+        assertEquals(listOf("3. Despesa - a.pdf"), plan.sameNumberFiles)
+        assertFalse(plan.hasConflict)
+    }
+
+    @Test
+    fun `nome completo da despesa pode ser editado livremente`() = runTest {
+        val file = june.createFakePdf("3. Despesa - Objetivos especificos.pdf")
+
+        organize((planRename(file, "congregacao.despesas", "3.2 Despesa - Objetivos específicos") as Outcome.Success).value)
+
+        assertTrue(Files.exists(june.resolve("3.2 Despesa - Objetivos específicos.pdf")))
+    }
 }

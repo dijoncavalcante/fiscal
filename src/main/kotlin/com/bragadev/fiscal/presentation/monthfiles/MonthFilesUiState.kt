@@ -12,20 +12,38 @@ data class MonthFilesUiState(
     val message: UserMessage? = null,
 )
 
+/** Como o arquivo é renomeado. */
+enum class RenameMode {
+    /** Despesas e Outros: número da sequência ("3", "3.1", "3.2") e descrição, em campos separados. */
+    NUMBER_AND_DESCRIPTION,
+
+    /** Nome completo livre (sem ".pdf"), para qualquer arquivo. */
+    FULL_NAME,
+}
+
 sealed interface MonthFileDialog {
     val file: Path
 
     /**
-     * Renomear um arquivo do mês. Para Despesas, [input] é só a descrição e o número é mantido;
-     * nas demais categorias, [input] é o nome completo (sem ".pdf").
+     * Renomear um arquivo do mês.
+     *
+     * @param description descrição (modo número e descrição).
+     * @param number número na sequência (modo número e descrição); vazio = próximo número livre.
+     * @param fullName nome completo sem ".pdf" (modo nome completo).
+     * @param numberedModeAvailable a categoria usa número + descrição (Despesas, Outros).
+     * @param warning aviso que não impede a operação (ex.: outro arquivo com o mesmo número).
      */
     data class Rename(
         override val file: Path,
         val category: DocumentCategory,
-        val input: String,
-        val keepsNumber: Boolean,
+        val mode: RenameMode,
+        val numberedModeAvailable: Boolean,
+        val number: String = "",
+        val description: String = "",
+        val fullName: String = "",
         val plan: OrganizationPlan? = null,
         val inputError: String? = null,
+        val warning: String? = null,
     ) : MonthFileDialog {
         val canConfirm: Boolean get() = plan != null && inputError == null
     }

@@ -119,7 +119,14 @@ object Strings {
     const val RENAME_FILE_TITLE = "Renomear arquivo"
     const val NEW_FILE_NAME = "Novo nome do arquivo"
     const val NAME_PREVIEW = "Vai ficar assim:"
-    const val KEEPS_NUMBER = "O número é mantido; só a descrição muda."
+    const val RENAME_MODE_NUMBERED = "Número e descrição"
+    const val RENAME_MODE_FULL = "Nome completo"
+    const val NUMBER_LABEL = "Número"
+    fun numberHint(number: String) = "Ex.: $number, $number.1, $number.2. Vazio = próximo livre."
+    const val FULL_NAME_HINT = "Nome inteiro do arquivo, sem \".pdf\"."
+
+    fun sameNumberWarning(files: List<String>) =
+        "Atenção: este número já é usado por ${files.joinToString()}. Renomeie o outro depois para não repetir."
     const val NAME_TAKEN = "Já existe um arquivo com este nome nesta pasta."
     const val REMOVE_FROM_MONTH = "Retirar do mês"
     const val REMOVE_FROM_MONTH_TITLE = "Retirar arquivo da pasta do mês"

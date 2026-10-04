@@ -22,6 +22,8 @@ data class OrganizationPlan(
     val suggestedName: String,
     val hasConflict: Boolean,
     val numberedCopyName: String,
+    /** Outros arquivos da pasta com o mesmo número (ex.: dois "3.2"): aviso, não impede a operação. */
+    val sameNumberFiles: List<String> = emptyList(),
 ) {
     val targetPath: Path get() = targetDirectory.resolve(suggestedName)
     val numberedCopyPath: Path get() = targetDirectory.resolve(numberedCopyName)
