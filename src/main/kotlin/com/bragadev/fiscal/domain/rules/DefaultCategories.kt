@@ -12,11 +12,12 @@ object DefaultCategories {
     const val OUTROS_ID = "outros"
 
     /**
-     * Outros da Conta da Manutenção: "6. Outros - xxx", "6.1 Outros - yyy"... Substitui, nessa conta,
-     * o "Outros" geral ("1. Outros.pdf"), que continua valendo para a Conta da Congregação.
+     * Outros de cada conta, com descrição e numeração: Congregação "10. Outros - xxx", "10.1 Outros - yyy"...;
+     * Manutenção "6. Outros - xxx", "6.1 Outros - yyy"... Substituem o "Outros" geral ("1. Outros.pdf"),
+     * que só vale para pastas sem conta identificada.
      */
-    private val outrosManutencao = DocumentCategory(
-        "manutencao.outros", "Outros", "6", MANUTENCAO,
+    private fun outros(prefix: String, account: AccountType, number: String) = DocumentCategory(
+        "$prefix.outros", "Outros", number, account,
         namingRule = NamingRule.DESCRIBED_SEQUENCE, optional = true,
     )
 
@@ -40,13 +41,14 @@ object DefaultCategories {
         DocumentCategory("congregacao.relatorio_mensal", "Relatório Mensal", "7", CONGREGACAO),
         DocumentCategory("congregacao.extrato_bancario", "Extrato Bancário", "8", CONGREGACAO),
         DocumentCategory("congregacao.extrato_betel", "Extrato Betel", "9", CONGREGACAO),
+        outros("congregacao", CONGREGACAO, "10"),
 
         DocumentCategory("manutencao.folha_de_contas", "Folha de Contas", "1", MANUTENCAO),
         DocumentCategory("manutencao.donativos_congregacoes", "Donativos das Congregações", "2", MANUTENCAO),
         despesas("manutencao", MANUTENCAO),
         DocumentCategory("manutencao.relatorio_mensal", "Relatório Mensal", "4", MANUTENCAO),
         DocumentCategory("manutencao.extrato_bancario", "Extrato Bancário", "5", MANUTENCAO),
-        outrosManutencao,
+        outros("manutencao", MANUTENCAO, "6"),
 
         DocumentCategory(OUTROS_ID, "Outros", "", OUTROS, namingRule = NamingRule.SEQUENTIAL, optional = true),
     )

@@ -22,7 +22,8 @@ class CategoryHierarchyTest {
     @Test
     fun `outros fica no final de cada conta`() {
         val (congregacao, manutencao) = hierarchy.tree()
-        assertEquals(DefaultCategories.OUTROS_ID, congregacao.nodes.last().category.id)
+        assertEquals("congregacao.outros", congregacao.nodes.last().category.id)
+        assertEquals("10. Outros", congregacao.nodes.last().category.label)
         assertEquals("manutencao.outros", manutencao.nodes.last().category.id)
         assertEquals("6. Outros", manutencao.nodes.last().category.label)
         assertEquals(10, congregacao.nodes.size)
@@ -43,9 +44,10 @@ class CategoryHierarchyTest {
         val outros = hierarchy.find(DefaultCategories.OUTROS_ID)!!
         assertFalse(hierarchy.isAllowedIn(extratoBetel, AccountType.MANUTENCAO))
         assertTrue(hierarchy.isAllowedIn(extratoBetel, AccountType.CONGREGACAO))
-        assertTrue(hierarchy.isAllowedIn(outros, AccountType.CONGREGACAO))
-        // Na Manutenção, o "Outros" geral é substituído pelo "6. Outros".
+        // Nas duas contas, o "Outros" geral é substituído pelo "Outros" da conta (10 e 6).
+        assertFalse(hierarchy.isAllowedIn(outros, AccountType.CONGREGACAO))
         assertFalse(hierarchy.isAllowedIn(outros, AccountType.MANUTENCAO))
+        assertTrue(hierarchy.isAllowedIn(hierarchy.find("congregacao.outros")!!, AccountType.CONGREGACAO))
         assertTrue(hierarchy.isAllowedIn(hierarchy.find("manutencao.outros")!!, AccountType.MANUTENCAO))
         assertTrue(hierarchy.isAllowedIn(extratoBetel, null))
     }

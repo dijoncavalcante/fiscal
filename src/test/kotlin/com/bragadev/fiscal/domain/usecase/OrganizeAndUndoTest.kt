@@ -196,15 +196,22 @@ class OrganizeAndUndoTest {
     }
 
     @Test
-    fun `outros recebe a proxima numeracao livre no mes`() = runTest {
-        june.createFakePdf("1. Outros.pdf")
-        june.createFakePdf("2. Outros.pdf")
-        val source = downloads.createFakePdf("qualquer.pdf")
+    fun `outros da congregacao entram como 10 e 10_1 com descricao`() = runTest {
+        val first = downloads.createFakePdf("a.pdf")
+        val second = downloads.createFakePdf("b.pdf")
 
-        val proposal = planFor(source, "outros")
+        organizeDone(planFor(first, "congregacao.outros", description = "Nota fiscal"))
+        val secondPlan = planFor(second, "congregacao.outros", description = "Recibo")
+        organizeDone(secondPlan)
 
-        assertEquals("3. Outros.pdf", proposal.suggestedName)
-        assertFalse(proposal.hasConflict)
+        assertTrue(Files.exists(june.resolve("10. Outros - Nota fiscal.pdf")))
+        assertTrue(Files.exists(june.resolve("10.1 Outros - Recibo.pdf")))
+        assertFalse(secondPlan.hasConflict)
+        // O "Outros" geral ("1. Outros.pdf") não vale mais para a Congregação.
+        assertEquals(
+            Outcome.Failure(FileOperationError.CategoryNotInMonthAccount),
+            plan(downloads.createFakePdf("c.pdf"), "outros", OrganizeMode.RENAME_AND_MOVE),
+        )
     }
 
     @Test

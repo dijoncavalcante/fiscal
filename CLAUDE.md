@@ -98,16 +98,18 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
 
 ## Regras de negócio (domain/rules)
 
-- **Categorias** (`DefaultCategories`): Congregação 1–9 (5.1 filha de 5), Manutenção 1–5 e **6. Outros** (`manutencao.outros`),
-  e o "Outros" geral (`AccountType.OUTROS`, `isCatchAll`), que vale só onde a conta não tem categoria própria com o mesmo
-  nome (`CategoryHierarchy.catchAllFor`) — hoje só na Congregação. `optional = true` (Outros) mostra quantidade em vez de
+- **Categorias** (`DefaultCategories`): Congregação 1–9 (5.1 filha de 5) e **10. Outros** (`congregacao.outros`);
+  Manutenção 1–5 e **6. Outros** (`manutencao.outros`). O "Outros" geral (`AccountType.OUTROS`, `isCatchAll`,
+  `1. Outros.pdf`) só vale onde a conta não tem categoria própria com o mesmo nome (`CategoryHierarchy.catchAllFor`) —
+  hoje nenhuma das duas contas o usa; fica para pastas sem conta identificada. `optional = true` (Outros) mostra quantidade em vez de
   "Faltando" e não conta no resumo. Ids com prefixo da conta (`congregacao.despesas`, `manutencao.despesas`).
   `DocumentCategory.label` = `"8. Extrato Bancário"` / `"5.1 Comprovante Remessa"` (número composto sem ponto extra).
   São gravadas no SQLite com **upsert** a cada início (mudanças no catálogo chegam a bancos existentes).
 - **Nomes (`CategoryNaming`, por `NamingRule`):**
   - `CATEGORY_NAME` → `label + ".pdf"` (`8. Extrato Bancário.pdf`).
   - `SEQUENTIAL` ("Outros") → `N. Outros.pdf`, N = maior existente + 1 (`SequentialNaming`). Nunca reaproveita lacunas.
-  - `DESCRIBED_SEQUENCE` também em "6. Outros" da Manutenção: `6. Outros - xxx.pdf`, `6.1 Outros - yyy.pdf`...
+  - `DESCRIBED_SEQUENCE` também nos Outros das contas: `10. Outros - xxx.pdf`, `10.1 Outros - yyy.pdf`... (Congregação)
+    e `6. Outros - xxx.pdf`, `6.1 Outros - yyy.pdf`... (Manutenção).
   - `DESCRIBED_SEQUENCE` ("3. Despesas", nas duas contas) → `3. Despesa - <descrição>.pdf`, depois `3.1 …`, `3.2 …`
     (`DescribedSequenceNaming`). Número = maior existente + 1, contando qualquer arquivo que comece com `3`/`3.x`
     (inclusive `3 Despesa - …` e `3. Despesas.pdf`). Descrição digitada no diálogo (sugerida do nome original, sem

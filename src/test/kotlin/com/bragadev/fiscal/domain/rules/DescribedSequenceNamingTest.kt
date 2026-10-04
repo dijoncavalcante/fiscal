@@ -59,6 +59,14 @@ class DescribedSequenceNamingTest {
     }
 
     @Test
+    fun `outros da congregacao segue 10 10_1 10_2`() {
+        val outros = DefaultCategories.all.first { it.id == "congregacao.outros" }
+        assertEquals("10. Outros - xxx.pdf", CategoryNaming.suggestedName(outros, emptySet(), "xxx"))
+        assertEquals("10.1 Outros - yyy.pdf", CategoryNaming.suggestedName(outros, setOf("10. Outros - xxx.pdf", "1. Folha de Contas.pdf"), "yyy"))
+        assertEquals("10.2 Outros - z.pdf", CategoryNaming.suggestedName(outros, setOf("10. Outros - a.pdf", "10.1 Outros - b.pdf"), "z"))
+    }
+
+    @Test
     fun `outros da manutencao segue 6 6_1 6_2`() {
         val outros = DefaultCategories.all.first { it.id == "manutencao.outros" }
         assertEquals("6. Outros - xxx.pdf", CategoryNaming.suggestedName(outros, emptySet(), "xxx"))

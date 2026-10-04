@@ -47,12 +47,11 @@ class MonthChecklistBuilderTest {
     }
 
     @Test
-    fun `outros nao e confundido com a categoria de mesmo numero`() {
-        val checklist = MonthChecklistBuilder.build(congregacao, listOf("1. Outros.pdf", "2. Outros (2).pdf"))
+    fun `10 outros nao e confundido com a categoria 1`() {
+        val checklist = MonthChecklistBuilder.build(congregacao, listOf("10. Outros - a.pdf", "10.1 Outros - b.pdf"))
 
-        assertEquals(2, checklist.filesFor(DefaultCategories.OUTROS_ID).size)
+        assertEquals(2, checklist.filesFor("congregacao.outros").size)
         assertFalse(checklist.isPresent("congregacao.folha_de_contas"))
-        assertFalse(checklist.isPresent("congregacao.recibos_reunioes"))
     }
 
     @Test
