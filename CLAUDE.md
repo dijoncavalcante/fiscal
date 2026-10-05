@@ -50,6 +50,7 @@ presentation/
   preview/      Preview do PDF (zoom, páginas, ajustar)
   organizer/    Lado direito: mês em edição, árvore de categorias, diálogos de organizar
   monthfiles/   Ações sobre arquivos já no mês: renomear, retirar do mês, marcar pendência (MonthFilesViewModel)
+  navigator/    Seletor de mês: pasta raiz das contas → conta → ano de serviço → trimestre → mês (MonthNavigatorViewModel)
   settings/     Tela de configurações
 ```
 
@@ -78,6 +79,10 @@ Regras de camada:
   nome completo. Nunca sobrescreve; menu ⋮ → "Retirar do mês" (volta para a pasta de origem, com
   Desfazer; nunca apaga) e "Marcar/Remover pendência" (nota ⚠ no arquivo; a categoria vira "⚠ Com pendência" e não
   conta no resumo). Diálogos de organizar/renomear/retirar/confirmar mostram o PDF ao lado (`PreviewDialog`).
+- **Seletor de mês (navigator):** no topo da lista do mês em edição (recolhível). "Pasta raiz das contas" (`months_root`;
+  se vazia, deduzida da pasta do mês via `MonthFolderParser.accountsRootOf`); botões de conta, ano de serviço (padrão: o
+  do mês aberto ou o mais recente) e trimestres (mais recente primeiro) com os meses; um clique troca a pasta do mês
+  (`ChangeMonthFolderUseCase`). Árvore montada por `BrowseMonthFoldersUseCase` (ignora pastas sem mês).
 - **Atualização automática:** as duas pastas são observadas (`FileRepository.watch`, WatchService) e a tela se
   atualiza quando algo muda no Explorer.
 - Arrastar um PDF (da lista ou do Windows Explorer) para uma categoria, ou selecionar e clicar na categoria, abre a

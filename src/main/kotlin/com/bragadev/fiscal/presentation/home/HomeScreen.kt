@@ -38,6 +38,8 @@ import com.bragadev.fiscal.presentation.common.UserMessage
 import com.bragadev.fiscal.presentation.components.pickFolder
 import com.bragadev.fiscal.presentation.monthfiles.MonthFilesDialogHost
 import com.bragadev.fiscal.presentation.monthfiles.MonthFilesViewModel
+import com.bragadev.fiscal.presentation.navigator.MonthNavigator
+import com.bragadev.fiscal.presentation.navigator.MonthNavigatorViewModel
 import com.bragadev.fiscal.presentation.organizer.MonthFileActions
 import com.bragadev.fiscal.presentation.organizer.OrganizerDialogHost
 import com.bragadev.fiscal.presentation.organizer.OrganizerScreen
@@ -55,8 +57,10 @@ fun HomeScreen(
     previewViewModel: PdfPreviewViewModel,
     organizerViewModel: OrganizerViewModel,
     monthFilesViewModel: MonthFilesViewModel,
+    navigatorViewModel: MonthNavigatorViewModel,
     onOpenSettings: () -> Unit,
 ) {
+    val navigator by navigatorViewModel.uiState.collectAsState()
     val home by homeViewModel.uiState.collectAsState()
     val organizer by organizerViewModel.uiState.collectAsState()
     val monthFiles by monthFilesViewModel.uiState.collectAsState()
@@ -65,6 +69,7 @@ fun HomeScreen(
     MessageEffect(organizer.message, snackbarHostState, organizerViewModel::undo, organizerViewModel::onMessageShown)
     MessageEffect(monthFiles.message, snackbarHostState, organizerViewModel::undo, monthFilesViewModel::onMessageShown)
     ErrorEffect(home.error, snackbarHostState, homeViewModel::onErrorShown)
+    ErrorEffect(navigator.error, snackbarHostState, navigatorViewModel::onErrorShown)
 
     Scaffold(
         topBar = {
@@ -79,7 +84,16 @@ fun HomeScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
-            Workspace(home, organizer, previewViewModel, homeViewModel, organizerViewModel, monthFilesViewModel)
+            Workspace(home, organizer, previewViewModel, homeViewModel, organizerViewModel, monthFilesViewModel) {
+                MonthNavigator(
+                    state = navigator,
+                    viewModel = navigatorViewModel,
+                    onEditRoot = {
+                        pickFolder(Strings.MONTHS_ROOT_PICKER_TITLE, navigatorViewModel.currentRoot)
+                            ?.let(navigatorViewModel::onRootSelected)
+                    },
+                )
+            }
             if (organizer.isWorking || monthFiles.isWorking) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
         }
     }
@@ -95,6 +109,7 @@ private fun Workspace(
     homeViewModel: HomeViewModel,
     organizerViewModel: OrganizerViewModel,
     monthFilesViewModel: MonthFilesViewModel,
+    navigator: @Composable () -> Unit,
 ) {
     val selectedPath = home.selectedDocument?.path
     val fileActions = MonthFileActions(
@@ -129,6 +144,7 @@ private fun Workspace(
                 pickFolder(Strings.MONTH_FOLDER_PICKER_TITLE, initial)?.let(organizerViewModel::onMonthFolderSelected)
             },
             fileActions = fileActions,
+            navigator = navigator,
             modifier = modifier,
         )
     }

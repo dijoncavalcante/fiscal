@@ -23,6 +23,7 @@ class SettingsRepositoryImpl(
         val loaded = AppSettings(
             sourceFolder = (values[Keys.SOURCE_FOLDER] ?: values[Keys.LEGACY_ROOT_PATH])?.let(Path::of),
             monthFolder = values[Keys.MONTH_FOLDER]?.let(Path::of),
+            monthsRoot = values[Keys.MONTHS_ROOT]?.let(Path::of),
             duplicatePolicy = values[Keys.DUPLICATE_POLICY]
                 ?.let { runCatching { DuplicatePolicy.valueOf(it) }.getOrNull() }
                 ?: defaults.duplicatePolicy,
@@ -41,6 +42,7 @@ class SettingsRepositoryImpl(
             mapOf(
                 Keys.SOURCE_FOLDER to settings.sourceFolder?.toString(),
                 Keys.MONTH_FOLDER to settings.monthFolder?.toString(),
+                Keys.MONTHS_ROOT to settings.monthsRoot?.toString(),
                 Keys.LEGACY_ROOT_PATH to null,
                 Keys.DUPLICATE_POLICY to settings.duplicatePolicy.name,
                 Keys.CONFIRM_MOVE to settings.confirmBeforeMove.toString(),
@@ -54,6 +56,7 @@ class SettingsRepositoryImpl(
     private object Keys {
         const val SOURCE_FOLDER = "source_folder"
         const val MONTH_FOLDER = "month_folder"
+        const val MONTHS_ROOT = "months_root"
         const val LEGACY_ROOT_PATH = "root_path"
         const val DUPLICATE_POLICY = "duplicate_policy"
         const val CONFIRM_MOVE = "confirm_before_move"

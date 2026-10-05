@@ -43,6 +43,21 @@ object Strings {
 
     fun accountLabel(account: String) = "Conta: $account"
 
+    // Seletor de mês
+    const val NAVIGATOR_TITLE = "📅 Escolher mês"
+    const val MONTHS_ROOT_LABEL = "Pasta raiz das contas"
+    const val MONTHS_ROOT_EDIT = "Trocar a pasta raiz das contas"
+    const val MONTHS_ROOT_PICKER_TITLE = "Escolha a pasta que contém CONTAS CONGREGAÇÃO e CONTAS MANUTENÇÃO"
+    const val MONTHS_ROOT_EMPTY = "Nenhuma pasta raiz escolhida"
+    const val MONTHS_ROOT_HINT = "Clique no lápis e escolha a pasta que contém CONTAS CONGREGAÇÃO e CONTAS MANUTENÇÃO."
+    const val NO_MONTHS_FOUND = "Nenhuma pasta de mês encontrada nesta pasta raiz."
+    const val SERVICE_YEAR = "Ano de serviço"
+
+    fun monthChip(month: YearMonth, locked: Boolean): String {
+        val name = month.month.getDisplayName(TextStyle.FULL, ptBr).replaceFirstChar { it.titlecase(ptBr) }
+        return if (locked) "🔒 $name" else name
+    }
+
     // Documentos
     const val DOCUMENTS = "DOCUMENTOS"
     const val CATEGORIES = "CATEGORIAS"

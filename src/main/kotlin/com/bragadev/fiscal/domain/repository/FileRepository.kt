@@ -17,6 +17,9 @@ interface FileRepository {
     /** Nomes dos arquivos existentes na pasta. Retorna vazio se a pasta não existir. */
     suspend fun listFileNames(directory: Path): Set<String>
 
+    /** Subpastas diretas, em ordem alfabética (sem pastas ocultas). Vazio se a pasta não existir. */
+    suspend fun listSubfolders(folder: Path): List<Path>
+
     /** Lista os PDFs da pasta, sem entrar nas subpastas. Outros arquivos são ignorados. */
     suspend fun listPdfFiles(folder: Path): Outcome<List<Document>>
 

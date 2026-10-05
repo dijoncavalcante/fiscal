@@ -5,6 +5,8 @@ import java.nio.file.Path
 data class AppSettings(
     /** Pasta exibida à esquerda, de onde os PDFs são escolhidos. */
     val sourceFolder: Path? = null,
+    /** Pasta raiz das contas (onde ficam "CONTAS CONGREGAÇÃO" e "CONTAS MANUTENÇÃO"), para escolher o mês com um clique. */
+    val monthsRoot: Path? = null,
     /** Pasta do mês que está sendo editado, à direita. Destino dos documentos organizados. */
     val monthFolder: Path? = null,
     val duplicatePolicy: DuplicatePolicy = DuplicatePolicy.ASK,

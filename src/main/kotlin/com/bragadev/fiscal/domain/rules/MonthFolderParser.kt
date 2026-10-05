@@ -41,12 +41,32 @@ object MonthFolderParser {
     }
 
     fun detectAccount(folder: Path): AccountType? = segmentsOf(folder).reversed().firstNotNullOfOrNull { segment ->
-        val normalized = normalize(segment)
-        when {
+        accountOfName(segment)
+    }
+
+    /** Conta indicada pelo nome de uma única pasta ("CONTAS CONGREGAÇÃO" → Congregação). */
+    fun accountOfName(folderName: String): AccountType? {
+        val normalized = normalize(folderName)
+        return when {
             "CONGREGACAO" in normalized -> AccountType.CONGREGACAO
             "MANUTENCAO" in normalized -> AccountType.MANUTENCAO
             else -> null
         }
+    }
+
+    /**
+     * Pasta raiz das contas a partir de uma pasta de mês: a pasta que contém "CONTAS CONGREGAÇÃO"
+     * ou "CONTAS MANUTENÇÃO". `D:\...\pendriver\CONTAS CONGREGAÇÃO\...\1. JUNHO` → `D:\...\pendriver`.
+     */
+    fun accountsRootOf(folder: Path): Path? {
+        // Usa a pasta de conta mais externa: uma subpasta com "Manutenção" no nome não deve confundir.
+        var root: Path? = null
+        var current: Path? = folder
+        while (current?.fileName != null) {
+            if (accountOfName(current.fileName.toString()) != null) root = current.parent
+            current = current.parent
+        }
+        return root
     }
 
     private fun yearFromAncestors(ancestors: List<String>, month: Int): Int? {

@@ -6,6 +6,7 @@ import com.bragadev.fiscal.domain.model.Outcome
 import com.bragadev.fiscal.domain.repository.FileRepository
 import com.bragadev.fiscal.domain.repository.SettingsRepository
 import com.bragadev.fiscal.domain.rules.EditablePeriodPolicy
+import com.bragadev.fiscal.domain.rules.MonthFolderParser
 import java.nio.file.Path
 
 /**
@@ -55,4 +56,34 @@ class ChangeMonthFolderUseCase(
 /** Descreve a pasta do mês: mês, conta e se pode ser editada. */
 class DescribeMonthFolderUseCase(private val policy: EditablePeriodPolicy) {
     operator fun invoke(path: Path): MonthFolderInfo = policy.describe(path)
+}
+
+/**
+ * Pasta raiz das contas usada pelo seletor de mês. Usa a pasta salva; se ainda não houver,
+ * deduz a partir da pasta do mês aberta (a pasta que contém "CONTAS CONGREGAÇÃO"/"CONTAS MANUTENÇÃO")
+ * ou usa a pasta sugerida, se existir.
+ */
+class ResolveMonthsRootUseCase(
+    private val settingsRepository: SettingsRepository,
+    private val fileRepository: FileRepository,
+) {
+    suspend operator fun invoke(): Path? {
+        val settings = settingsRepository.settings.value
+        settings.monthsRoot?.let { return it }
+        val derived = settings.monthFolder?.let(MonthFolderParser::accountsRootOf)
+            ?: settingsRepository.suggestedSourceFolder.takeIf { fileRepository.isDirectory(it) }
+        return derived?.takeIf { fileRepository.isDirectory(it) }
+    }
+}
+
+/** Troca a pasta raiz das contas (lápis do seletor de mês). */
+class ChangeMonthsRootUseCase(
+    private val settingsRepository: SettingsRepository,
+    private val fileRepository: FileRepository,
+) {
+    suspend operator fun invoke(path: Path): Outcome<Path> {
+        if (!fileRepository.isDirectory(path)) return Outcome.Failure(FileOperationError.FolderNotFound)
+        settingsRepository.save(settingsRepository.load().copy(monthsRoot = path))
+        return Outcome.Success(path)
+    }
 }

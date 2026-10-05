@@ -78,6 +78,8 @@ fun OrganizerScreen(
     onEditMonthFolder: () -> Unit,
     fileActions: MonthFileActions,
     modifier: Modifier = Modifier,
+    /** Seletor de mês, mostrado no topo da lista (rola junto com as categorias). */
+    navigator: @Composable () -> Unit = {},
 ) {
     // Grupos começam expandidos, exceto a lista de arquivos sem número.
     val expanded = remember { mutableStateMapOf<String, Boolean>() }
@@ -103,6 +105,7 @@ fun OrganizerScreen(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
         )
         LazyColumn(Modifier.fillMaxWidth().weight(1f).padding(horizontal = 8.dp)) {
+            item(key = "navigator") { navigator() }
             state.groups.forEach { group -> accountGroup(group, context, expanded) }
             state.checklist?.unmatchedFiles?.takeIf { it.isNotEmpty() }?.let { files -> unmatchedFiles(files, context, expanded) }
         }

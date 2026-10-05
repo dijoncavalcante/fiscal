@@ -42,6 +42,17 @@ class FileRepositoryImpl(
         Files.list(directory).use { entries -> entries.map { it.fileName.toString() }.toList().toSet() }
     }
 
+    override suspend fun listSubfolders(folder: Path): List<Path> = io {
+        if (!Files.isDirectory(folder)) return@io emptyList()
+        runCatching {
+            Files.list(folder).use { entries ->
+                entries.filter { Files.isDirectory(it) && !it.fileName.toString().startsWith(".") && !isHidden(it) }
+                    .toList()
+                    .sortedBy { it.fileName.toString().lowercase() }
+            }
+        }.getOrDefault(emptyList())
+    }
+
     override suspend fun listPdfFiles(folder: Path): Outcome<List<Document>> = io {
         catching {
             val documents = mutableListOf<Document>()
@@ -81,6 +92,8 @@ class FileRepositoryImpl(
             runCatching { watcher.close() }
         }
     }
+
+    private fun isHidden(path: Path): Boolean = runCatching { Files.isHidden(path) }.getOrDefault(false)
 
     private fun hasPdfSignature(path: Path): Boolean = try {
         Files.newInputStream(path).use { input ->

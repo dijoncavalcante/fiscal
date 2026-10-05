@@ -24,7 +24,9 @@ import com.bragadev.fiscal.domain.repository.OperationHistoryRepository
 import com.bragadev.fiscal.domain.repository.PdfRepository
 import com.bragadev.fiscal.domain.repository.SettingsRepository
 import com.bragadev.fiscal.domain.rules.EditablePeriodPolicy
+import com.bragadev.fiscal.domain.usecase.BrowseMonthFoldersUseCase
 import com.bragadev.fiscal.domain.usecase.ChangeMonthFolderUseCase
+import com.bragadev.fiscal.domain.usecase.ChangeMonthsRootUseCase
 import com.bragadev.fiscal.domain.usecase.ChangeSourceFolderUseCase
 import com.bragadev.fiscal.domain.usecase.DescribeMonthFolderUseCase
 import com.bragadev.fiscal.domain.usecase.FileFlagUseCase
@@ -37,6 +39,7 @@ import com.bragadev.fiscal.domain.usecase.PlanRenameUseCase
 import com.bragadev.fiscal.domain.usecase.PreviewPdfUseCase
 import com.bragadev.fiscal.domain.usecase.RecordedFileMover
 import com.bragadev.fiscal.domain.usecase.RemoveFromMonthUseCase
+import com.bragadev.fiscal.domain.usecase.ResolveMonthsRootUseCase
 import com.bragadev.fiscal.domain.usecase.LoadInitialFoldersUseCase
 import com.bragadev.fiscal.domain.usecase.ScanDocumentsUseCase
 import com.bragadev.fiscal.domain.usecase.UndoOperationUseCase
@@ -45,6 +48,7 @@ import com.bragadev.fiscal.domain.usecase.WatchFolderUseCase
 import com.bragadev.fiscal.presentation.common.DocumentChangeNotifier
 import com.bragadev.fiscal.presentation.home.HomeViewModel
 import com.bragadev.fiscal.presentation.monthfiles.MonthFilesViewModel
+import com.bragadev.fiscal.presentation.navigator.MonthNavigatorViewModel
 import com.bragadev.fiscal.presentation.organizer.OrganizerViewModel
 import com.bragadev.fiscal.presentation.preview.PdfPreviewViewModel
 import com.bragadev.fiscal.presentation.settings.SettingsViewModel
@@ -88,6 +92,9 @@ fun appModule(directories: AppDirectories) = module {
     factory { RemoveFromMonthUseCase(get(), get(), get(), get()) }
     factory { FileFlagUseCase(get()) }
     factory { WatchFolderUseCase(get()) }
+    factory { ResolveMonthsRootUseCase(get(), get()) }
+    factory { ChangeMonthsRootUseCase(get(), get()) }
+    factory { BrowseMonthFoldersUseCase(get(), get()) }
     factory { PreviewPdfUseCase(get()) }
 
     // Presentation
@@ -96,5 +103,6 @@ fun appModule(directories: AppDirectories) = module {
     single { PdfPreviewViewModel(get()) }
     single { OrganizerViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     single { MonthFilesViewModel(get(), get(), get(), get(), get(), get(), get()) }
+    single { MonthNavigatorViewModel(get(), get(), get(), get(), get(), get()) }
     single { SettingsViewModel(get(), get(), get(), get(), get()) }
 }
