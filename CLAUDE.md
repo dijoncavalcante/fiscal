@@ -71,7 +71,8 @@ Regras de camada:
   caminho completo **somente leitura** (texto copiável, pasta do mês em negrito) e lápis para trocar. Abaixo, grupos
   recolhíveis por conta com as categorias, cada uma com **✓ Já existe** (e os arquivos encontrados) ou **○ Faltando**;
   "Outros" no fim de cada conta; grupo "Arquivos sem número de categoria" (recolhido por padrão).
-- **Arquivos já no mês:** clicar no nome abre no preview central; ✏️ renomeia. Despesas/Outros: modo "Número e
+- **Arquivos já no mês:** clicar no nome abre no preview central; o arquivo aberto no preview fica destacado
+  (mesmo fundo da lista da esquerda, `MonthFileRow.isSelected`); ✏️ renomeia. Despesas/Outros: modo "Número e
   descrição" (campo Número aceita `3`, `3.1`, `3.2`… via `DescribedSequenceNaming.parseIndex`; vazio = próximo livre;
   número repetido só gera aviso `sameNumberFiles`) ou "Nome completo" (livre, `PlanRenameUseCase`); demais categorias:
   nome completo. Nunca sobrescreve; menu ⋮ → "Retirar do mês" (volta para a pasta de origem, com

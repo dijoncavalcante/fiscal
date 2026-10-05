@@ -1,5 +1,6 @@
 package com.bragadev.fiscal.presentation.organizer
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -20,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,13 +55,17 @@ fun MonthFileRow(
     editable: Boolean,
     actions: MonthFileActions,
     modifier: Modifier = Modifier,
+    isSelected: Boolean = false,
 ) {
-    Column(modifier.fillMaxWidth()) {
+    // Mesmo destaque da lista de documentos (lado esquerdo) para o arquivo aberto no preview.
+    val background = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+    Column(modifier.fillMaxWidth().background(background, RoundedCornerShape(6.dp)).padding(start = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "📄 ${file.fileName}",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f).clickable { actions.onPreview(file) }.padding(vertical = 4.dp),

@@ -55,8 +55,12 @@ private class MonthContext(
     val fileActions: MonthFileActions,
     val onDrop: (List<Path>, String) -> Unit,
     val onCategoryClick: (DocumentCategory) -> Unit,
+    /** Arquivo aberto no preview, destacado na lista como no lado esquerdo. */
+    val selectedFile: Path?,
 ) {
     fun fileIn(name: String): Path? = monthFolder?.resolve(name)
+
+    fun isSelected(file: Path): Boolean = selectedFile?.normalize() == file.normalize()
 }
 
 /**
@@ -86,6 +90,7 @@ fun OrganizerScreen(
         onCategoryClick = { category ->
             if (selectedDocument != null) onDrop(listOf(selectedDocument), category.id) else onCategoryClickedWithoutDocument()
         },
+        selectedFile = selectedDocument,
     )
 
     Panel(title = Strings.MONTH_PANEL, modifier = modifier) {
@@ -138,6 +143,7 @@ private fun LazyListScope.unmatchedFiles(files: List<String>, context: MonthCont
             category = null,
             issue = context.checklist?.flagFor(name),
             editable = context.editable,
+            isSelected = context.isSelected(file),
             actions = context.fileActions,
             modifier = Modifier.padding(start = 20.dp),
         )
@@ -246,6 +252,7 @@ private fun CategoryRow(entry: TreeEntry, context: MonthContext) {
                 category = category,
                 issue = checklist?.flagFor(name),
                 editable = context.editable,
+                isSelected = context.isSelected(file),
                 actions = context.fileActions,
                 modifier = Modifier.padding(start = 4.dp),
             )
