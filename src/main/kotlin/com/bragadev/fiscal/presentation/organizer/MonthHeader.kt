@@ -15,32 +15,21 @@ import androidx.compose.ui.unit.dp
 import com.bragadev.fiscal.domain.model.MonthFolderInfo
 import com.bragadev.fiscal.domain.model.MonthFolderStatus
 import com.bragadev.fiscal.presentation.common.Strings
-import com.bragadev.fiscal.presentation.components.FolderPathField
 import com.bragadev.fiscal.presentation.components.StatusColors
 import java.time.YearMonth
 
 /**
- * Cabeçalho do lado direito: o mês em edição em destaque, se ele está liberado ou bloqueado,
- * e o caminho completo da pasta, sempre visível e protegido (só o lápis troca a pasta).
+ * Cabeçalho do lado direito: o mês em edição em destaque e se ele está liberado ou bloqueado.
+ * O caminho completo da pasta fica no seletor de mês ([com.bragadev.fiscal.presentation.navigator.MonthNavigator]).
  */
 @Composable
 fun MonthHeader(
     monthFolder: MonthFolderInfo?,
     firstEditableMonth: YearMonth,
-    onEditFolder: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
         MonthBanner(monthFolder, firstEditableMonth)
-        FolderPathField(
-            label = Strings.MONTH_FOLDER_LABEL,
-            path = monthFolder?.path?.toString().orEmpty(),
-            emptyText = Strings.MONTH_FOLDER_EMPTY,
-            editDescription = Strings.MONTH_FOLDER_EDIT,
-            onEdit = onEditFolder,
-            highlightedSegment = monthFolder?.detectedMonth?.folderName,
-            modifier = Modifier.padding(top = 8.dp),
-        )
     }
 }
 

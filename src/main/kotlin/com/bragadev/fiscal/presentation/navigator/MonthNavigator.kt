@@ -41,6 +41,8 @@ import java.nio.file.Path
 fun MonthNavigator(
     state: MonthNavigatorUiState,
     viewModel: MonthNavigatorViewModel,
+    monthFolder: MonthFolderInfo?,
+    onEditMonthFolder: () -> Unit,
     onEditRoot: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -63,6 +65,16 @@ fun MonthNavigator(
             emptyText = Strings.MONTHS_ROOT_EMPTY,
             editDescription = Strings.MONTHS_ROOT_EDIT,
             onEdit = onEditRoot,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        // Caminho completo do mês em edição: sempre visível, protegido; só o lápis troca a pasta.
+        FolderPathField(
+            label = Strings.MONTH_FOLDER_LABEL,
+            path = monthFolder?.path?.toString().orEmpty(),
+            emptyText = Strings.MONTH_FOLDER_EMPTY,
+            editDescription = Strings.MONTH_FOLDER_EDIT,
+            onEdit = onEditMonthFolder,
+            highlightedSegment = monthFolder?.detectedMonth?.folderName,
             modifier = Modifier.padding(top = 6.dp),
         )
         val tree = state.tree

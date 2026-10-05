@@ -88,6 +88,11 @@ fun HomeScreen(
                 MonthNavigator(
                     state = navigator,
                     viewModel = navigatorViewModel,
+                    monthFolder = organizer.monthFolder,
+                    onEditMonthFolder = {
+                        val initial = organizerViewModel.currentMonthFolder ?: homeViewModel.currentSourceFolder
+                        pickFolder(Strings.MONTH_FOLDER_PICKER_TITLE, initial)?.let(organizerViewModel::onMonthFolderSelected)
+                    },
                     onEditRoot = {
                         pickFolder(Strings.MONTHS_ROOT_PICKER_TITLE, navigatorViewModel.currentRoot)
                             ?.let(navigatorViewModel::onRootSelected)
@@ -139,10 +144,6 @@ private fun Workspace(
             selectedDocument = selectedPath,
             onDrop = organizerViewModel::onFilesDropped,
             onCategoryClickedWithoutDocument = organizerViewModel::onCategoryClickedWithoutDocument,
-            onEditMonthFolder = {
-                val initial = organizerViewModel.currentMonthFolder ?: homeViewModel.currentSourceFolder
-                pickFolder(Strings.MONTH_FOLDER_PICKER_TITLE, initial)?.let(organizerViewModel::onMonthFolderSelected)
-            },
             fileActions = fileActions,
             navigator = navigator,
             modifier = modifier,

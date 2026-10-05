@@ -75,7 +75,6 @@ fun OrganizerScreen(
     selectedDocument: Path?,
     onDrop: (paths: List<Path>, categoryId: String) -> Unit,
     onCategoryClickedWithoutDocument: () -> Unit,
-    onEditMonthFolder: () -> Unit,
     fileActions: MonthFileActions,
     modifier: Modifier = Modifier,
     /** Seletor de mês, mostrado no topo da lista (rola junto com as categorias). */
@@ -96,7 +95,7 @@ fun OrganizerScreen(
     )
 
     Panel(title = Strings.MONTH_PANEL, modifier = modifier) {
-        MonthHeader(state.monthFolder, state.firstEditableMonth, onEditMonthFolder)
+        MonthHeader(state.monthFolder, state.firstEditableMonth)
         HorizontalDivider()
         Text(
             text = Strings.DROP_HINT,
