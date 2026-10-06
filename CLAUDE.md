@@ -182,8 +182,8 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
 ## Git / GitHub
 
 - Branch `main`. Remote `origin = git@github.com:dijoncavalcante/fiscal.git` (SSH funciona).
-- **O repositório ainda não existe no GitHub** (sem `gh` e sem login no navegador). Quando o usuário criar o repositório
-  vazio, enviar com `git push -u origin main`.
+- O repositório no GitHub ainda não foi criado. **Não lembrar o usuário disso** nem pedir para criá-lo; só fazer
+  `git push -u origin main` se ele pedir explicitamente.
 - Commits em português, descrevendo o porquê; terminar com a linha de coautoria indicada na sessão.
 
 ## Documentos
