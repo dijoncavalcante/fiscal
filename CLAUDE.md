@@ -4,7 +4,7 @@ Guia para trabalhar neste repositório. Leia antes de qualquer alteração.
 
 ## O que é
 
-**Fiscal — Organizador de Documentos PDF.** App desktop **Windows, 100% offline**, para organizar os PDFs das contas
+**FISCAL - Organizador de Documentos PDF** (nome exibido na janela e no topo; `Strings.APP_TITLE`). Abre maximizado. App desktop **Windows, 100% offline**, para organizar os PDFs das contas
 (Congregação e Manutenção) num pendrive: o usuário vê o PDF, arrasta para a categoria certa e o app renomeia/move para
 a pasta do mês, com confirmação e **Desfazer**. Usuário final não é técnico: textos claros, nada de stack trace na UI.
 
@@ -180,7 +180,8 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
 ## Cuidados importantes ao trabalhar aqui
 
 - **O usuário costuma estar com o app aberto** e ele usa o **mesmo banco** (`%APPDATA%\Fiscal\fiscal.db`).
-  - Nunca feche janelas "Organizador de Documentos" pelo título — feche só o processo que você mesmo iniciou (pelo PID).
+  - Nunca feche janelas do app pelo título ("FISCAL - Organizador de Documentos PDF") — feche só o processo que você
+    mesmo iniciou (pelo PID).
   - Não altere as configurações dele no banco. Se precisar para um teste visual, anote o valor anterior e restaure.
 - **Nunca altere, mova ou apague arquivos do pendrive** (`D:\Modelo\...`). Ler/listar para validar regras é ok.
 - Para ver a tela: `./gradlew run` em segundo plano e capturar só a janela do seu processo (computer-use não consegue

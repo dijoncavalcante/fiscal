@@ -2,6 +2,7 @@ package com.bragadev.fiscal.app
 
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.bragadev.fiscal.data.AppDirectories
@@ -24,7 +25,8 @@ fun main() {
                 exitApplication()
             },
             title = Strings.APP_TITLE,
-            state = rememberWindowState(width = 1320.dp, height = 840.dp),
+            // Abre maximizada; o tamanho é usado se o usuário restaurar a janela.
+            state = rememberWindowState(placement = WindowPlacement.Maximized, width = 1320.dp, height = 840.dp),
         ) {
             App()
         }

@@ -6,7 +6,7 @@ import java.util.Locale
 
 /** Textos da interface concentrados em um único lugar. */
 object Strings {
-    const val APP_TITLE = "Organizador de Documentos"
+    const val APP_TITLE = "FISCAL - Organizador de Documentos PDF"
     private val ptBr: Locale = Locale.forLanguageTag("pt-BR")
 
     // Barra superior

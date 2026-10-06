@@ -1,4 +1,4 @@
-# Fiscal — Organizador de Documentos PDF
+# FISCAL - Organizador de Documentos PDF
 
 Aplicação desktop para Windows, **100% offline**, para organizar PDFs em uma pasta local:
 visualizar, arrastar para a categoria certa, renomear e mover com segurança — e desfazer.
