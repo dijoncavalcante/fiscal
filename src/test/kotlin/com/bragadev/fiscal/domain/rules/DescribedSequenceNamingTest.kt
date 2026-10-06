@@ -89,4 +89,32 @@ class DescribedSequenceNamingTest {
         assertEquals("3.2", DescribedSequenceNaming.numberText(despesas, 2))
         assertEquals("3", DescribedSequenceNaming.numberText(despesas, 0))
     }
+
+    // ---- Donativos da Manutenção: "2. Donativo - xxx", "2.1 Donativo - yyy"... ----
+
+    private val donativos = DefaultCategories.all.first { it.id == "manutencao.donativos_congregacoes" }
+
+    @Test
+    fun `donativos seguem a numeracao 2, 2_1, 2_2`() {
+        assertEquals("2. Donativo - Japiim.pdf", CategoryNaming.suggestedName(donativos, emptySet(), "Japiim"))
+        assertEquals(
+            "2.1 Donativo - Trinta e Um de Março.pdf",
+            CategoryNaming.suggestedName(donativos, setOf("2. Donativo - Japiim.pdf"), "Trinta e Um de Março"),
+        )
+    }
+
+    @Test
+    fun `donativos ja numerados a mao entram na sequencia`() {
+        val manual = setOf("2. Donativo Trinta e Um de Março.pdf", "2.1 Donativo Japiim.pdf", "2.2 Donativo Mensal Japiim.pdf")
+        assertEquals("2.3 Donativo - Objetivos Específicos.pdf", CategoryNaming.suggestedName(donativos, manual, "Objetivos Específicos"))
+        assertEquals("Japiim", DescribedSequenceNaming.suggestDescription(donativos, "Donativo Japiim.pdf"))
+        assertEquals("2.1", DescribedSequenceNaming.numberText(donativos, 1))
+    }
+
+    @Test
+    fun `donativos no checklist do mes`() {
+        val manutencao = DefaultCategories.all.filter { it.accountType == com.bragadev.fiscal.domain.model.AccountType.MANUTENCAO }
+        val checklist = MonthChecklistBuilder.build(manutencao, listOf("2. Donativo - Japiim.pdf", "2.1 Donativo Trinta e Um de Março.pdf"))
+        assertEquals(2, checklist.filesFor(donativos.id).size)
+    }
 }

@@ -11,6 +11,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.nio.file.Path
+import java.time.YearMonth
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -26,7 +27,7 @@ class SettingsPersistenceTest {
         val database = Database(file)
         val bounds = WindowBounds(x = 120, y = 40, width = 1280, height = 800, maximized = true)
         SettingsRepositoryImpl(SettingsDao(database)).save(
-            AppSettings(themeMode = ThemeMode.DARK, onboardingDone = true, windowBounds = bounds),
+            AppSettings(themeMode = ThemeMode.DARK, onboardingDone = true, windowBounds = bounds, firstEditableMonth = YearMonth.of(2027, 6)),
         )
         database.close()
 
@@ -35,18 +36,20 @@ class SettingsPersistenceTest {
         assertEquals(ThemeMode.DARK, loaded.themeMode)
         assertTrue(loaded.onboardingDone)
         assertEquals(bounds, loaded.windowBounds)
+        assertEquals(YearMonth.of(2027, 6), loaded.firstEditableMonth)
         reopened.close()
     }
 
     @Test
     fun `banco antigo sem as chaves novas usa os padroes`() = runTest {
         val database = Database(temp.root.toPath().resolve("antigo.db"))
-        SettingsDao(database).putAll(mapOf("month_folder" to "D:\\pendriver\\1. JUNHO", "theme_mode" to "ROXO"))
+        SettingsDao(database).putAll(mapOf("month_folder" to "D:\\pendriver\\1. JUNHO", "theme_mode" to "ROXO", "first_editable_month" to "junho"))
 
         val loaded = SettingsRepositoryImpl(SettingsDao(database)).load()
         assertEquals(ThemeMode.SYSTEM, loaded.themeMode)
         assertFalse(loaded.onboardingDone)
         assertEquals(null, loaded.windowBounds)
+        assertEquals(YearMonth.of(2026, 6), loaded.firstEditableMonth)
         database.close()
     }
 

@@ -82,6 +82,7 @@ fun OrganizerScreen(
     modifier: Modifier = Modifier,
     /** Seletor de mês, mostrado no topo da lista (rola junto com as categorias). */
     navigator: @Composable () -> Unit = {},
+    onConcludeMonth: (Path) -> Unit = {},
 ) {
     // Grupos começam expandidos, exceto a lista de arquivos sem número.
     val expanded = remember { mutableStateMapOf<String, Boolean>() }
@@ -98,7 +99,7 @@ fun OrganizerScreen(
     )
 
     Panel(title = Strings.MONTH_PANEL, modifier = modifier) {
-        MonthHeader(state.monthFolder, state.firstEditableMonth)
+        MonthHeader(state.monthFolder, state.firstEditableMonth, onConcludeMonth = onConcludeMonth)
         HorizontalDivider()
         Text(
             text = Strings.DROP_HINT,

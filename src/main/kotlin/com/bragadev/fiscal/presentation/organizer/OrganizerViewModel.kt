@@ -62,7 +62,9 @@ class OrganizerViewModel(
     init {
         scope.launch { refreshUndoAvailability() }
         scope.launch {
-            observeSettings().map { it.monthFolder }.distinctUntilChanged().collectLatest { folder ->
+            // O mês de corte também entra: mudar nas Configurações trava/libera o mês aberto na hora.
+            observeSettings().map { it.monthFolder to it.firstEditableMonth }.distinctUntilChanged().collectLatest { (folder, firstEditable) ->
+                state.update { it.copy(firstEditableMonth = firstEditable) }
                 showMonthFolder(folder)
                 // Mudanças feitas fora do app (ex.: no Explorer) atualizam o "já existe / faltando" sozinhas.
                 folder?.let { watchFolder(it).collect { refreshChecklist() } }

@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.nio.file.Path
+import java.time.YearMonth
 
 class SettingsViewModel(
     private val observeSettings: ObserveSettingsUseCase,
@@ -49,6 +50,9 @@ class SettingsViewModel(
 
     fun onThemeChanged(mode: ThemeMode) = update { it.copy(themeMode = mode) }
 
+    /** Mês de corte: a tela só chama depois que o usuário confirma no diálogo. */
+    fun onFirstEditableMonthChanged(month: YearMonth) = update { it.copy(firstEditableMonth = month) }
+
     private fun changeFolder(change: suspend () -> Outcome<*>) {
         scope.launch {
             val result = change()
@@ -67,5 +71,6 @@ class SettingsViewModel(
         confirmBeforeMove = settings.confirmBeforeMove,
         confirmBeforeRename = settings.confirmBeforeRename,
         themeMode = settings.themeMode,
+        firstEditableMonth = settings.firstEditableMonth,
     )
 }

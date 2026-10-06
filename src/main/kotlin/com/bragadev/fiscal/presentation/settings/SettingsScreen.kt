@@ -50,7 +50,9 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit, onOpenOnboa
         Column(Modifier.widthIn(max = 720.dp).padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             FoldersSection(state, viewModel, onOpenOnboarding)
             AppearanceSection(state.themeMode, viewModel::onThemeChanged)
-            Section(Strings.SETTINGS_LOCK_SECTION) { Text(Strings.lockedHint(state.firstEditableMonth)) }
+            Section(Strings.SETTINGS_LOCK_SECTION) {
+                CutoffMonthSection(state.firstEditableMonth, viewModel::onFirstEditableMonthChanged)
+            }
             DuplicatesSection(state.duplicatePolicy, viewModel::onDuplicatePolicyChanged)
             ConfirmationSection(state, viewModel)
             Section(Strings.DATA_SECTION) { DataSafetySection(koinInject()) }

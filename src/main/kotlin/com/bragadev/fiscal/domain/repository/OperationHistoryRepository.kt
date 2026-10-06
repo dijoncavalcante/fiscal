@@ -10,6 +10,9 @@ interface OperationHistoryRepository {
 
     suspend fun markUndone(id: UUID)
 
+    /** Todas as operações, da mais recente para a mais antiga. */
+    suspend fun all(): List<FileOperation>
+
     /** Última operação ainda não desfeita, se houver. */
     suspend fun lastUndoable(): FileOperation?
 }

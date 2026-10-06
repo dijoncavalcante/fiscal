@@ -27,13 +27,10 @@ class UndoOperationUseCase(
 ) {
     suspend operator fun invoke(operationId: UUID): Outcome<FileOperation> {
         val operation = historyRepository.find(operationId) ?: return blocked(UndoBlockReason.OPERATION_NOT_FOUND)
-        validate(operation)?.let { return blocked(it) }
+        check(operation)?.let { return Outcome.Failure(it) }
 
         val current = Path.of(operation.newPath)
         val original = Path.of(operation.originalPath)
-        listOf(current.parent, original.parent).forEach { folder ->
-            periodPolicy.checkSource(folder)?.let { return Outcome.Failure(it) }
-        }
         val restored = fileRepository.move(current, original)
         if (restored is Outcome.Failure) return restored
 
@@ -45,6 +42,17 @@ class UndoOperationUseCase(
     }
 
     suspend fun lastUndoable(): FileOperation? = historyRepository.lastUndoable()
+
+    /**
+     * Por que esta operação não pode ser desfeita agora (`null` = pode). Não mexe em nada.
+     * Vale para qualquer operação do histórico, não só a última: se depois dela o arquivo foi
+     * renomeado ou movido de novo, o caminho não bate e o desfazer é recusado.
+     */
+    suspend fun check(operation: FileOperation): FileOperationError? {
+        validate(operation)?.let { return FileOperationError.UndoNotPossible(it) }
+        return listOf(Path.of(operation.newPath).parent, Path.of(operation.originalPath).parent)
+            .firstNotNullOfOrNull { folder -> periodPolicy.checkSource(folder) }
+    }
 
     private suspend fun validate(operation: FileOperation): UndoBlockReason? = when {
         operation.undone -> UndoBlockReason.ALREADY_UNDONE

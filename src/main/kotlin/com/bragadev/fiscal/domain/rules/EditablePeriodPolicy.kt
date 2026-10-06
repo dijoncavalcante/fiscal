@@ -1,5 +1,6 @@
 package com.bragadev.fiscal.domain.rules
 
+import com.bragadev.fiscal.domain.model.AppSettings
 import com.bragadev.fiscal.domain.model.FileOperationError
 import com.bragadev.fiscal.domain.model.MonthFolderInfo
 import com.bragadev.fiscal.domain.model.MonthFolderStatus
@@ -9,10 +10,17 @@ import java.time.YearMonth
 /**
  * Protege meses já fechados: nada anterior a [firstEditableMonth] pode ser alterado,
  * nem como destino, nem como origem de um arquivo.
+ *
+ * O mês de corte vem das Configurações ([firstEditable] é lido a cada uso), então mudar lá
+ * vale na hora para todo o app, sem nova versão.
  */
-class EditablePeriodPolicy(val firstEditableMonth: YearMonth = FIRST_EDITABLE_MONTH) {
+class EditablePeriodPolicy(private val firstEditable: () -> YearMonth) {
+    constructor(firstEditableMonth: YearMonth = FIRST_EDITABLE_MONTH) : this({ firstEditableMonth })
+
+    val firstEditableMonth: YearMonth get() = firstEditable()
 
     fun describe(folder: Path): MonthFolderInfo {
+        val firstEditableMonth = firstEditableMonth
         val detected = MonthFolderParser.detectMonth(folder)
         val status = when {
             detected == null -> MonthFolderStatus.UNKNOWN_MONTH
@@ -43,6 +51,6 @@ class EditablePeriodPolicy(val firstEditableMonth: YearMonth = FIRST_EDITABLE_MO
     }
 
     companion object {
-        val FIRST_EDITABLE_MONTH: YearMonth = YearMonth.of(2026, 6)
+        val FIRST_EDITABLE_MONTH: YearMonth = AppSettings.DEFAULT_FIRST_EDITABLE_MONTH
     }
 }

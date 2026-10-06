@@ -12,6 +12,7 @@ import androidx.compose.runtime.setValue
 import com.bragadev.fiscal.domain.usecase.CleanOldBackupsUseCase
 import com.bragadev.fiscal.domain.usecase.ObserveSettingsUseCase
 import com.bragadev.fiscal.presentation.common.UnexpectedErrorDialog
+import com.bragadev.fiscal.presentation.history.HistoryScreen
 import com.bragadev.fiscal.presentation.home.HomeScreen
 import com.bragadev.fiscal.presentation.onboarding.OnboardingScreen
 import com.bragadev.fiscal.presentation.onboarding.OnboardingViewModel
@@ -19,7 +20,7 @@ import com.bragadev.fiscal.presentation.settings.SettingsScreen
 import com.bragadev.fiscal.presentation.theme.FiscalTheme
 import org.koin.compose.koinInject
 
-private enum class Screen { ONBOARDING, HOME, SETTINGS }
+private enum class Screen { ONBOARDING, HOME, SETTINGS, HISTORY }
 
 @Composable
 fun App() {
@@ -54,8 +55,11 @@ fun App() {
                     monthFilesViewModel = koinInject(),
                     navigatorViewModel = koinInject(),
                     pdfToolsViewModel = koinInject(),
+                    monthClosingViewModel = koinInject(),
                     onOpenSettings = { screen = Screen.SETTINGS },
+                    onOpenHistory = { screen = Screen.HISTORY },
                 )
+                Screen.HISTORY -> HistoryScreen(viewModel = koinInject(), onBack = { screen = Screen.HOME })
                 Screen.SETTINGS -> {
                     val onboarding = koinInject<OnboardingViewModel>()
                     SettingsScreen(

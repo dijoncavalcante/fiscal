@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.nio.file.Path
+import java.time.YearMonth
 
 class SettingsRepositoryImpl(
     private val settingsDao: SettingsDao,
@@ -41,6 +42,9 @@ class SettingsRepositoryImpl(
                 ?: defaults.themeMode,
             onboardingDone = values[Keys.ONBOARDING_DONE]?.toBooleanStrictOrNull() ?: defaults.onboardingDone,
             windowBounds = values[Keys.WINDOW_BOUNDS]?.let(WindowBounds::decode),
+            firstEditableMonth = values[Keys.FIRST_EDITABLE_MONTH]
+                ?.let { runCatching { YearMonth.parse(it) }.getOrNull() }
+                ?: defaults.firstEditableMonth,
         )
         state.value = loaded
         return loaded
@@ -62,6 +66,7 @@ class SettingsRepositoryImpl(
                 Keys.THEME_MODE to settings.themeMode.name,
                 Keys.ONBOARDING_DONE to settings.onboardingDone.toString(),
                 Keys.WINDOW_BOUNDS to settings.windowBounds?.encode(),
+                Keys.FIRST_EDITABLE_MONTH to settings.firstEditableMonth.toString(),
             ),
         )
         state.value = settings
@@ -81,6 +86,7 @@ class SettingsRepositoryImpl(
         const val THEME_MODE = "theme_mode"
         const val ONBOARDING_DONE = "onboarding_done"
         const val WINDOW_BOUNDS = "window_bounds"
+        const val FIRST_EDITABLE_MONTH = "first_editable_month"
     }
 
     companion object {

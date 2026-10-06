@@ -51,6 +51,14 @@ class FileOperationDao(private val database: Database) {
         }
     }
 
+    suspend fun all(): List<FileOperation> = database.use {
+        createStatement().use { statement ->
+            statement.executeQuery("SELECT * FROM file_operations ORDER BY created_at DESC, rowid DESC").use { rows ->
+                buildList { while (rows.next()) add(rows.toOperation()) }
+            }
+        }
+    }
+
     private fun ResultSet.toOperation() = FileOperation(
         id = UUID.fromString(getString("id")),
         type = OperationType.valueOf(getString("operation_type")),

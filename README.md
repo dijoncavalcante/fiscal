@@ -35,6 +35,14 @@ MANUTENÇÃO), a pasta de origem dos PDFs e o mês em edição. Dá para reabri-
 5. Confira o nome atual, o novo nome, o mês e o destino e escolha **Renomear** ou **Renomear e Mover**.
 6. Use **Desfazer** no aviso ou no topo da tela para reverter a última operação.
 
+7. Ao terminar o mês, clique em **Concluir mês** (no topo do mês em edição): o FISCAL mostra o que está faltando e as
+   pendências e gera um **relatório em PDF** com o que existe em cada categoria (salvo na pasta de origem).
+
+**Histórico** (barra superior) lista tudo o que foi renomeado ou movido, com busca e **Desfazer** em qualquer operação
+que ainda possa ser desfeita. O **mês de corte** (meses anteriores ficam somente leitura) fica em **Configurações →
+Proteção de meses**; ao entregar a prestação de contas do ano, avance-o ali, sem precisar de nova versão.
+Fotos de celular convertidas em PDF já saem em pé (orientação gravada pelo celular).
+
 Atalhos: **Ctrl+Z** desfaz a última operação, **F5** atualiza; nas janelas, **Enter** confirma e **Esc** cancela.
 Tema claro/escuro em **Configurações → Aparência** (padrão: igual ao Windows). A janela reabre no tamanho e na posição
 em que foi fechada.

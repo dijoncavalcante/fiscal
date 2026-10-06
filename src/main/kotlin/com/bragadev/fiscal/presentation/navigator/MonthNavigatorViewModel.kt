@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.nio.file.Path
+import java.time.YearMonth
 
 /**
  * Seletor de mês do lado direito: mostra as contas, anos de serviço, trimestres e meses
@@ -39,9 +40,12 @@ class MonthNavigatorViewModel(
 
     init {
         scope.launch {
-            observeSettings().map { it.monthsRoot to it.monthFolder }.distinctUntilChanged().collect { (_, month) ->
+            // Mês de corte junto: os cadeados dos meses mudam quando ele muda nas Configurações.
+            var lastFirstEditable: YearMonth? = null
+            observeSettings().map { Triple(it.monthsRoot, it.monthFolder, it.firstEditableMonth) }.distinctUntilChanged().collect { (_, month, firstEditable) ->
                 val root = resolveMonthsRoot()
-                if (root != state.value.root || state.value.tree == null) loadTree(root)
+                if (root != state.value.root || state.value.tree == null || firstEditable != lastFirstEditable) loadTree(root)
+                lastFirstEditable = firstEditable
                 showCurrentMonth(month)
             }
         }

@@ -49,6 +49,8 @@ class InMemoryHistoryRepository : OperationHistoryRepository {
     }
 
     override suspend fun lastUndoable(): FileOperation? = operations.lastOrNull { !it.undone }
+
+    override suspend fun all(): List<FileOperation> = operations.reversed()
 }
 
 class NoOpDocumentRepository : DocumentRepository {

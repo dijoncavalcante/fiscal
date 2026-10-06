@@ -44,7 +44,11 @@ object DefaultCategories {
         outros("congregacao", CONGREGACAO, "10"),
 
         DocumentCategory("manutencao.folha_de_contas", "Folha de Contas", "1", MANUTENCAO),
-        DocumentCategory("manutencao.donativos_congregacoes", "Donativos das Congregações", "2", MANUTENCAO),
+        // Um comprovante por congregação/objetivo: "2. Donativo - Japiim", "2.1 Donativo - Trinta e Um de Março"...
+        DocumentCategory(
+            "manutencao.donativos_congregacoes", "Donativos das Congregações", "2", MANUTENCAO,
+            namingRule = NamingRule.DESCRIBED_SEQUENCE, fileBaseName = "Donativo",
+        ),
         despesas("manutencao", MANUTENCAO),
         DocumentCategory("manutencao.relatorio_mensal", "Relatório Mensal", "4", MANUTENCAO),
         DocumentCategory("manutencao.extrato_bancario", "Extrato Bancário", "5", MANUTENCAO),

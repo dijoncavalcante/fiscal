@@ -2,6 +2,7 @@ package com.bragadev.fiscal.domain.usecase
 
 import com.bragadev.fiscal.data.filesystem.FileRepositoryImpl
 import com.bragadev.fiscal.data.pdf.PdfToolsRepositoryImpl
+import com.bragadev.fiscal.data.pdf.jpegWithOrientation
 import com.bragadev.fiscal.domain.model.FileOperationError
 import com.bragadev.fiscal.domain.model.ImagePage
 import com.bragadev.fiscal.domain.model.Outcome
@@ -60,6 +61,20 @@ class PdfToolsTest {
         assertTrue(sizes[0].first > sizes[0].second, "imagem larga → página deitada")
         assertTrue(sizes[1].first < sizes[1].second, "imagem alta → página em pé")
         assertTrue(sizes[2].first < sizes[2].second, "imagem larga girada 90° → página em pé")
+    }
+
+    @Test
+    fun `foto do celular gira sozinha pela orientacao do EXIF`() = runTest {
+        // Celular segurado em pé: grava 400×200 "deitada" e anota "girar 90°".
+        val phonePhoto = folder.resolve("WhatsApp Image.jpeg").also { Files.write(it, jpegWithOrientation(6, 400, 200)) }
+        val original = Files.readAllBytes(phonePhoto)
+
+        val created = (imagesToPdf(listOf(ImagePage(phonePhoto), ImagePage(phonePhoto, 90)), folder, "Recibo") as Outcome.Success).value
+
+        val sizes = pageSizes(created)
+        assertTrue(sizes[0].first < sizes[0].second, "EXIF 90° → página em pé, sem precisar do Girar")
+        assertTrue(sizes[1].first > sizes[1].second, "Girar soma por cima do EXIF (90° + 90°)")
+        assertContentEquals(original, Files.readAllBytes(phonePhoto), "a foto original não é alterada")
     }
 
     @Test

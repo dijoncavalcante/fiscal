@@ -1,6 +1,7 @@
 package com.bragadev.fiscal.domain.model
 
 import java.nio.file.Path
+import java.time.YearMonth
 
 data class AppSettings(
     /** Pasta exibida à esquerda, de onde os PDFs são escolhidos. */
@@ -21,6 +22,8 @@ data class AppSettings(
     val onboardingDone: Boolean = false,
     /** Tamanho e posição da janela ao fechar, para reabrir igual. `null` = padrão (maximizada). */
     val windowBounds: WindowBounds? = null,
+    /** Primeiro mês que pode ser alterado; os anteriores ficam somente leitura (prestação de contas já entregue). */
+    val firstEditableMonth: YearMonth = DEFAULT_FIRST_EDITABLE_MONTH,
 ) {
     /** Usuário novo: falta a pasta de origem ou o mês e o assistente ainda não foi feito (a raiz das contas pode ser deduzida do mês). */
     val needsOnboarding: Boolean
@@ -28,6 +31,7 @@ data class AppSettings(
 
     companion object {
         const val DEFAULT_BACKUP_RETENTION_DAYS = 90
+        val DEFAULT_FIRST_EDITABLE_MONTH: YearMonth = YearMonth.of(2026, 6)
         val BACKUP_RETENTION_OPTIONS = listOf(30, 90, 180, 365)
     }
 }

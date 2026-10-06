@@ -56,6 +56,9 @@ import com.bragadev.fiscal.domain.usecase.ImportDataUseCase
 import com.bragadev.fiscal.domain.usecase.LoadInitialFoldersUseCase
 import com.bragadev.fiscal.domain.usecase.MergePdfsUseCase
 import com.bragadev.fiscal.domain.usecase.ScanDocumentsUseCase
+import com.bragadev.fiscal.domain.usecase.GenerateMonthReportUseCase
+import com.bragadev.fiscal.domain.usecase.ListHistoryUseCase
+import com.bragadev.fiscal.domain.usecase.ReviewMonthUseCase
 import com.bragadev.fiscal.domain.usecase.UndoOperationUseCase
 import com.bragadev.fiscal.domain.usecase.UpdateSettingsUseCase
 import com.bragadev.fiscal.domain.usecase.WatchFolderUseCase
@@ -66,6 +69,8 @@ import com.bragadev.fiscal.presentation.navigator.MonthNavigatorViewModel
 import com.bragadev.fiscal.presentation.organizer.OrganizerViewModel
 import com.bragadev.fiscal.presentation.pdftools.PdfToolsViewModel
 import com.bragadev.fiscal.presentation.preview.PdfPreviewViewModel
+import com.bragadev.fiscal.presentation.closing.MonthClosingViewModel
+import com.bragadev.fiscal.presentation.history.HistoryViewModel
 import com.bragadev.fiscal.presentation.onboarding.OnboardingViewModel
 import com.bragadev.fiscal.presentation.settings.DataSafetyViewModel
 import com.bragadev.fiscal.presentation.settings.SettingsViewModel
@@ -95,7 +100,8 @@ fun appModule(directories: AppDirectories) = module {
 
     // Domain
     factory { ScanDocumentsUseCase(get()) }
-    single { EditablePeriodPolicy() }
+    // Mês de corte das Configurações, lido a cada verificação.
+    single { EditablePeriodPolicy { get<SettingsRepository>().settings.value.firstEditableMonth } }
     factory { LoadInitialFoldersUseCase(get(), get()) }
     factory { ChangeSourceFolderUseCase(get(), get()) }
     factory { ChangeMonthFolderUseCase(get(), get(), get()) }
@@ -108,6 +114,9 @@ fun appModule(directories: AppDirectories) = module {
     factory { RecordedFileMover(get(), get(), get(), get()) }
     factory { OrganizeDocumentUseCase(get(), get(), get(), get(), get()) }
     factory { UndoOperationUseCase(get(), get(), get(), get(), get()) }
+    factory { ListHistoryUseCase(get(), get()) }
+    factory { ReviewMonthUseCase(get(), get(), get(), get()) }
+    factory { GenerateMonthReportUseCase(get(), get()) }
     factory { PlanRenameUseCase(get(), get(), get()) }
     factory { RemoveFromMonthUseCase(get(), get(), get(), get()) }
     factory { FileFlagUseCase(get()) }
@@ -134,6 +143,8 @@ fun appModule(directories: AppDirectories) = module {
     single { MonthNavigatorViewModel(get(), get(), get(), get(), get(), get()) }
     single { PdfToolsViewModel(get(), get(), get(), get()) }
     single { SettingsViewModel(get(), get(), get(), get(), get()) }
+    single { HistoryViewModel(get(), get(), get()) }
+    single { MonthClosingViewModel(get(), get(), get(), get()) }
     single { OnboardingViewModel(get()) }
     single { DataSafetyViewModel(get(), get(), get(), get(), get(), get(), get()) }
 }

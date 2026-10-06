@@ -12,5 +12,7 @@ class OperationHistoryRepositoryImpl(private val fileOperationDao: FileOperation
 
     override suspend fun markUndone(id: UUID) = fileOperationDao.markUndone(id)
 
+    override suspend fun all(): List<FileOperation> = fileOperationDao.all()
+
     override suspend fun lastUndoable(): FileOperation? = fileOperationDao.lastNotUndone()
 }

@@ -192,7 +192,7 @@ object Strings {
     const val MOVE_DOWN = "Descer"
     const val ROTATE = "Girar"
     const val REMOVE_ITEM = "Tirar da lista"
-    const val IMAGES_TO_PDF_HINT = "Clique numa imagem à esquerda para ver no preview e arraste para cá. Cada imagem vira uma página A4, na ordem da lista; use o botão Girar para fotos deitadas."
+    const val IMAGES_TO_PDF_HINT = "Clique numa imagem à esquerda para ver no preview e arraste para cá. Cada imagem vira uma página A4, na ordem da lista. Fotos do celular já saem em pé; use Girar só se alguma ainda aparecer deitada no preview."
     const val MERGE_HINT = "Clique num PDF à esquerda para ver no preview e arraste para cá. As páginas ficam na ordem da lista; os originais não são alterados."
     const val EMPTY_TOOL_LIST = "Nenhum arquivo na lista."
     const val DROP_IMAGES_HERE = "Arraste aqui as imagens da lista de documentos ou do Windows Explorer"
@@ -251,8 +251,54 @@ object Strings {
     const val UNDONE = "Operação desfeita."
     const val UNDO = "Desfazer"
 
+    // Concluir mês
+    const val CONCLUDE_MONTH = "Concluir mês"
+    const val CONCLUDE_MONTH_HINT = "Conferir o que falta e gerar o relatório em PDF"
+    const val REVIEW_COMPLETE = "Tudo certo: todas as categorias têm arquivo e não há pendências."
+    const val REVIEW_MISSING = "Faltando"
+    const val REVIEW_ISSUES = "Com pendência"
+    const val REVIEW_INCOMPLETE_NOTE = "Dá para gerar o relatório assim mesmo: ele mostra o que está faltando e as pendências."
+    const val REPORT_FOLDER = "Salvar o relatório na pasta"
+    const val REPORT_FOLDER_EDIT = "Trocar a pasta onde o relatório será salvo"
+    const val REPORT_FOLDER_PICKER_TITLE = "Escolha onde salvar o relatório"
+    const val REPORT_NAME = "Nome do relatório"
+    const val REPORT_CHOOSE_FOLDER = "Escolha a pasta onde salvar o relatório."
+    const val GENERATE_REPORT = "Gerar relatório PDF"
+    const val OPEN_REPORT = "Abrir relatório"
+    const val OPEN_REPORT_FOLDER = "Abrir pasta"
+
+    fun concludeTitle(month: YearMonth, account: String?) =
+        "Concluir ${monthTitle(month)}" + (account?.let { " — $it" } ?: "")
+    fun reviewSummary(done: Int, required: Int) = "$done de $required categorias obrigatórias com arquivo."
+    fun reportFileName(month: YearMonth, account: String?) =
+        "Relatório - ${monthTitle(month)}" + (account?.let { " - $it" } ?: "")
+    fun reportCreated(name: String) = "Relatório criado: $name"
+
+    // Histórico
+    const val HISTORY = "Histórico"
+    const val HISTORY_SHORTCUT = "Todas as operações, com Desfazer"
+    const val HISTORY_EXPLANATION =
+        "Tudo o que o FISCAL renomeou ou moveu. Qualquer operação pode ser desfeita enquanto o arquivo continuar onde ela o deixou."
+    const val HISTORY_SEARCH = "Buscar por nome, pasta ou data"
+    const val HISTORY_EMPTY = "Nenhuma operação ainda."
+    const val HISTORY_MOVED = "Movido"
+    const val HISTORY_RENAMED = "Renomeado"
+    const val HISTORY_UNDONE = "Desfeita"
+    const val HISTORY_REPLACED = "Substituiu um arquivo (o antigo está guardado)"
+    const val HISTORY_FILE_CHANGED = "Não dá para desfazer: o arquivo foi mexido depois (renomeado, movido ou apagado)."
+    const val HISTORY_ORIGINAL_OCCUPIED = "Não dá para desfazer: já existe outro arquivo com o nome antigo no lugar original."
+    const val HISTORY_CONFIRM_TITLE = "Desfazer esta operação?"
+    const val HISTORY_CONFIRM_BACKUP = "O arquivo que tinha sido substituído volta para o lugar."
+
+    fun historyCount(shown: Int, total: Int) = if (shown == total) "$total operação(ões)" else "$shown de $total operação(ões)"
+    fun historyWasNamed(name: String) = "Antes: $name"
+    fun historyFolder(folder: String) = "Pasta: $folder"
+    fun historyFromTo(from: String, to: String) = "De: $from → Para: $to"
+    fun historyConfirmBody(current: String, original: String, folder: String) =
+        "\"$current\" volta a se chamar \"$original\", na pasta $folder."
+
     // Configurações
-    const val BACK = "Voltar"
+    const val BACK ="Voltar"
     const val SETTINGS_FOLDERS_SECTION = "Pastas"
     const val SETTINGS_DUPLICATES_SECTION = "Arquivos duplicados"
     const val SETTINGS_DUPLICATE_ASK = "Perguntar sempre"
@@ -264,6 +310,24 @@ object Strings {
     const val SETTINGS_CONFIRM_NOTE =
         "Mesmo sem esta confirmação, o destino e o novo nome são sempre mostrados antes de qualquer alteração."
     const val SETTINGS_LOCK_SECTION = "Proteção de meses"
+    const val CUTOFF_EXPLANATION =
+        "Use quando a prestação de contas de um período for entregue: os meses anteriores ficam só para consulta."
+    const val CHANGE_CUTOFF = "Mudar o mês de corte…"
+    const val CUTOFF_DIALOG_TITLE = "Mudar o mês de corte"
+    const val CUTOFF_DIALOG_BODY = "Escolha o primeiro mês que ainda pode ser alterado."
+    const val CUTOFF_UNCHANGED = "Escolha um mês diferente do atual."
+
+    fun cutoffLocks(from: YearMonth, toExclusive: YearMonth) =
+        cutoffWarning(from, toExclusive.minusMonths(1), "vai ficar somente leitura", "vão ficar somente leitura")
+    fun cutoffUnlocks(from: YearMonth, toExclusive: YearMonth) =
+        cutoffWarning(from, toExclusive.minusMonths(1), "volta a poder ser alterado", "voltam a poder ser alterados")
+    private fun cutoffWarning(first: YearMonth, last: YearMonth, singular: String, plural: String) =
+        if (first == last) {
+            "Atenção: ${monthTitle(first)} $singular."
+        } else {
+            "Atenção: os meses de ${monthTitle(first)} a ${monthTitle(last)} $plural."
+        }
+
     const val APPEARANCE_SECTION = "Aparência"
     const val THEME_SYSTEM = "Igual ao Windows"
     const val THEME_LIGHT = "Claro"

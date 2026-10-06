@@ -46,6 +46,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bragadev.fiscal.domain.model.ImagePage
+import com.bragadev.fiscal.presentation.closing.MonthClosingDialogHost
+import com.bragadev.fiscal.presentation.closing.MonthClosingViewModel
 import com.bragadev.fiscal.presentation.common.RegisterShortcuts
 import com.bragadev.fiscal.presentation.common.Strings
 import com.bragadev.fiscal.presentation.common.UserMessage
@@ -66,6 +68,7 @@ import com.bragadev.fiscal.presentation.pdftools.PdfToolsPanel
 import com.bragadev.fiscal.presentation.pdftools.PdfToolsViewModel
 import com.bragadev.fiscal.presentation.preview.PdfPreviewScreen
 import com.bragadev.fiscal.presentation.preview.PdfPreviewViewModel
+import java.nio.file.Path
 import java.util.UUID
 
 private val WIDE_LAYOUT_MIN_WIDTH = 1100.dp
@@ -78,13 +81,16 @@ fun HomeScreen(
     monthFilesViewModel: MonthFilesViewModel,
     navigatorViewModel: MonthNavigatorViewModel,
     pdfToolsViewModel: PdfToolsViewModel,
+    monthClosingViewModel: MonthClosingViewModel,
     onOpenSettings: () -> Unit,
+    onOpenHistory: () -> Unit,
 ) {
     val pdfTools by pdfToolsViewModel.uiState.collectAsState()
     val navigator by navigatorViewModel.uiState.collectAsState()
     val home by homeViewModel.uiState.collectAsState()
     val organizer by organizerViewModel.uiState.collectAsState()
     val monthFiles by monthFilesViewModel.uiState.collectAsState()
+    val closing by monthClosingViewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     MessageEffect(organizer.message, snackbarHostState, organizerViewModel::undo, organizerViewModel::onMessageShown)
@@ -92,10 +98,11 @@ fun HomeScreen(
     MessageEffect(pdfTools.message, snackbarHostState, organizerViewModel::undo, pdfToolsViewModel::onMessageShown)
     ErrorEffect(home.error, snackbarHostState, homeViewModel::onErrorShown)
     ErrorEffect(navigator.error, snackbarHostState, navigatorViewModel::onErrorShown)
+    ErrorEffect(closing.error, snackbarHostState, monthClosingViewModel::onErrorShown)
 
     val canUndo = organizer.lastUndoableOperationId != null && !organizer.isWorking
     // Com um diálogo aberto os atalhos ficam parados: Ctrl+Z ali não pode desfazer outra coisa por trás.
-    val dialogOpen = organizer.dialog != null || monthFiles.dialog != null
+    val dialogOpen = organizer.dialog != null || monthFiles.dialog != null || closing.dialog != null
     RegisterShortcuts(
         onUndo = { if (canUndo && !dialogOpen) organizerViewModel.undo() },
         onRefresh = { if (!dialogOpen) homeViewModel.onRefresh() },
@@ -108,6 +115,7 @@ fun HomeScreen(
                 onRefresh = homeViewModel::onRefresh,
                 onUndo = { organizerViewModel.undo() },
                 onOpenSettings = onOpenSettings,
+                onOpenHistory = onOpenHistory,
                 onImagesToPdf = pdfToolsViewModel::onOpenImagesToPdf,
                 onMergePdfs = { pdfToolsViewModel.onOpenMerge(home.selectedDocument?.path) },
             )
@@ -121,7 +129,10 @@ fun HomeScreen(
                     PdfToolsPanel(dialog, pdfTools.isWorking, pdfToolsViewModel, homeViewModel::onPreviewFile, modifier)
                 }
             }
-            Workspace(home, organizer, previewViewModel, homeViewModel, organizerViewModel, monthFilesViewModel, toolPanel) {
+            Workspace(
+                home, organizer, previewViewModel, homeViewModel, organizerViewModel, monthFilesViewModel, toolPanel,
+                onConcludeMonth = monthClosingViewModel::onOpen,
+            ) {
                 MonthNavigator(
                     state = navigator,
                     viewModel = navigatorViewModel,
@@ -141,6 +152,7 @@ fun HomeScreen(
     }
     OrganizerDialogHost(organizer, organizerViewModel)
     MonthFilesDialogHost(monthFiles, monthFilesViewModel)
+    MonthClosingDialogHost(closing, monthClosingViewModel)
 }
 
 @Composable
@@ -153,6 +165,7 @@ private fun Workspace(
     monthFilesViewModel: MonthFilesViewModel,
     /** Painel que ocupa o lugar do mês em edição enquanto estiver aberto (ex.: ferramentas de PDF). */
     toolPanel: (@Composable (Modifier) -> Unit)?,
+    onConcludeMonth: (Path) -> Unit,
     navigator: @Composable () -> Unit,
 ) {
     val selectedPath = home.selectedDocument?.path
@@ -185,6 +198,7 @@ private fun Workspace(
             onCategoryClickedWithoutDocument = organizerViewModel::onCategoryClickedWithoutDocument,
             fileActions = fileActions,
             navigator = navigator,
+            onConcludeMonth = onConcludeMonth,
             modifier = modifier,
         )
     }
@@ -239,6 +253,7 @@ private fun TopBar(
     onRefresh: () -> Unit,
     onUndo: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenHistory: () -> Unit,
     onImagesToPdf: () -> Unit,
     onMergePdfs: () -> Unit,
 ) {
@@ -253,6 +268,7 @@ private fun TopBar(
             PdfMenu(onImagesToPdf, onMergePdfs)
             TopBarButton(AppIcons.Undo, Strings.UNDO_LAST, Strings.UNDO_SHORTCUT, onUndo, enabled = canUndo)
             TopBarButton(AppIcons.Refresh, Strings.REFRESH, Strings.REFRESH_SHORTCUT, onRefresh)
+            TopBarButton(AppIcons.History, Strings.HISTORY, Strings.HISTORY_SHORTCUT, onOpenHistory)
             TopBarButton(AppIcons.Settings, Strings.SETTINGS, null, onOpenSettings)
         }
     }

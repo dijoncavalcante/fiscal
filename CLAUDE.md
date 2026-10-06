@@ -56,7 +56,9 @@ presentation/
   monthfiles/   Ações sobre arquivos já no mês: renomear, retirar do mês, marcar pendência (MonthFilesViewModel)
   navigator/    Seletor de mês: pasta raiz das contas → conta → ano de serviço → trimestre → mês (MonthNavigatorViewModel)
   pdftools/     Menu "PDF": converter JPEG/PNG em PDF e juntar PDFs (PdfToolsViewModel, PdfToolsDialog)
-  settings/     Tela de configurações
+  settings/     Tela de configurações (inclui CutoffMonthSection: mês de corte)
+  closing/      "Concluir mês": conferência + relatório PDF (MonthClosingViewModel, MonthClosingDialogHost)
+  history/      Tela "Histórico": todas as operações, busca e Desfazer em qualquer uma válida (HistoryViewModel)
 ```
 
 Regras de camada:
@@ -93,7 +95,8 @@ Regras de camada:
   (`ChangeMonthFolderUseCase`). Árvore montada por `BrowseMonthFoldersUseCase` (ignora pastas sem mês). O "Caminho
   completo da pasta do mês" (somente leitura + lápis) fica dentro desse bloco, logo abaixo da pasta raiz.
 - **Menu PDF (barra superior):** "Converter JPEG para PDF" (uma página A4 por imagem, orientação conforme a
-  imagem, botão Girar) e "Juntar PDFs" (ordem da lista; já inclui o documento selecionado). Abre como **painel no
+  imagem; **fotos de celular giram sozinhas** pela orientação EXIF — `ExifOrientation`, somada ao botão Girar no
+  `PdfToolsRepositoryImpl`; o preview (Skia) já mostra a foto em pé, por isso Girar é relativo ao que se vê) e "Juntar PDFs" (ordem da lista; já inclui o documento selecionado). Abre como **painel no
   lugar do mês em edição** (`PdfToolsPanel`, não modal): o usuário clica num arquivo à esquerda para ver no preview e
   arrasta para o painel (aceita também arquivos do Explorer; tipo errado e duplicados são avisados). Ordem por
   segurar a linha e arrastar (`ReorderableColumn`: gesto medido na lista a partir do ponto do clique, linhas com
@@ -144,8 +147,14 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
 - **Mês e conta pelo caminho (`MonthFolderParser`):** acha o segmento de mês mais profundo; ano no próprio nome ou na
   pasta-mãe com ano. "ANO DE SERVIÇO 2025-2026": set–dez = 2025, jan–ago = 2026; **"5. Trimestre" dentro de 2025-2026
   pertence ao ano seguinte** (set/2026). Conta: segmento contendo CONGREGACAO / MANUTENCAO (sem acentos).
-- **Bloqueio (`EditablePeriodPolicy`, `FIRST_EDITABLE_MONTH = 2026-06`):** meses **anteriores a junho/2026** são somente
-  leitura; junho/2026 em diante é editável. Destino precisa ser mês identificado e liberado; origem em mês bloqueado
+- **Donativos da Manutenção** ("2. Donativos das Congregações") também são `DESCRIBED_SEQUENCE` com `fileBaseName`
+  "Donativo": `2. Donativo - Japiim.pdf`, `2.1 Donativo - Trinta e Um de Março.pdf`... Arquivos numerados à mão
+  (`2.1 Donativo Japiim.pdf`, sem hífen) contam na sequência.
+- **Bloqueio (`EditablePeriodPolicy`):** meses **anteriores ao mês de corte** são somente leitura. O corte fica nas
+  Configurações (`first_editable_month`, padrão `AppSettings.DEFAULT_FIRST_EDITABLE_MONTH = 2026-06`) e a política o lê
+  **a cada verificação** (`EditablePeriodPolicy { settings.value.firstEditableMonth }` no Koin), então mudar lá vale na
+  hora; organizer e navigator observam o valor para atualizar cadeados. Trocar exige confirmação que diz quais meses
+  travam/destravam (`CutoffMonthSection`). Nos testes, `EditablePeriodPolicy(YearMonth)` fixa o mês. Destino precisa ser mês identificado e liberado; origem em mês bloqueado
   também é recusada (até para "Renomear"). Pastas fora de qualquer mês (ex.: Downloads) podem ser origem, nunca destino.
   Verificado ao **propor, executar e desfazer**.
 - **Categoria × conta:** só categorias da conta da pasta do mês (+ Outros) aparecem e são aceitas
@@ -164,6 +173,22 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   backup presente, meses liberados); nada é alterado se não for seguro.
 - **Renomear** mantém na pasta atual; **Renomear e Mover** leva para a pasta do mês. A proposta (com destino) é sempre
   mostrada; as opções "Confirmar antes de mover/renomear" só controlam o passo extra "Confirmar operação?".
+
+## Fechamento do mês e histórico
+
+- **Concluir mês** (botão no cabeçalho do mês em edição, aparece com mês identificado — também em meses fechados):
+  `ReviewMonthUseCase` (só lê) monta `MonthReview` com `MonthReviewBuilder` (árvore da conta + checklist + pendências):
+  cada categoria com arquivos, `missing` (obrigatória sem arquivo; "Outros" é opcional), `withIssues`, `isComplete`.
+  A janela mostra o resumo e gera o PDF (`GenerateMonthReportUseCase` → `PdfToolsRepository.monthReport` →
+  `data/pdf/MonthReportLayout`: Helvetica, quebra de linha e de página, rodapé "Página X de N"; caracteres que a fonte
+  não tem viram "?"). Salva por padrão na **pasta de origem** (não na do mês, para não virar "arquivo sem número");
+  `PdfOutputResolver` valida, nunca sobrescreve e recusa mês fechado. Depois: "Abrir relatório" / "Abrir pasta".
+  Gerar com coisas faltando é permitido (o relatório mostra o que falta).
+- **Histórico** (botão na barra superior): `ListHistoryUseCase` = todas as operações (mais recente primeiro) +
+  `UndoOperationUseCase.check` em cada uma (motivo se não puder: já desfeita, arquivo mexido depois, nome antigo
+  ocupado, backup sumido, mês fechado). Desfazer qualquer operação válida, com confirmação; se o arquivo foi
+  renomeado/movido de novo depois, só a operação mais nova pode ser desfeita (o caminho não bate). Busca sem
+  maiúsculas/acentos por nomes, pastas e data (`HistoryViewModel.filter`).
 
 ## Acabamento visual
 
@@ -217,7 +242,7 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
 - Colunas novas: adicionar em `Schema.statements` **e** em `Schema.addedColumns` (migração por `ALTER TABLE` se faltar).
 - Settings: `source_folder`, `month_folder`, `months_root`, `duplicate_policy`, `confirm_before_move`,
   `confirm_before_rename`, `document_sort`, `auto_clean_backups`, `backup_retention_days`, `theme_mode`,
-  `onboarding_done`, `window_bounds` (`root_path` é chave legada, migrada para `source_folder`). Chave ausente ou valor
+  `onboarding_done`, `window_bounds`, `first_editable_month` (`root_path` é chave legada, migrada para `source_folder`). Chave ausente ou valor
   inválido = padrão. Único caminho absoluto no código: `SettingsRepositoryImpl.DEFAULT_SUGGESTED_FOLDER =
   D:\Modelo\jw\pendriver` (sugestão inicial, usada só se existir).
 
@@ -228,6 +253,10 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   usando `FileRepositoryImpl` de verdade + fakes de `fakes/Fakes.kt`) e `FileRepositoryImplTest`.
 - Interface com teclado/mouse simulados (`runComposeUiTest`): `ReorderableColumnTest` (arrastar) e `KeyboardTest`
   (Enter/Esc nos diálogos, Ctrl+Z/F5). Configurações salvas: `SettingsPersistenceTest`; janela: `WindowRestoreTest`.
+- Concluir mês com PDF real lido de volta (`PDFTextStripper`): `MonthClosingTest`; histórico: `HistoryTest`; mês de
+  corte: `EditablePeriodPolicyTest`; EXIF: `ExifOrientationTest` (`jpegWithOrientation` cria foto "de celular").
+- Telas que não dá para clicar no app (a janela Java não aceita automação): renderize num `runComposeUiTest`
+  descartável e salve `onAllNodes(isRoot())[i].captureToImage()` em PNG para conferir (diálogos são outra raiz).
 - Teste visual sem mexer nos dados do usuário: rode com `APPDATA` apontando para uma pasta temporária **de caminho
   curto** (ex.: `%TEMP%\claude\fad`; caminhos longos passam do limite de 260 caracteres e o SQLite não abre).
 - Use nomes reais das pastas do pendrive nos testes. Crie PDFs falsos com `Path.createFakePdf(...)` (assinatura `%PDF-`).
@@ -244,6 +273,8 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   controlar a janela Java; não há como clicar/arrastar nela — diga isso ao relatar).
 - Gradle não reexecuta testes cujo único input mudado é variável de ambiente: use `--rerun` nesses casos.
 - `Database` usa uma thread única de IO; não abra conexões JDBC paralelas no app.
+- Edições por script: no perl com delimitador `|`, um `\|` no padrão vira "ou" vazio e o texto é inserido no
+  **início do arquivo**. Prefira a ferramenta de edição; depois de scripts, confira que todo `.kt` começa com `package`.
 - APIs experimentais do Compose (drag and drop, tooltip) exigem `@OptIn`. DnD: `dragAndDropTarget` / `dragAndDropSource`
   e `event.awtTransferable`; arraste interno usa texto com prefixo `fiscal-document:` (não arrastar como arquivo).
 
