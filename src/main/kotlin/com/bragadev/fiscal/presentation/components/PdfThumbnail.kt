@@ -61,7 +61,7 @@ fun PdfThumbnail(path: Path, modifier: Modifier = Modifier) {
         }
     }
 
-    Column(modifier.background(Color(0xFFE9ECEF))) {
+    Column(modifier.background(StatusColors.PreviewBackdrop)) {
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
             val widthPx = with(LocalDensity.current) { (maxWidth - 16.dp).toPx() }
             val page = pageSizes.getOrNull(pageIndex)

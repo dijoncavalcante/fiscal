@@ -66,6 +66,7 @@ import com.bragadev.fiscal.presentation.navigator.MonthNavigatorViewModel
 import com.bragadev.fiscal.presentation.organizer.OrganizerViewModel
 import com.bragadev.fiscal.presentation.pdftools.PdfToolsViewModel
 import com.bragadev.fiscal.presentation.preview.PdfPreviewViewModel
+import com.bragadev.fiscal.presentation.onboarding.OnboardingViewModel
 import com.bragadev.fiscal.presentation.settings.DataSafetyViewModel
 import com.bragadev.fiscal.presentation.settings.SettingsViewModel
 import org.koin.dsl.module
@@ -133,5 +134,6 @@ fun appModule(directories: AppDirectories) = module {
     single { MonthNavigatorViewModel(get(), get(), get(), get(), get(), get()) }
     single { PdfToolsViewModel(get(), get(), get(), get()) }
     single { SettingsViewModel(get(), get(), get(), get(), get()) }
+    single { OnboardingViewModel(get()) }
     single { DataSafetyViewModel(get(), get(), get(), get(), get(), get(), get()) }
 }

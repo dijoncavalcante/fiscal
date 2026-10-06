@@ -26,13 +26,15 @@ import java.nio.file.Path
 
 /**
  * Diálogo largo com a visualização do PDF à esquerda e o formulário à direita,
- * para o usuário conferir o arquivo antes de confirmar qualquer alteração.
+ * para o usuário conferir o arquivo antes de confirmar qualquer alteração. Enter confirma e Esc cancela.
  */
 @Composable
 fun PreviewDialog(
     title: String,
     file: Path,
     onDismiss: () -> Unit,
+    /** Ação do botão principal, acionada também pelo Enter; `null` enquanto o botão estiver desabilitado. */
+    onConfirm: (() -> Unit)?,
     buttons: @Composable RowScope.() -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -40,7 +42,7 @@ fun PreviewDialog(
         Surface(
             shape = MaterialTheme.shapes.large,
             tonalElevation = 6.dp,
-            modifier = Modifier.width(980.dp).height(640.dp),
+            modifier = Modifier.width(980.dp).height(640.dp).dialogKeys(onConfirm, onDismiss),
         ) {
             Row(Modifier.padding(20.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                 PdfThumbnail(file, Modifier.width(420.dp).fillMaxHeight().clip(MaterialTheme.shapes.medium))

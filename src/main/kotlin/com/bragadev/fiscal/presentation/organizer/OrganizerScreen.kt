@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -30,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draganddrop.DragAndDropEvent
 import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -39,7 +39,10 @@ import com.bragadev.fiscal.domain.model.CategoryNode
 import com.bragadev.fiscal.domain.model.DocumentCategory
 import com.bragadev.fiscal.domain.model.MonthChecklist
 import com.bragadev.fiscal.presentation.common.Strings
+import com.bragadev.fiscal.presentation.components.AppIcons
 import com.bragadev.fiscal.presentation.components.DragPayload
+import com.bragadev.fiscal.presentation.components.ExpandIcon
+import com.bragadev.fiscal.presentation.components.IconText
 import com.bragadev.fiscal.presentation.components.Panel
 import com.bragadev.fiscal.presentation.components.StatusColors
 import java.nio.file.Path
@@ -117,7 +120,8 @@ private fun LazyListScope.accountGroup(group: AccountGroup, context: MonthContex
     val entries = flatten(group.nodes, depth = 1)
     item(key = "header-$key") {
         GroupHeader(
-            title = "📁 ${group.accountType.displayName}",
+            icon = AppIcons.Folder,
+            title = group.accountType.displayName,
             summary = context.checklist?.let { summaryFor(entries, it) },
             isExpanded = isExpanded,
             onToggle = { expanded[key] = !isExpanded },
@@ -131,7 +135,8 @@ private fun LazyListScope.unmatchedFiles(files: List<String>, context: MonthCont
     val isExpanded = expanded[UNMATCHED_GROUP_KEY] ?: false
     item(key = "header-$UNMATCHED_GROUP_KEY") {
         GroupHeader(
-            title = "📂 ${Strings.UNMATCHED_FILES}",
+            icon = AppIcons.FolderOpen,
+            title = Strings.UNMATCHED_FILES,
             summary = Strings.sequentialCount(files.size),
             isExpanded = isExpanded,
             onToggle = { expanded[UNMATCHED_GROUP_KEY] = !isExpanded },
@@ -168,7 +173,7 @@ private fun summaryFor(entries: List<TreeEntry>, checklist: MonthChecklist): Str
 }
 
 @Composable
-private fun GroupHeader(title: String, summary: String?, isExpanded: Boolean, onToggle: () -> Unit) {
+private fun GroupHeader(icon: ImageVector, title: String, summary: String?, isExpanded: Boolean, onToggle: () -> Unit) {
     val action = if (isExpanded) Strings.COLLAPSE else Strings.EXPAND
     Row(
         Modifier
@@ -179,8 +184,15 @@ private fun GroupHeader(title: String, summary: String?, isExpanded: Boolean, on
             .padding(horizontal = 4.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(if (isExpanded) "▾" else "▸", modifier = Modifier.width(18.dp), color = MaterialTheme.colorScheme.primary)
-        Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+        ExpandIcon(isExpanded, Modifier.padding(end = 4.dp))
+        IconText(
+            icon = icon,
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            iconTint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f),
+        )
         summary?.let {
             Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -266,24 +278,37 @@ private fun CategoryRow(entry: TreeEntry, context: MonthContext) {
 }
 
 /**
- * Selo à direita da categoria: ✓ Já existe (verde), ⚠ Com pendência (vermelho claro) ou ○ Faltando (âmbar).
+ * Selo à direita da categoria: Já existe (verde), Com pendência (vermelho claro) ou Faltando (âmbar).
  * Categorias opcionais ("Outros") mostram só a quantidade de arquivos.
  */
 @Composable
 private fun FileStatus(category: DocumentCategory, files: List<String>, checklist: MonthChecklist) {
-    val (text, color, background) = when {
-        category.optional ->
-            Triple(Strings.sequentialCount(files.size), MaterialTheme.colorScheme.onSurfaceVariant, Color.Transparent)
-        checklist.hasPendingIssue(category.id) ->
-            Triple(Strings.STATUS_ISSUE, MaterialTheme.colorScheme.error, StatusColors.LockedBackground)
-        files.isNotEmpty() -> Triple("✓ ${Strings.FILE_PRESENT}", StatusColors.Positive, StatusColors.PositiveBackground)
-        else -> Triple("○ ${Strings.FILE_MISSING}", StatusColors.Warning, StatusColors.WarningBackground)
+    if (category.optional) {
+        Text(
+            text = Strings.sequentialCount(files.size),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+        )
+        return
     }
-    Text(
-        text = text,
+    val status = when {
+        checklist.hasPendingIssue(category.id) ->
+            StatusBadge(AppIcons.Warning, Strings.STATUS_ISSUE, MaterialTheme.colorScheme.error, StatusColors.LockedBackground)
+        files.isNotEmpty() -> StatusBadge(AppIcons.CheckCircle, Strings.FILE_PRESENT, StatusColors.Positive, StatusColors.PositiveBackground)
+        else -> StatusBadge(AppIcons.CircleOutline, Strings.FILE_MISSING, StatusColors.Warning, StatusColors.WarningBackground)
+    }
+    IconText(
+        icon = status.icon,
+        text = status.text,
         style = MaterialTheme.typography.labelSmall,
         fontWeight = FontWeight.SemiBold,
-        color = color,
-        modifier = Modifier.background(background, RoundedCornerShape(10.dp)).padding(horizontal = 8.dp, vertical = 2.dp),
+        color = status.color,
+        iconSize = 13.dp,
+        modifier = Modifier.background(status.background, RoundedCornerShape(10.dp)).padding(horizontal = 8.dp, vertical = 2.dp),
     )
 }
+
+private data class StatusBadge(val icon: ImageVector, val text: String, val color: Color, val background: Color)
+

@@ -24,11 +24,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bragadev.fiscal.domain.model.DocumentCategory
 import com.bragadev.fiscal.presentation.common.Strings
 import com.bragadev.fiscal.presentation.components.AppIcons
+import com.bragadev.fiscal.presentation.components.IconText
 import com.bragadev.fiscal.presentation.components.StatusColors
 import java.nio.file.Path
 
@@ -61,13 +61,14 @@ fun MonthFileRow(
     val background = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
     Column(modifier.fillMaxWidth().background(background, RoundedCornerShape(6.dp)).padding(start = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "📄 ${file.fileName}",
+            IconText(
+                icon = AppIcons.Document,
+                text = file.fileName.toString(),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                 color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                iconSize = 14.dp,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f).clickable { actions.onPreview(file) }.padding(vertical = 4.dp),
             )
             if (editable && category != null) {
@@ -78,11 +79,13 @@ fun MonthFileRow(
             FileMenu(file, issue, editable, actions)
         }
         issue?.let {
-            Text(
+            IconText(
+                icon = AppIcons.Warning,
                 text = Strings.issueLabel(it),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = StatusColors.Warning,
+                iconSize = 14.dp,
                 modifier = Modifier.padding(start = 20.dp, bottom = 2.dp),
             )
         }

@@ -29,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.bragadev.fiscal.presentation.components.StatusColors
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -64,7 +65,7 @@ fun PdfPreviewScreen(
 @Composable
 private fun PageViewport(state: PdfPreviewUiState, viewModel: PdfPreviewViewModel, modifier: Modifier) {
     val density = LocalDensity.current.density
-    BoxWithConstraints(modifier.background(Color(0xFFE9ECEF))) {
+    BoxWithConstraints(modifier.background(StatusColors.PreviewBackdrop)) {
         LaunchedEffect(maxWidth, maxHeight, density) {
             viewModel.onViewportChanged(maxWidth.value, maxHeight.value, density)
         }

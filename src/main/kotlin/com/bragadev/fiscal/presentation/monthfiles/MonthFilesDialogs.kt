@@ -35,6 +35,7 @@ private fun RenameDialog(dialog: MonthFileDialog.Rename, isWorking: Boolean, vie
         title = Strings.RENAME_FILE_TITLE,
         file = dialog.file,
         onDismiss = viewModel::dismissDialog,
+        onConfirm = if (dialog.canConfirm && !isWorking) viewModel::onRenameConfirmed else null,
         buttons = {
             TextButton(onClick = viewModel::dismissDialog) { Text(Strings.CANCEL) }
             Button(onClick = viewModel::onRenameConfirmed, enabled = dialog.canConfirm && !isWorking) { Text(Strings.RENAME) }
@@ -123,6 +124,7 @@ private fun RemoveDialog(dialog: MonthFileDialog.Remove, isWorking: Boolean, vie
         title = Strings.REMOVE_FROM_MONTH_TITLE,
         file = dialog.file,
         onDismiss = viewModel::dismissDialog,
+        onConfirm = if (!isWorking) viewModel::onRemoveConfirmed else null,
         buttons = {
             TextButton(onClick = viewModel::dismissDialog) { Text(Strings.CANCEL) }
             Button(onClick = viewModel::onRemoveConfirmed, enabled = !isWorking) { Text(Strings.REMOVE) }
@@ -140,6 +142,7 @@ private fun FlagDialog(dialog: MonthFileDialog.Flag, viewModel: MonthFilesViewMo
         title = Strings.ISSUE_TITLE,
         file = dialog.file,
         onDismiss = viewModel::dismissDialog,
+        onConfirm = if (dialog.note.isNotBlank()) viewModel::onFlagConfirmed else null,
         buttons = {
             TextButton(onClick = viewModel::dismissDialog) { Text(Strings.CANCEL) }
             Button(onClick = viewModel::onFlagConfirmed, enabled = dialog.note.isNotBlank()) { Text(Strings.MARK) }

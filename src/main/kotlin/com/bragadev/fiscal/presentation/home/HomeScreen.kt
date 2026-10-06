@@ -9,10 +9,14 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -23,6 +27,10 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -34,11 +42,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bragadev.fiscal.domain.model.ImagePage
+import com.bragadev.fiscal.presentation.common.RegisterShortcuts
 import com.bragadev.fiscal.presentation.common.Strings
 import com.bragadev.fiscal.presentation.common.UserMessage
+import com.bragadev.fiscal.presentation.components.AppIcons
 import com.bragadev.fiscal.presentation.components.ImageThumbnail
 import com.bragadev.fiscal.presentation.components.Panel
 import com.bragadev.fiscal.presentation.components.pickFolder
@@ -82,10 +93,18 @@ fun HomeScreen(
     ErrorEffect(home.error, snackbarHostState, homeViewModel::onErrorShown)
     ErrorEffect(navigator.error, snackbarHostState, navigatorViewModel::onErrorShown)
 
+    val canUndo = organizer.lastUndoableOperationId != null && !organizer.isWorking
+    // Com um diálogo aberto os atalhos ficam parados: Ctrl+Z ali não pode desfazer outra coisa por trás.
+    val dialogOpen = organizer.dialog != null || monthFiles.dialog != null
+    RegisterShortcuts(
+        onUndo = { if (canUndo && !dialogOpen) organizerViewModel.undo() },
+        onRefresh = { if (!dialogOpen) homeViewModel.onRefresh() },
+    )
+
     Scaffold(
         topBar = {
             TopBar(
-                canUndo = organizer.lastUndoableOperationId != null && !organizer.isWorking,
+                canUndo = canUndo,
                 onRefresh = homeViewModel::onRefresh,
                 onUndo = { organizerViewModel.undo() },
                 onOpenSettings = onOpenSettings,
@@ -232,11 +251,29 @@ private fun TopBar(
                 modifier = Modifier.weight(1f),
             )
             PdfMenu(onImagesToPdf, onMergePdfs)
-            TextButton(onClick = onUndo, enabled = canUndo) { Text(Strings.UNDO_LAST) }
-            TextButton(onClick = onRefresh) { Text(Strings.REFRESH) }
-            TextButton(onClick = onOpenSettings) { Text("⚙ ${Strings.SETTINGS}") }
+            TopBarButton(AppIcons.Undo, Strings.UNDO_LAST, Strings.UNDO_SHORTCUT, onUndo, enabled = canUndo)
+            TopBarButton(AppIcons.Refresh, Strings.REFRESH, Strings.REFRESH_SHORTCUT, onRefresh)
+            TopBarButton(AppIcons.Settings, Strings.SETTINGS, null, onOpenSettings)
         }
     }
+}
+
+/** Botão da barra superior com ícone; a dica mostra o atalho de teclado, quando houver. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TopBarButton(icon: ImageVector, label: String, shortcut: String?, onClick: () -> Unit, enabled: Boolean = true) {
+    val button = @Composable {
+        TextButton(onClick = onClick, enabled = enabled) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+            Text(label, Modifier.padding(start = 6.dp))
+        }
+    }
+    if (shortcut == null) return button()
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Below),
+        tooltip = { PlainTooltip { Text(shortcut) } },
+        state = rememberTooltipState(),
+    ) { button() }
 }
 
 /** Menu "PDF": converter imagens em PDF e juntar PDFs. */
@@ -244,7 +281,11 @@ private fun TopBar(
 private fun PdfMenu(onImagesToPdf: () -> Unit, onMergePdfs: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
-        TextButton(onClick = { open = true }) { Text(Strings.PDF_MENU) }
+        TextButton(onClick = { open = true }) {
+            Icon(AppIcons.Document, contentDescription = null, modifier = Modifier.size(18.dp))
+            Text(Strings.PDF_MENU, Modifier.padding(start = 6.dp))
+            Icon(AppIcons.ExpandMore, contentDescription = null, modifier = Modifier.size(18.dp))
+        }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(text = { Text(Strings.IMAGES_TO_PDF) }, onClick = { open = false; onImagesToPdf() })
             DropdownMenuItem(text = { Text(Strings.MERGE_PDFS) }, onClick = { open = false; onMergePdfs() })

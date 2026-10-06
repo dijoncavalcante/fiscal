@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.bragadev.fiscal.domain.repository.DiagnosticsRepository
 import com.bragadev.fiscal.presentation.components.DesktopActions
+import com.bragadev.fiscal.presentation.components.dialogKeys
 import org.koin.compose.koinInject
 
 /** "Algo deu errado": explica sem termos técnicos e oferece copiar o diagnóstico e abrir os logs. */
@@ -32,6 +33,7 @@ fun UnexpectedErrorDialog() {
 
     AlertDialog(
         onDismissRequest = UnexpectedErrors::dismiss,
+        modifier = Modifier.dialogKeys(UnexpectedErrors::dismiss, UnexpectedErrors::dismiss),
         title = { Text(Strings.UNEXPECTED_ERROR_TITLE) },
         text = {
             Column(Modifier.width(480.dp)) {

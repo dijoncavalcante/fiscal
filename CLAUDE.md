@@ -30,7 +30,8 @@ O usuário conversa em **português (pt-BR)**; UI, comentários do código e men
 Pacote `com.bragadev.fiscal`:
 
 ```
-app/            Main.kt (janela, Koin), App.kt (tema, navegação Home/Settings), AppModule.kt (DI)
+app/            Main.kt (janela, ícone, atalhos, Koin), App.kt (tema, navegação Assistente/Home/Settings), AppModule.kt (DI),
+                WindowRestore (onde reabrir a janela)
 domain/
   model/        Document, DocumentCategory, AccountType, NamingRule, AppSettings, FileOperation,
                 OrganizationPlan, MonthFolderInfo/DetectedMonth, MonthChecklist, FileOperationError, Outcome
@@ -45,13 +46,16 @@ data/
   settings/     SettingsRepositoryImpl
 presentation/
   common/       ViewModel base, Strings (TODOS os textos da UI), ErrorMessages, DocumentChangeNotifier, UserMessage
-  components/   FolderPathField, PencilIcon, FolderPicker (JFileChooser), DragPayload, Panel, StatusColors...
+  components/   AppIcons (ícones vetoriais), IconText/ExpandIcon, DialogKeys (Enter/Esc), FolderPathField, FolderPicker
+                (JFileChooser), DragPayload, Panel, StatusColors...
+  theme/        FiscalTheme: esquemas claro/escuro + FiscalColors (cores de situação) via LocalFiscalColors
+  onboarding/   Assistente da primeira vez (OnboardingViewModel + OnboardingScreen)
   home/         Lado esquerdo (pasta de origem + lista) e HomeScreen (layout geral, snackbar, barra superior)
   preview/      Preview do PDF (zoom, páginas, ajustar)
   organizer/    Lado direito: mês em edição, árvore de categorias, diálogos de organizar
   monthfiles/   Ações sobre arquivos já no mês: renomear, retirar do mês, marcar pendência (MonthFilesViewModel)
   navigator/    Seletor de mês: pasta raiz das contas → conta → ano de serviço → trimestre → mês (MonthNavigatorViewModel)
-  pdftools/     Menu "PDF ▾": converter JPEG/PNG em PDF e juntar PDFs (PdfToolsViewModel, PdfToolsDialog)
+  pdftools/     Menu "PDF": converter JPEG/PNG em PDF e juntar PDFs (PdfToolsViewModel, PdfToolsDialog)
   settings/     Tela de configurações
 ```
 
@@ -61,37 +65,39 @@ Regras de camada:
 - Erros de domínio são `FileOperationError`; viram texto amigável em `presentation/common/ErrorMessages.kt`.
 - Resultado de operações: `Outcome.Success` / `Outcome.Failure` (com `map`, `flatMap`, `getOrNull`).
 - ViewModels são singletons Koin com `StateFlow` de estado imutável; IO sempre fora da thread da UI.
-- Textos novos vão em `Strings.kt`; cores de status em `StatusColors`.
+- Textos novos vão em `Strings.kt`; cores de situação em `StatusColors` (acompanha o tema; nunca cor fixa na tela).
+- **Nunca use emoji/símbolos como ícone** (📄 ⚠ 🔒 ▾…): use `AppIcons` (paths do Material Icons) com `Icon`/`IconText`.
+  Ícone novo = copiar o `pathData` do Material Icons para `AppIcons`.
 
 ## Layout da tela
 
-- **Esquerda — pasta de origem:** qualquer pasta do PC, escolhida pelo lápis; botão 🔄 atualiza. Lista os PDFs e as
-  imagens JPEG/PNG (🖼, `Document.isImage`, `FileRepository.listDocuments`) da
+- **Esquerda — pasta de origem:** qualquer pasta do PC, escolhida pelo lápis; botão de atualizar. Lista os PDFs e as
+  imagens JPEG/PNG (ícone de imagem, `Document.isImage`, `FileRepository.listDocuments`) da
   própria pasta (sem subpastas; ignora `._*.pdf` do macOS), com busca por nome e ordem "Mais recentes" (padrão, como
   "Data de modificação" do Explorer) ou "Nome" (salva em `document_sort`). Itens podem ser arrastados.
 - **Centro — preview** (PDFBox; imagens via `ImageThumbnail`). O PDF é lido para memória: o arquivo nunca fica bloqueado nem é alterado.
-- **Direita — mês em edição:** mês em destaque ("Junho de 2026 ✓ Liberado" / "🔒 Somente leitura"), conta detectada,
+- **Direita — mês em edição:** mês em destaque ("Junho de 2026" + "Liberado para edição" / cadeado "Somente leitura"), conta detectada,
   caminho completo **somente leitura** (texto copiável, pasta do mês em negrito) e lápis para trocar. Abaixo, grupos
-  recolhíveis por conta com as categorias, cada uma com **✓ Já existe** (e os arquivos encontrados) ou **○ Faltando**;
+  recolhíveis por conta com as categorias, cada uma com o selo **Já existe** (e os arquivos encontrados) ou **Faltando**;
   "Outros" no fim de cada conta; grupo "Arquivos sem número de categoria" (recolhido por padrão).
 - **Arquivos já no mês:** clicar no nome abre no preview central; o arquivo aberto no preview fica destacado
-  (mesmo fundo da lista da esquerda, `MonthFileRow.isSelected`); ✏️ renomeia. Despesas/Outros: modo "Número e
+  (mesmo fundo da lista da esquerda, `MonthFileRow.isSelected`); o lápis renomeia. Despesas/Outros: modo "Número e
   descrição" (campo Número aceita `3`, `3.1`, `3.2`… via `DescribedSequenceNaming.parseIndex`; vazio = próximo livre;
   número repetido só gera aviso `sameNumberFiles`) ou "Nome completo" (livre, `PlanRenameUseCase`); demais categorias:
   nome completo. Nunca sobrescreve; menu ⋮ → "Retirar do mês" (volta para a pasta de origem, com
-  Desfazer; nunca apaga) e "Marcar/Remover pendência" (nota ⚠ no arquivo; a categoria vira "⚠ Com pendência" e não
+  Desfazer; nunca apaga) e "Marcar/Remover pendência" (nota com ícone de alerta; a categoria vira "Com pendência" e não
   conta no resumo). Diálogos de organizar/renomear/retirar/confirmar mostram o PDF ao lado (`PreviewDialog`).
 - **Seletor de mês (navigator):** no topo da lista do mês em edição (recolhível). "Pasta raiz das contas" (`months_root`;
   se vazia, deduzida da pasta do mês via `MonthFolderParser.accountsRootOf`); botões de conta, ano de serviço (padrão: o
   do mês aberto ou o mais recente) e trimestres (mais recente primeiro) com os meses; um clique troca a pasta do mês
   (`ChangeMonthFolderUseCase`). Árvore montada por `BrowseMonthFoldersUseCase` (ignora pastas sem mês). O "Caminho
   completo da pasta do mês" (somente leitura + lápis) fica dentro desse bloco, logo abaixo da pasta raiz.
-- **Menu PDF ▾ (barra superior):** "Converter JPEG para PDF" (uma página A4 por imagem, orientação conforme a
-  imagem, ↻ para girar) e "Juntar PDFs" (ordem da lista; já inclui o documento selecionado). Abre como **painel no
+- **Menu PDF (barra superior):** "Converter JPEG para PDF" (uma página A4 por imagem, orientação conforme a
+  imagem, botão Girar) e "Juntar PDFs" (ordem da lista; já inclui o documento selecionado). Abre como **painel no
   lugar do mês em edição** (`PdfToolsPanel`, não modal): o usuário clica num arquivo à esquerda para ver no preview e
   arrasta para o painel (aceita também arquivos do Explorer; tipo errado e duplicados são avisados). Ordem por
   segurar a linha e arrastar (`ReorderableColumn`: gesto medido na lista a partir do ponto do clique, linhas com
-  `key` e altura fixa; testado com mouse simulado em `ReorderableColumnTest`) ou ↑ ↓; clicar no item mostra no preview; "Fechar"
+  `key` e altura fixa; testado com mouse simulado em `ReorderableColumnTest`) ou setas Subir/Descer; clicar no item mostra no preview; "Fechar"
   volta ao mês. Salva por padrão na pasta de origem (`PdfOutputResolver`: valida nome, recusa mês fechado,
   nunca sobrescreve — usa "(2)"). `PdfToolsRepositoryImpl` monta o PDF na memória e grava com `CREATE_NEW` no fim;
   originais só são lidos. O PDF criado é selecionado e aparece na lista.
@@ -159,40 +165,71 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
 - **Renomear** mantém na pasta atual; **Renomear e Mover** leva para a pasta do mês. A proposta (com destino) é sempre
   mostrada; as opções "Confirmar antes de mover/renomear" só controlam o passo extra "Confirmar operação?".
 
+## Acabamento visual
+
+- **Ícone do app:** gerado por `tools/IconGenerator.java` (`java tools/IconGenerator.java` na raiz). Saída:
+  `src/main/resources/icons/fiscal-<16..256>.png` (janela, barra de tarefas e Alt+Tab: `window.iconImages` no `Main`) e
+  `packaging/fiscal.ico` (instalador, atalho e `Fiscal.exe`: `nativeDistributions.windows.iconFile`).
+- **Ícones da interface:** só `AppIcons` (vetores do Material Icons), nunca emoji. `IconText` = ícone + texto na mesma
+  cor; `ExpandIcon` = setinha dos grupos recolhíveis.
+- **Tema:** Configurações → Aparência: "Igual ao Windows" (padrão, `isSystemInDarkTheme`), "Claro" ou "Escuro"
+  (`theme_mode`). `FiscalTheme` troca o esquema do Material3 e as `FiscalColors` (`StatusColors.*` lê do tema). As páginas
+  do PDF continuam brancas no tema escuro; só o fundo atrás delas (`PreviewBackdrop`) muda.
+- **Atalhos:** `KeyboardShortcuts` recebe, pelo `onKeyEvent` da janela, só as teclas que o elemento focado não usou
+  (Ctrl+Z num campo de texto desfaz a digitação). A `HomeScreen` registra Ctrl+Z (desfazer última) e F5 (atualizar)
+  com `RegisterShortcuts`; com diálogo aberto ficam parados. Diálogos usam `Modifier.dialogKeys(onConfirm, onDismiss)`:
+  Enter = botão principal (`null` quando desabilitado), Esc = cancelar; o diálogo pega o foco ao abrir. Exceção:
+  "Apagar backups antigos" não confirma com Enter (não tem volta). `PreviewDialog` exige `onConfirm`.
+- **Assistente da primeira vez** (`onboarding/`): 3 passos — pasta raiz das contas, pasta de origem, mês (usa
+  `MonthTreePicker`, a mesma árvore do seletor de mês). Abre sozinho só se `AppSettings.needsOnboarding` (falta pasta de
+  origem ou mês e `onboarding_done` = false); decisão tomada uma vez ao abrir. "Concluir" e "Pular assistente" gravam
+  `onboarding_done`. Reabre em Configurações → Pastas → "Abrir o assistente de configuração". As pastas são escolhidas
+  pelos ViewModels da tela principal (nada duplicado).
+- **Janela:** ao fechar, grava `window_bounds` (`x,y,largura,altura,maximizada`, em dp) com o último tamanho/posição
+  "normal" (não maximizada). `WindowRestore.start` só reaproveita a posição se a barra de título aparecer em algum
+  monitor; senão centraliza. Primeira vez = maximizada. As configurações são carregadas no `main` antes da janela; se o
+  banco falhar, abre com os padrões e mostra "Algo deu errado".
+
 ## Confiabilidade
 
-- **Uma cópia só** (`data/instance/SingleInstance`): trava `%APPDATA%iscaliscal.lock`; a segunda cópia grava
-  `abrir-janela.sinal` e fecha; a primeira (watchservice) traz a janela para a frente. o log só é iniciado depois da trava.
-- **log** (`data/logging/applog`): `%appdata%iscalogsiscal-n.log` (5 × 1 mb, `java.util.logging`). registra
-  início/fim, movimentações (`safefilemover`), erros de arquivo (`fileerrormapper`) e erros inesperados.
-- **erros inesperados**: `unexpectederrors.report` (de `coroutineexceptionhandler` do `viewmodel`, do
-  `localwindowexceptionhandlerfactory` e do `thread.setdefaultuncaughtexceptionhandler`) abre `unexpectederrordialog`
-  ("algo deu errado" + copiar diagnóstico / abrir pasta de logs). `diagnosticsrepositoryimpl` monta o texto (versão
-  `appinfo`, sistema, erro, final do log). nada é enviado.
-- **mover entre unidades** (`safefilemover`): mesma unidade = `files.move`; unidades diferentes = copia para
-  `~fiscal-<uuid>.parcial` no destino, `force`, confere tamanho + sha-256, renomeia e só então apaga o original; se não
-  conseguir apagar o original, desfaz a cópia. erro de verificação = `copyverificationfailed`.
-- **backups** (configurações → dados e segurança, `datasafetyviewmodel`): limpeza automática ao abrir **só se o usuário
-  ligar** (`auto_clean_backups`, `backup_retention_days` 30/90/180/365) e "apagar agora…" com confirmação.
-- **exportar/importar dados**: exporta com `vacuum into` (nunca sobrescreve); importar confere se é banco do fiscal,
-  guarda como `fiscal-importado.db` e `datamaintenancerepositoryimpl.applypendingimport` (no `main`, antes de abrir o
+- **Uma cópia só** (`data/instance/SingleInstance`): trava `%APPDATA%\Fiscal\fiscal.lock`; a segunda cópia grava
+  `abrir-janela.sinal` e fecha; a primeira (WatchService) traz a janela para a frente. O log só é iniciado depois da trava.
+- **Log** (`data/logging/AppLog`): `%APPDATA%\Fiscal\logs\fiscal-N.log` (5 × 1 MB, `java.util.logging`). Registra
+  início/fim, movimentações (`SafeFileMover`), erros de arquivo (`FileErrorMapper`) e erros inesperados.
+- **Erros inesperados:** `UnexpectedErrors.report` (do `CoroutineExceptionHandler` do `ViewModel`, do
+  `LocalWindowExceptionHandlerFactory` e do `Thread.setDefaultUncaughtExceptionHandler`) abre `UnexpectedErrorDialog`
+  ("Algo deu errado" + copiar diagnóstico / abrir pasta de logs). `DiagnosticsRepositoryImpl` monta o texto (versão
+  `AppInfo`, sistema, erro, final do log). Nada é enviado.
+- **Mover entre unidades** (`SafeFileMover`): mesma unidade = `Files.move`; unidades diferentes = copia para
+  `~fiscal-<uuid>.parcial` no destino, `force`, confere tamanho + SHA-256, renomeia e só então apaga o original; se não
+  conseguir apagar o original, desfaz a cópia. Erro de verificação = `CopyVerificationFailed`.
+- **Backups** (Configurações → Dados e segurança, `DataSafetyViewModel`): limpeza automática ao abrir **só se o usuário
+  ligar** (`auto_clean_backups`, `backup_retention_days` 30/90/180/365) e "Apagar agora…" com confirmação.
+- **Exportar/importar dados:** exporta com `VACUUM INTO` (nunca sobrescreve); importar confere se é banco do FISCAL,
+  guarda como `fiscal-importado.db` e `DataMaintenanceRepositoryImpl.applyPendingImport` (no `main`, antes de abrir o
   banco) guarda o atual como `fiscal-antes-da-importacao-<data>.db` e coloca o importado no lugar.
 
-## dados locais
+## Dados locais
 
 - `%APPDATA%\Fiscal\fiscal.db` (SQLite) e `%APPDATA%\Fiscal\backup\`.
 - Tabelas: `documents`, `categories` (+ `file_base_name`, `optional`), `file_operations` (+ `backup_path`, `undone`), `settings`,
   `file_flags` (pendências por pasta + nome, em minúsculas).
 - Colunas novas: adicionar em `Schema.statements` **e** em `Schema.addedColumns` (migração por `ALTER TABLE` se faltar).
-- Settings: `source_folder`, `month_folder`, `duplicate_policy`, `confirm_before_move`, `confirm_before_rename`
-  (`root_path` é chave legada, migrada para `source_folder`). Único caminho absoluto no código:
-  `SettingsRepositoryImpl.DEFAULT_SUGGESTED_FOLDER = D:\Modelo\jw\pendriver` (sugestão inicial, usada só se existir).
+- Settings: `source_folder`, `month_folder`, `months_root`, `duplicate_policy`, `confirm_before_move`,
+  `confirm_before_rename`, `document_sort`, `auto_clean_backups`, `backup_retention_days`, `theme_mode`,
+  `onboarding_done`, `window_bounds` (`root_path` é chave legada, migrada para `source_folder`). Chave ausente ou valor
+  inválido = padrão. Único caminho absoluto no código: `SettingsRepositoryImpl.DEFAULT_SUGGESTED_FOLDER =
+  D:\Modelo\jw\pendriver` (sugestão inicial, usada só se existir).
 
 ## Testes
 
 - `src/test/kotlin`: regras puras (`*RulesTest`, `MonthFolderParserTest`, `MonthChecklistBuilderTest`,
   `DescribedSequenceNamingTest`...), fluxo completo com arquivos reais em `TemporaryFolder` (`OrganizeAndUndoTest`,
   usando `FileRepositoryImpl` de verdade + fakes de `fakes/Fakes.kt`) e `FileRepositoryImplTest`.
+- Interface com teclado/mouse simulados (`runComposeUiTest`): `ReorderableColumnTest` (arrastar) e `KeyboardTest`
+  (Enter/Esc nos diálogos, Ctrl+Z/F5). Configurações salvas: `SettingsPersistenceTest`; janela: `WindowRestoreTest`.
+- Teste visual sem mexer nos dados do usuário: rode com `APPDATA` apontando para uma pasta temporária **de caminho
+  curto** (ex.: `%TEMP%\claude\fad`; caminhos longos passam do limite de 260 caracteres e o SQLite não abre).
 - Use nomes reais das pastas do pendrive nos testes. Crie PDFs falsos com `Path.createFakePdf(...)` (assinatura `%PDF-`).
 - Todo comportamento novo de regra precisa de teste. Rode `./gradlew test` antes de commitar.
 

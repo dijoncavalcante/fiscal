@@ -3,6 +3,7 @@ package com.bragadev.fiscal.presentation.settings
 import com.bragadev.fiscal.domain.model.AppSettings
 import com.bragadev.fiscal.domain.model.DuplicatePolicy
 import com.bragadev.fiscal.domain.model.Outcome
+import com.bragadev.fiscal.domain.model.ThemeMode
 import com.bragadev.fiscal.domain.rules.EditablePeriodPolicy
 import com.bragadev.fiscal.domain.usecase.ChangeMonthFolderUseCase
 import com.bragadev.fiscal.domain.usecase.ChangeSourceFolderUseCase
@@ -46,6 +47,8 @@ class SettingsViewModel(
 
     fun onConfirmRenameChanged(enabled: Boolean) = update { it.copy(confirmBeforeRename = enabled) }
 
+    fun onThemeChanged(mode: ThemeMode) = update { it.copy(themeMode = mode) }
+
     private fun changeFolder(change: suspend () -> Outcome<*>) {
         scope.launch {
             val result = change()
@@ -63,5 +66,6 @@ class SettingsViewModel(
         duplicatePolicy = settings.duplicatePolicy,
         confirmBeforeMove = settings.confirmBeforeMove,
         confirmBeforeRename = settings.confirmBeforeRename,
+        themeMode = settings.themeMode,
     )
 }

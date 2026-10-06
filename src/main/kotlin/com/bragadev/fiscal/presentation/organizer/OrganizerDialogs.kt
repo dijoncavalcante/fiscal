@@ -29,6 +29,7 @@ import com.bragadev.fiscal.domain.model.OrganizeMode
 import com.bragadev.fiscal.presentation.common.Strings
 import com.bragadev.fiscal.presentation.components.LabeledValue
 import com.bragadev.fiscal.presentation.components.PreviewDialog
+import com.bragadev.fiscal.presentation.components.dialogKeys
 
 @Composable
 fun OrganizerDialogHost(state: OrganizerUiState, viewModel: OrganizerViewModel) {
@@ -46,6 +47,7 @@ private fun ProposalDialog(dialog: OrganizerDialog.Proposal, state: OrganizerUiS
         title = Strings.organizeTitle(dialog.category.label),
         file = dialog.source,
         onDismiss = viewModel::dismissDialog,
+        onConfirm = dialog.movePlan?.let { { viewModel.onModeChosen(OrganizeMode.RENAME_AND_MOVE) } },
         buttons = {
             TextButton(onClick = viewModel::dismissDialog) { Text(Strings.CANCEL) }
             OutlinedButton(
@@ -82,6 +84,7 @@ private fun ConflictDialog(dialog: OrganizerDialog.Conflict, viewModel: Organize
     )
     AlertDialog(
         onDismissRequest = viewModel::dismissDialog,
+        modifier = Modifier.dialogKeys({ viewModel.onConflictResolved(choice) }, viewModel::dismissDialog),
         title = { Text(Strings.CONFLICT_TITLE) },
         text = {
             Column(Modifier.width(460.dp)) {
@@ -112,6 +115,7 @@ private fun ConfirmDialog(dialog: OrganizerDialog.Confirm, state: OrganizerUiSta
         title = Strings.CONFIRM_TITLE,
         file = dialog.plan.source,
         onDismiss = viewModel::dismissDialog,
+        onConfirm = viewModel::onConfirmed,
         buttons = {
             TextButton(onClick = viewModel::dismissDialog) { Text(Strings.CANCEL) }
             Button(onClick = viewModel::onConfirmed) { Text(Strings.CONFIRM) }

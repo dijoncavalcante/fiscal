@@ -15,6 +15,8 @@ import androidx.compose.ui.unit.dp
 import com.bragadev.fiscal.domain.model.MonthFolderInfo
 import com.bragadev.fiscal.domain.model.MonthFolderStatus
 import com.bragadev.fiscal.presentation.common.Strings
+import com.bragadev.fiscal.presentation.components.AppIcons
+import com.bragadev.fiscal.presentation.components.IconText
 import com.bragadev.fiscal.presentation.components.StatusColors
 import java.time.YearMonth
 
@@ -45,7 +47,10 @@ private fun MonthBanner(monthFolder: MonthFolderInfo?, firstEditableMonth: YearM
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                status?.let { Text(it, color = accent, fontWeight = FontWeight.SemiBold) }
+                status?.let {
+                    val icon = if (monthFolder?.status == MonthFolderStatus.LOCKED) AppIcons.Lock else AppIcons.CheckCircle
+                    IconText(icon, it, color = accent, fontWeight = FontWeight.SemiBold, iconSize = 18.dp)
+                }
             }
             monthFolder?.account?.let { Text(Strings.accountLabel(it.displayName), style = MaterialTheme.typography.bodyMedium) }
             hint?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = accent, modifier = Modifier.padding(top = 4.dp)) }

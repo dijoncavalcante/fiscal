@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bragadev.fiscal.domain.model.AppSettings
 import com.bragadev.fiscal.presentation.common.Strings
+import com.bragadev.fiscal.presentation.components.dialogKeys
 import com.bragadev.fiscal.presentation.components.pickFiles
 import com.bragadev.fiscal.presentation.components.pickSaveFile
 import java.time.LocalDate
@@ -102,8 +103,11 @@ private fun ConfirmationDialog(confirmation: DataSafetyConfirmation, state: Data
         DataSafetyConfirmation.CleanBackups -> Strings.CLEAN_CONFIRM_TITLE to Strings.cleanConfirmBody(state.backupRetentionDays)
         is DataSafetyConfirmation.Import -> Strings.IMPORT_CONFIRM_TITLE to Strings.IMPORT_CONFIRM_BODY
     }
+    // Apagar backups não tem volta: aí o Enter não confirma, só o clique.
+    val onEnter = (confirmation as? DataSafetyConfirmation.Import)?.let { { viewModel.onConfirmed() } }
     AlertDialog(
         onDismissRequest = viewModel::onDismissConfirmation,
+        modifier = Modifier.dialogKeys(onEnter, viewModel::onDismissConfirmation),
         title = { Text(title) },
         text = { Text(body, Modifier.width(460.dp).padding(top = 4.dp)) },
         dismissButton = { TextButton(onClick = viewModel::onDismissConfirmation) { Text(Strings.CANCEL) } },

@@ -18,6 +18,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -34,8 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draganddrop.DragAndDropEvent
 import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,8 +44,10 @@ import androidx.compose.ui.unit.dp
 import com.bragadev.fiscal.domain.model.ImagePage
 import com.bragadev.fiscal.domain.rules.ImageFileRules
 import com.bragadev.fiscal.presentation.common.Strings
+import com.bragadev.fiscal.presentation.components.AppIcons
 import com.bragadev.fiscal.presentation.components.DragPayload
 import com.bragadev.fiscal.presentation.components.FolderPathField
+import com.bragadev.fiscal.presentation.components.IconText
 import com.bragadev.fiscal.presentation.components.Panel
 import com.bragadev.fiscal.presentation.components.ReorderableColumn
 import com.bragadev.fiscal.presentation.components.pickFiles
@@ -184,36 +187,41 @@ private fun ItemRow(
             .padding(end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            "⠿",
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(horizontal = 10.dp).semantics { contentDescription = Strings.DRAG_TO_REORDER },
+        Icon(
+            AppIcons.DragIndicator,
+            contentDescription = Strings.DRAG_TO_REORDER,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(horizontal = 6.dp).size(20.dp),
         )
-        val rotation = if (isImages && item.rotationDegrees != 0) "  ↻${item.rotationDegrees}°" else ""
         Text(
-            "${index + 1}. ${item.path.fileName}$rotation",
+            "${index + 1}. ${item.path.fileName}",
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
             style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        SmallAction("↑", Strings.MOVE_UP, enabled = index > 0) { viewModel.onMoveUp(index) }
-        SmallAction("↓", Strings.MOVE_DOWN, enabled = index < dialog.items.lastIndex) { viewModel.onMoveDown(index) }
-        if (isImages) SmallAction("↻", Strings.ROTATE) { viewModel.onRotate(index) }
-        SmallAction("✕", Strings.REMOVE_ITEM) { viewModel.onRemove(index) }
+        if (isImages && item.rotationDegrees != 0) {
+            IconText(
+                AppIcons.RotateRight,
+                "${item.rotationDegrees}°",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                iconSize = 14.dp,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
+        }
+        SmallAction(AppIcons.ArrowUp, Strings.MOVE_UP, enabled = index > 0) { viewModel.onMoveUp(index) }
+        SmallAction(AppIcons.ArrowDown, Strings.MOVE_DOWN, enabled = index < dialog.items.lastIndex) { viewModel.onMoveDown(index) }
+        if (isImages) SmallAction(AppIcons.RotateRight, Strings.ROTATE) { viewModel.onRotate(index) }
+        SmallAction(AppIcons.Close, Strings.REMOVE_ITEM) { viewModel.onRemove(index) }
     }
 }
 
 @Composable
-private fun SmallAction(symbol: String, description: String, enabled: Boolean = true, onClick: () -> Unit) {
-    TextButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.size(width = 36.dp, height = 32.dp).semantics { contentDescription = description },
-    ) {
-        Text(symbol, fontWeight = FontWeight.Bold)
+private fun SmallAction(icon: ImageVector, description: String, enabled: Boolean = true, onClick: () -> Unit) {
+    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(width = 32.dp, height = 32.dp)) {
+        Icon(icon, contentDescription = description, modifier = Modifier.size(18.dp))
     }
 }
 

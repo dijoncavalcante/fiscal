@@ -4,6 +4,8 @@ import com.bragadev.fiscal.data.database.SettingsDao
 import com.bragadev.fiscal.domain.model.AppSettings
 import com.bragadev.fiscal.domain.model.DocumentSort
 import com.bragadev.fiscal.domain.model.DuplicatePolicy
+import com.bragadev.fiscal.domain.model.ThemeMode
+import com.bragadev.fiscal.domain.model.WindowBounds
 import com.bragadev.fiscal.domain.repository.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,6 +36,11 @@ class SettingsRepositoryImpl(
                 ?: defaults.documentSort,
             autoCleanBackups = values[Keys.AUTO_CLEAN_BACKUPS]?.toBooleanStrictOrNull() ?: defaults.autoCleanBackups,
             backupRetentionDays = values[Keys.BACKUP_RETENTION_DAYS]?.toIntOrNull() ?: defaults.backupRetentionDays,
+            themeMode = values[Keys.THEME_MODE]
+                ?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
+                ?: defaults.themeMode,
+            onboardingDone = values[Keys.ONBOARDING_DONE]?.toBooleanStrictOrNull() ?: defaults.onboardingDone,
+            windowBounds = values[Keys.WINDOW_BOUNDS]?.let(WindowBounds::decode),
         )
         state.value = loaded
         return loaded
@@ -52,6 +59,9 @@ class SettingsRepositoryImpl(
                 Keys.DOCUMENT_SORT to settings.documentSort.name,
                 Keys.AUTO_CLEAN_BACKUPS to settings.autoCleanBackups.toString(),
                 Keys.BACKUP_RETENTION_DAYS to settings.backupRetentionDays.toString(),
+                Keys.THEME_MODE to settings.themeMode.name,
+                Keys.ONBOARDING_DONE to settings.onboardingDone.toString(),
+                Keys.WINDOW_BOUNDS to settings.windowBounds?.encode(),
             ),
         )
         state.value = settings
@@ -68,6 +78,9 @@ class SettingsRepositoryImpl(
         const val DOCUMENT_SORT = "document_sort"
         const val AUTO_CLEAN_BACKUPS = "auto_clean_backups"
         const val BACKUP_RETENTION_DAYS = "backup_retention_days"
+        const val THEME_MODE = "theme_mode"
+        const val ONBOARDING_DONE = "onboarding_done"
+        const val WINDOW_BOUNDS = "window_bounds"
     }
 
     companion object {

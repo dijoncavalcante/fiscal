@@ -13,6 +13,8 @@ object Strings {
     const val SETTINGS = "Configurações"
     const val UNDO_LAST = "Desfazer última"
     const val REFRESH = "Atualizar"
+    const val UNDO_SHORTCUT = "Atalho: Ctrl+Z"
+    const val REFRESH_SHORTCUT = "Atalho: F5"
 
     // Pasta de origem (esquerda)
     const val SOURCE_FOLDER_LABEL = "Pasta de origem"
@@ -32,8 +34,8 @@ object Strings {
     const val MONTH_NOT_SELECTED_HINT = "Clique no lápis e escolha a pasta de um mês, por exemplo \"1. JUNHO\"."
     const val MONTH_UNKNOWN = "Mês não identificado"
     const val MONTH_UNKNOWN_HINT = "Esta pasta não é a pasta de um mês. Escolha a pasta do mês (ex.: \"1. JUNHO\")."
-    const val STATUS_EDITABLE = "✓ Liberado para edição"
-    const val STATUS_LOCKED = "🔒 Somente leitura"
+    const val STATUS_EDITABLE = "Liberado para edição"
+    const val STATUS_LOCKED = "Somente leitura"
 
     fun monthTitle(month: YearMonth): String =
         "${month.month.getDisplayName(TextStyle.FULL, ptBr).replaceFirstChar { it.titlecase(ptBr) }} de ${month.year}"
@@ -44,7 +46,7 @@ object Strings {
     fun accountLabel(account: String) = "Conta: $account"
 
     // Seletor de mês
-    const val NAVIGATOR_TITLE = "📅 Escolher mês"
+    const val NAVIGATOR_TITLE = "Escolher mês"
     const val MONTHS_ROOT_LABEL = "Pasta raiz das contas"
     const val MONTHS_ROOT_EDIT = "Trocar a pasta raiz das contas"
     const val MONTHS_ROOT_PICKER_TITLE = "Escolha a pasta que contém CONTAS CONGREGAÇÃO e CONTAS MANUTENÇÃO"
@@ -53,10 +55,7 @@ object Strings {
     const val NO_MONTHS_FOUND = "Nenhuma pasta de mês encontrada nesta pasta raiz."
     const val SERVICE_YEAR = "Ano de serviço"
 
-    fun monthChip(month: YearMonth, locked: Boolean): String {
-        val name = month.month.getDisplayName(TextStyle.FULL, ptBr).replaceFirstChar { it.titlecase(ptBr) }
-        return if (locked) "🔒 $name" else name
-    }
+    fun monthName(month: YearMonth): String = month.month.getDisplayName(TextStyle.FULL, ptBr).replaceFirstChar { it.titlecase(ptBr) }
 
     // Documentos
     const val DOCUMENTS = "DOCUMENTOS"
@@ -156,14 +155,14 @@ object Strings {
     const val ISSUE_DEFAULT_NOTE = "Arquivo errado — trocar"
     const val ISSUE_EXPLANATION = "A pendência aparece em destaque no mês até ser removida. O arquivo não é alterado."
     const val MARK = "Marcar"
-    const val STATUS_ISSUE = "⚠ Com pendência"
+    const val STATUS_ISSUE = "Com pendência"
     const val PREVIEW_FILE = "Ver no preview"
-    const val FILE_RENAMED = "✓ Arquivo renomeado."
-    const val FILE_REMOVED = "✓ Arquivo retirado do mês."
-    const val ISSUE_MARKED = "⚠ Pendência marcada."
-    const val ISSUE_CLEARED = "✓ Pendência removida."
+    const val FILE_RENAMED = "Arquivo renomeado."
+    const val FILE_REMOVED = "Arquivo retirado do mês."
+    const val ISSUE_MARKED = "Pendência marcada."
+    const val ISSUE_CLEARED = "Pendência removida."
 
-    fun issueLabel(note: String) = "⚠ Pendência: $note"
+    fun issueLabel(note: String) = "Pendência: $note"
 
     // Documentos: ordenação e busca
     const val REFRESH_FOLDER = "Atualizar a pasta"
@@ -175,7 +174,7 @@ object Strings {
     fun modifiedAt(text: String) = "Modificado em $text"
 
     // Menu PDF
-    const val PDF_MENU = "PDF ▾"
+    const val PDF_MENU = "PDF"
     const val IMAGES_TO_PDF = "Converter JPEG para PDF"
     const val MERGE_PDFS = "Juntar PDFs"
     const val ADD_IMAGES = "Adicionar imagens"
@@ -193,7 +192,7 @@ object Strings {
     const val MOVE_DOWN = "Descer"
     const val ROTATE = "Girar"
     const val REMOVE_ITEM = "Tirar da lista"
-    const val IMAGES_TO_PDF_HINT = "Clique numa imagem à esquerda para ver no preview e arraste para cá. Cada imagem vira uma página A4, na ordem da lista; use ↻ para girar fotos deitadas."
+    const val IMAGES_TO_PDF_HINT = "Clique numa imagem à esquerda para ver no preview e arraste para cá. Cada imagem vira uma página A4, na ordem da lista; use o botão Girar para fotos deitadas."
     const val MERGE_HINT = "Clique num PDF à esquerda para ver no preview e arraste para cá. As páginas ficam na ordem da lista; os originais não são alterados."
     const val EMPTY_TOOL_LIST = "Nenhum arquivo na lista."
     const val DROP_IMAGES_HERE = "Arraste aqui as imagens da lista de documentos ou do Windows Explorer"
@@ -205,7 +204,7 @@ object Strings {
     const val ALREADY_IN_LIST = "Arquivo já está na lista."
     const val MERGED_SUFFIX = " - unido"
 
-    fun pdfCreated(name: String) = "✓ PDF criado: $name"
+    fun pdfCreated(name: String) = "PDF criado: $name"
     fun pageCountLabel(count: Int) = if (count == 1) "1 arquivo" else "$count arquivos"
 
     // Erros inesperados e dados
@@ -214,7 +213,7 @@ object Strings {
         "O FISCAL encontrou um problema inesperado. Nenhum arquivo é apagado por causa de um erro; confira o " +
             "mês em edição antes de continuar. Se o problema se repetir, clique em \"Copiar diagnóstico\" e envie o texto."
     const val COPY_DIAGNOSTICS = "Copiar diagnóstico"
-    const val DIAGNOSTICS_COPIED = "✓ Diagnóstico copiado. Cole onde quiser enviar."
+    const val DIAGNOSTICS_COPIED = "Diagnóstico copiado. Cole onde quiser enviar."
     const val OPEN_LOG_FOLDER = "Abrir pasta de logs"
     const val DATA_SECTION = "Dados e segurança"
     const val BACKUPS_TITLE = "Arquivos substituídos (backup)"
@@ -236,24 +235,24 @@ object Strings {
     const val IMPORT_CONFIRM_BODY =
         "As configurações, o histórico e as pendências atuais serão substituídos pelos da cópia ao reabrir o app. " +
             "Os dados atuais ficam guardados em %APPDATA%\\Fiscal como \"fiscal-antes-da-importacao\". Os PDFs não são alterados."
-    const val IMPORT_READY = "✓ Cópia pronta. Feche e abra o FISCAL para concluir a importação."
+    const val IMPORT_READY = "Cópia pronta. Feche e abra o FISCAL para concluir a importação."
     const val DIAGNOSTICS_TITLE = "Diagnóstico"
     const val DIAGNOSTICS_EXPLANATION = "Use se algo não funcionar: copia versão, sistema e o final do log, sem enviar nada."
 
     fun backupStats(count: Int, bytes: Long) = "$count arquivo(s), ${"%.1f".format(bytes / 1_048_576.0)} MB"
     fun cleanConfirmBody(days: Int) =
         "Os arquivos substituídos há mais de $days dias serão apagados de vez, e substituições antigas não poderão mais ser desfeitas."
-    fun backupsCleaned(count: Int) = "✓ $count backup(s) antigo(s) apagado(s)."
-    fun dataExported(name: String) = "✓ Dados exportados para $name"
+    fun backupsCleaned(count: Int) = "$count backup(s) antigo(s) apagado(s)."
+    fun dataExported(name: String) = "Dados exportados para $name"
     fun exportFileName(date: String) = "fiscal-dados-$date.db"
 
     // Resultado
-    const val ORGANIZED = "✓ Documento organizado."
-    const val UNDONE = "✓ Operação desfeita."
+    const val ORGANIZED = "Documento organizado."
+    const val UNDONE = "Operação desfeita."
     const val UNDO = "Desfazer"
 
     // Configurações
-    const val BACK = "← Voltar"
+    const val BACK = "Voltar"
     const val SETTINGS_FOLDERS_SECTION = "Pastas"
     const val SETTINGS_DUPLICATES_SECTION = "Arquivos duplicados"
     const val SETTINGS_DUPLICATE_ASK = "Perguntar sempre"
@@ -265,4 +264,32 @@ object Strings {
     const val SETTINGS_CONFIRM_NOTE =
         "Mesmo sem esta confirmação, o destino e o novo nome são sempre mostrados antes de qualquer alteração."
     const val SETTINGS_LOCK_SECTION = "Proteção de meses"
+    const val APPEARANCE_SECTION = "Aparência"
+    const val THEME_SYSTEM = "Igual ao Windows"
+    const val THEME_LIGHT = "Claro"
+    const val THEME_DARK = "Escuro"
+    const val OPEN_ONBOARDING = "Abrir o assistente de configuração"
+    const val OPEN_ONBOARDING_NOTE = "Passo a passo para escolher a pasta raiz das contas, a pasta de origem e o mês."
+
+    // Assistente da primeira vez
+    const val ONBOARDING_WELCOME = "Bem-vindo ao FISCAL"
+    const val ONBOARDING_INTRO = "Três passos rápidos para deixar tudo pronto. Dá para mudar qualquer escolha depois, pelo lápis ao lado de cada pasta."
+    const val ONBOARDING_ROOT_TITLE = "Pasta raiz das contas"
+    const val ONBOARDING_ROOT_TEXT =
+        "É a pasta que contém CONTAS CONGREGAÇÃO e CONTAS MANUTENÇÃO, geralmente no pendrive. " +
+            "Com ela, o FISCAL mostra todos os meses para você escolher com um clique."
+    const val ONBOARDING_SOURCE_TITLE = "Pasta de origem"
+    const val ONBOARDING_SOURCE_TEXT =
+        "É a pasta do computador onde chegam os PDFs e as fotos a organizar, por exemplo Downloads ou a pasta do scanner. " +
+            "Ela aparece à esquerda da tela principal."
+    const val ONBOARDING_MONTH_TITLE = "Mês em edição"
+    const val ONBOARDING_MONTH_TEXT =
+        "Escolha o mês que você vai organizar agora. Os documentos vão para a pasta deste mês."
+    const val ONBOARDING_NEXT = "Próximo"
+    const val ONBOARDING_BACK = "Voltar"
+    const val ONBOARDING_FINISH = "Concluir"
+    const val ONBOARDING_SKIP = "Pular assistente"
+
+    fun onboardingStep(current: Int, total: Int) = "Passo $current de $total"
+    fun accountsFound(names: List<String>) = "Encontradas: ${names.joinToString()}"
 }

@@ -16,10 +16,42 @@ data class AppSettings(
     /** Apagar sozinho os backups de arquivos substituídos mais antigos que [backupRetentionDays]. Desligado por padrão. */
     val autoCleanBackups: Boolean = false,
     val backupRetentionDays: Int = DEFAULT_BACKUP_RETENTION_DAYS,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    /** O assistente da primeira vez já foi concluído ou pulado. */
+    val onboardingDone: Boolean = false,
+    /** Tamanho e posição da janela ao fechar, para reabrir igual. `null` = padrão (maximizada). */
+    val windowBounds: WindowBounds? = null,
 ) {
+    /** Usuário novo: falta a pasta de origem ou o mês e o assistente ainda não foi feito (a raiz das contas pode ser deduzida do mês). */
+    val needsOnboarding: Boolean
+        get() = !onboardingDone && (sourceFolder == null || monthFolder == null)
+
     companion object {
         const val DEFAULT_BACKUP_RETENTION_DAYS = 90
         val BACKUP_RETENTION_OPTIONS = listOf(30, 90, 180, 365)
+    }
+}
+
+/** Tema da interface. */
+enum class ThemeMode {
+    /** Segue o tema claro/escuro do Windows. */
+    SYSTEM,
+    LIGHT,
+    DARK,
+}
+
+/** Posição e tamanho da janela "restaurada" (em dp), e se estava maximizada. */
+data class WindowBounds(val x: Int, val y: Int, val width: Int, val height: Int, val maximized: Boolean) {
+    fun encode(): String = "$x,$y,$width,$height,$maximized"
+
+    companion object {
+        fun decode(text: String): WindowBounds? {
+            val parts = text.split(',')
+            if (parts.size != 5) return null
+            val numbers = parts.take(4).map { it.trim().toIntOrNull() ?: return null }
+            val maximized = parts[4].trim().toBooleanStrictOrNull() ?: return null
+            return WindowBounds(numbers[0], numbers[1], numbers[2], numbers[3], maximized)
+        }
     }
 }
 

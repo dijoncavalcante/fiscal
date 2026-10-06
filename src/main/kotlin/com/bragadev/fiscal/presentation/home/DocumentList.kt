@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.FilterChip
@@ -117,8 +118,15 @@ private fun DocumentRow(document: Document, isSelected: Boolean, onSelect: (Docu
             .clickable { onSelect(document) }
             .padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
-        val icon = if (document.isImage) "🖼" else "📄"
-        Text(text = "$icon ${document.name}", maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Row(verticalAlignment = Alignment.Top) {
+            Icon(
+                if (document.isImage) AppIcons.Image else AppIcons.Document,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 2.dp, end = 6.dp).size(16.dp),
+            )
+            Text(text = document.name, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
         Text(
             text = Strings.modifiedAt(modifiedFormat.format(document.lastModified)),
             style = MaterialTheme.typography.labelSmall,

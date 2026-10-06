@@ -8,10 +8,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -30,7 +31,10 @@ import com.bragadev.fiscal.domain.model.MonthFolderStatus
 import com.bragadev.fiscal.domain.model.QuarterFolder
 import com.bragadev.fiscal.domain.model.ServiceYearFolder
 import com.bragadev.fiscal.presentation.common.Strings
+import com.bragadev.fiscal.presentation.components.AppIcons
+import com.bragadev.fiscal.presentation.components.ExpandIcon
 import com.bragadev.fiscal.presentation.components.FolderPathField
+import com.bragadev.fiscal.presentation.components.IconText
 import java.nio.file.Path
 
 /**
@@ -54,8 +58,8 @@ fun MonthNavigator(
             .padding(8.dp),
     ) {
         Row(Modifier.fillMaxWidth().clickable(onClick = viewModel::onToggleExpanded), verticalAlignment = Alignment.CenterVertically) {
-            Text(if (state.expanded) "▾" else "▸", Modifier.width(18.dp), color = MaterialTheme.colorScheme.primary)
-            Text(Strings.NAVIGATOR_TITLE, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            ExpandIcon(state.expanded, Modifier.padding(end = 4.dp))
+            IconText(AppIcons.Calendar, Strings.NAVIGATOR_TITLE, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
         }
         if (!state.expanded) return@Column
 
@@ -77,7 +81,15 @@ fun MonthNavigator(
             highlightedSegment = monthFolder?.detectedMonth?.folderName,
             modifier = Modifier.padding(top = 6.dp),
         )
-        val tree = state.tree
+        MonthTreePicker(state, viewModel)
+    }
+}
+
+/** Contas, ano de serviço, trimestres e meses da pasta raiz: um clique no mês troca o mês em edição. */
+@Composable
+fun MonthTreePicker(state: MonthNavigatorUiState, viewModel: MonthNavigatorViewModel, modifier: Modifier = Modifier) {
+    val tree = state.tree
+    Column(modifier) {
         when {
             state.root == null -> Hint(Strings.MONTHS_ROOT_HINT)
             tree == null || tree.accounts.isEmpty() -> if (!state.isLoading) Hint(Strings.NO_MONTHS_FOUND)
@@ -111,7 +123,8 @@ private fun YearSelector(years: List<ServiceYearFolder>, selected: ServiceYearFo
         Text(Strings.SERVICE_YEAR, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(end = 8.dp))
         Box {
             OutlinedButton(onClick = { open = true }) {
-                Text("${selected?.name ?: "—"} ▾", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(selected?.name ?: "—", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Icon(AppIcons.ExpandMore, contentDescription = null, modifier = Modifier.padding(start = 4.dp).size(18.dp))
             }
             DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                 years.asReversed().forEach { year ->
@@ -145,7 +158,12 @@ private fun MonthChip(month: MonthFolderInfo, isCurrent: Boolean, onSelect: (Pat
     FilterChip(
         selected = isCurrent,
         onClick = { onSelect(month.path) },
-        label = { Text(Strings.monthChip(yearMonth, locked = month.status == MonthFolderStatus.LOCKED)) },
+        label = { Text(Strings.monthName(yearMonth)) },
+        leadingIcon = if (month.status == MonthFolderStatus.LOCKED) {
+            { Icon(AppIcons.Lock, contentDescription = Strings.STATUS_LOCKED, modifier = Modifier.size(14.dp)) }
+        } else {
+            null
+        },
     )
 }
 

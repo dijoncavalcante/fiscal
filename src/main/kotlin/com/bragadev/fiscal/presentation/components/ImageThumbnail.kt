@@ -16,7 +16,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -47,7 +46,7 @@ fun ImageThumbnail(page: ImagePage, modifier: Modifier = Modifier) {
         }
     }
 
-    Box(modifier.background(Color(0xFFE9ECEF)), contentAlignment = Alignment.Center) {
+    Box(modifier.background(StatusColors.PreviewBackdrop), contentAlignment = Alignment.Center) {
         when {
             error != null -> Text(error.orEmpty(), Modifier.padding(16.dp), textAlign = TextAlign.Center)
             bitmap != null -> Image(
