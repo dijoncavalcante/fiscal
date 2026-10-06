@@ -26,6 +26,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(compose.desktop.uiTestJUnit4)
 }
 
 compose.desktop {

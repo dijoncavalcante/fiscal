@@ -90,7 +90,8 @@ Regras de camada:
   imagem, ↻ para girar) e "Juntar PDFs" (ordem da lista; já inclui o documento selecionado). Abre como **painel no
   lugar do mês em edição** (`PdfToolsPanel`, não modal): o usuário clica num arquivo à esquerda para ver no preview e
   arrasta para o painel (aceita também arquivos do Explorer; tipo errado e duplicados são avisados). Ordem por
-  arrastar a alça ⠿ (`ReorderableColumn`, linhas de altura fixa) ou ↑ ↓; clicar no item mostra no preview; "Fechar"
+  segurar a linha e arrastar (`ReorderableColumn`: gesto medido na lista a partir do ponto do clique, linhas com
+  `key` e altura fixa; testado com mouse simulado em `ReorderableColumnTest`) ou ↑ ↓; clicar no item mostra no preview; "Fechar"
   volta ao mês. Salva por padrão na pasta de origem (`PdfOutputResolver`: valida nome, recusa mês fechado,
   nunca sobrescreve — usa "(2)"). `PdfToolsRepositoryImpl` monta o PDF na memória e grava com `CREATE_NEW` no fim;
   originais só são lidos. O PDF criado é selecionado e aparece na lista.

@@ -198,7 +198,7 @@ object Strings {
     const val EMPTY_TOOL_LIST = "Nenhum arquivo na lista."
     const val DROP_IMAGES_HERE = "Arraste aqui as imagens da lista de documentos ou do Windows Explorer"
     const val DROP_PDFS_HERE = "Arraste aqui os PDFs da lista de documentos ou do Windows Explorer"
-    const val DRAG_TO_REORDER = "Arraste para mudar a ordem"
+    const val DRAG_TO_REORDER = "Segure um item e arraste para cima ou para baixo para mudar a ordem"
     const val CLOSE_TOOL = "Fechar"
     const val ONLY_IMAGES_ACCEPTED = "Alguns arquivos foram ignorados: aqui só entram imagens JPEG ou PNG."
     const val ONLY_PDFS_ACCEPTED = "Alguns arquivos foram ignorados: aqui só entram PDFs."

@@ -154,8 +154,8 @@ private fun ItemList(dialog: PdfToolDialog, isImages: Boolean, viewModel: PdfToo
         onMove = viewModel::onMove,
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.small),
-    ) { index, item, handle, isDragging ->
-        ItemRow(dialog, index, item, isImages, isDragging, handle, viewModel, onPreview)
+    ) { index, item, isDragging ->
+        ItemRow(dialog, index, item, isImages, isDragging, viewModel, onPreview)
     }
 }
 
@@ -166,7 +166,6 @@ private fun ItemRow(
     item: ImagePage,
     isImages: Boolean,
     isDragging: Boolean,
-    handle: Modifier,
     viewModel: PdfToolsViewModel,
     onPreview: (Path) -> Unit,
 ) {
@@ -189,7 +188,7 @@ private fun ItemRow(
             "⠿",
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
-            modifier = handle.padding(horizontal = 10.dp).semantics { contentDescription = Strings.DRAG_TO_REORDER },
+            modifier = Modifier.padding(horizontal = 10.dp).semantics { contentDescription = Strings.DRAG_TO_REORDER },
         )
         val rotation = if (isImages && item.rotationDegrees != 0) "  ↻${item.rotationDegrees}°" else ""
         Text(
