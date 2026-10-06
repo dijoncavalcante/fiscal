@@ -36,8 +36,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.bragadev.fiscal.domain.model.ImagePage
 import com.bragadev.fiscal.presentation.common.Strings
 import com.bragadev.fiscal.presentation.common.UserMessage
+import com.bragadev.fiscal.presentation.components.ImageThumbnail
+import com.bragadev.fiscal.presentation.components.Panel
 import com.bragadev.fiscal.presentation.components.pickFolder
 import com.bragadev.fiscal.presentation.monthfiles.MonthFilesDialogHost
 import com.bragadev.fiscal.presentation.monthfiles.MonthFilesViewModel
@@ -48,7 +51,7 @@ import com.bragadev.fiscal.presentation.organizer.OrganizerDialogHost
 import com.bragadev.fiscal.presentation.organizer.OrganizerScreen
 import com.bragadev.fiscal.presentation.organizer.OrganizerUiState
 import com.bragadev.fiscal.presentation.organizer.OrganizerViewModel
-import com.bragadev.fiscal.presentation.pdftools.PdfToolsDialogHost
+import com.bragadev.fiscal.presentation.pdftools.PdfToolsPanel
 import com.bragadev.fiscal.presentation.pdftools.PdfToolsViewModel
 import com.bragadev.fiscal.presentation.preview.PdfPreviewScreen
 import com.bragadev.fiscal.presentation.preview.PdfPreviewViewModel
@@ -94,7 +97,12 @@ fun HomeScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
-            Workspace(home, organizer, previewViewModel, homeViewModel, organizerViewModel, monthFilesViewModel) {
+            val toolPanel = pdfTools.dialog?.let { dialog ->
+                @Composable { modifier: Modifier ->
+                    PdfToolsPanel(dialog, pdfTools.isWorking, pdfToolsViewModel, homeViewModel::onPreviewFile, modifier)
+                }
+            }
+            Workspace(home, organizer, previewViewModel, homeViewModel, organizerViewModel, monthFilesViewModel, toolPanel) {
                 MonthNavigator(
                     state = navigator,
                     viewModel = navigatorViewModel,
@@ -114,7 +122,6 @@ fun HomeScreen(
     }
     OrganizerDialogHost(organizer, organizerViewModel)
     MonthFilesDialogHost(monthFiles, monthFilesViewModel)
-    PdfToolsDialogHost(pdfTools, pdfToolsViewModel)
 }
 
 @Composable
@@ -125,6 +132,8 @@ private fun Workspace(
     homeViewModel: HomeViewModel,
     organizerViewModel: OrganizerViewModel,
     monthFilesViewModel: MonthFilesViewModel,
+    /** Painel que ocupa o lugar do mês em edição enquanto estiver aberto (ex.: ferramentas de PDF). */
+    toolPanel: (@Composable (Modifier) -> Unit)?,
     navigator: @Composable () -> Unit,
 ) {
     val selectedPath = home.selectedDocument?.path
@@ -149,7 +158,7 @@ private fun Workspace(
             modifier = modifier,
         )
     }
-    val categories: @Composable (Modifier) -> Unit = { modifier ->
+    val categories: @Composable (Modifier) -> Unit = toolPanel ?: { modifier ->
         OrganizerScreen(
             state = organizer,
             selectedDocument = selectedPath,
@@ -160,7 +169,16 @@ private fun Workspace(
             modifier = modifier,
         )
     }
-    val preview: @Composable (Modifier) -> Unit = { modifier -> PdfPreviewScreen(previewViewModel, selectedPath, modifier) }
+    val preview: @Composable (Modifier) -> Unit = { modifier ->
+        // Imagens (JPEG/PNG) aparecem no preview para o usuário conferir antes de converter.
+        if (home.selectedDocument?.isImage == true) {
+            Panel(title = Strings.PREVIEW, modifier = modifier) {
+                ImageThumbnail(ImagePage(home.selectedDocument.path), Modifier.weight(1f).fillMaxWidth())
+            }
+        } else {
+            PdfPreviewScreen(previewViewModel, selectedPath, modifier)
+        }
+    }
 
     BoxWithConstraints(Modifier.fillMaxSize().padding(8.dp)) {
         if (maxWidth >= WIDE_LAYOUT_MIN_WIDTH) {

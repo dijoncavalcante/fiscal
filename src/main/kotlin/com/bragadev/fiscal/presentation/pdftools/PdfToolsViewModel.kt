@@ -37,21 +37,33 @@ class PdfToolsViewModel(
     /** Abre "Juntar PDFs" já com o documento selecionado na lista, se houver. */
     fun onOpenMerge(selectedDocument: Path?) = open(PdfTool.MERGE_PDFS, listOfNotNull(selectedDocument))
 
+    /** Arquivos vindos do seletor, da lista de documentos ou do Windows Explorer (arrastar e soltar). */
     fun onFilesAdded(paths: List<Path>) = editDialog { dialog ->
-        val accepted = paths.filter { accepts(dialog.tool, it) }.map(::ImagePage)
-        val items = dialog.items + accepted
+        val accepted = paths.filter { accepts(dialog.tool, it) }
+        val newOnes = accepted.filter { path -> dialog.items.none { it.path == path } }.distinct()
+        val items = dialog.items + newOnes.map(::ImagePage)
+        val warning = when {
+            accepted.size < paths.size ->
+                if (dialog.tool == PdfTool.IMAGES_TO_PDF) Strings.ONLY_IMAGES_ACCEPTED else Strings.ONLY_PDFS_ACCEPTED
+            newOnes.size < accepted.size -> Strings.ALREADY_IN_LIST
+            else -> null
+        }
         dialog.copy(
             items = items,
-            selectedIndex = if (dialog.selectedIndex < 0 && items.isNotEmpty()) 0 else dialog.selectedIndex,
+            selectedIndex = if (newOnes.isNotEmpty()) items.lastIndex else dialog.selectedIndex,
             outputName = dialog.outputName.ifBlank { defaultName(dialog.tool, items) },
+            error = warning,
         )
     }
 
     fun onItemSelected(index: Int) = editDialog { it.copy(selectedIndex = index) }
 
-    fun onMoveUp(index: Int) = editDialog { it.moved(index, index - 1) }
+    /** Reordenação por arrastar (alça ⠿) ou pelos botões ↑ ↓. */
+    fun onMove(from: Int, to: Int) = editDialog { it.moved(from, to) }
 
-    fun onMoveDown(index: Int) = editDialog { it.moved(index, index + 1) }
+    fun onMoveUp(index: Int) = onMove(index, index - 1)
+
+    fun onMoveDown(index: Int) = onMove(index, index + 1)
 
     fun onRotate(index: Int) = editDialog { dialog ->
         dialog.copy(items = dialog.items.mapIndexed { i, item -> if (i == index) item.rotatedClockwise() else item })

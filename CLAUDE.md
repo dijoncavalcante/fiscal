@@ -65,10 +65,11 @@ Regras de camada:
 
 ## Layout da tela
 
-- **Esquerda — pasta de origem:** qualquer pasta do PC, escolhida pelo lápis; botão 🔄 atualiza. Lista só os PDFs da
+- **Esquerda — pasta de origem:** qualquer pasta do PC, escolhida pelo lápis; botão 🔄 atualiza. Lista os PDFs e as
+  imagens JPEG/PNG (🖼, `Document.isImage`, `FileRepository.listDocuments`) da
   própria pasta (sem subpastas; ignora `._*.pdf` do macOS), com busca por nome e ordem "Mais recentes" (padrão, como
   "Data de modificação" do Explorer) ou "Nome" (salva em `document_sort`). Itens podem ser arrastados.
-- **Centro — preview** (PDFBox). O PDF é lido para memória: o arquivo nunca fica bloqueado nem é alterado.
+- **Centro — preview** (PDFBox; imagens via `ImageThumbnail`). O PDF é lido para memória: o arquivo nunca fica bloqueado nem é alterado.
 - **Direita — mês em edição:** mês em destaque ("Junho de 2026 ✓ Liberado" / "🔒 Somente leitura"), conta detectada,
   caminho completo **somente leitura** (texto copiável, pasta do mês em negrito) e lápis para trocar. Abaixo, grupos
   recolhíveis por conta com as categorias, cada uma com **✓ Já existe** (e os arquivos encontrados) ou **○ Faltando**;
@@ -86,8 +87,11 @@ Regras de camada:
   (`ChangeMonthFolderUseCase`). Árvore montada por `BrowseMonthFoldersUseCase` (ignora pastas sem mês). O "Caminho
   completo da pasta do mês" (somente leitura + lápis) fica dentro desse bloco, logo abaixo da pasta raiz.
 - **Menu PDF ▾ (barra superior):** "Converter JPEG para PDF" (uma página A4 por imagem, orientação conforme a
-  imagem, ↻ para girar) e "Juntar PDFs" (ordem da lista; já inclui o documento selecionado). Lista com ↑ ↓ ✕ e
-  visualização do item. Salva por padrão na pasta de origem (`PdfOutputResolver`: valida nome, recusa mês fechado,
+  imagem, ↻ para girar) e "Juntar PDFs" (ordem da lista; já inclui o documento selecionado). Abre como **painel no
+  lugar do mês em edição** (`PdfToolsPanel`, não modal): o usuário clica num arquivo à esquerda para ver no preview e
+  arrasta para o painel (aceita também arquivos do Explorer; tipo errado e duplicados são avisados). Ordem por
+  arrastar a alça ⠿ (`ReorderableColumn`, linhas de altura fixa) ou ↑ ↓; clicar no item mostra no preview; "Fechar"
+  volta ao mês. Salva por padrão na pasta de origem (`PdfOutputResolver`: valida nome, recusa mês fechado,
   nunca sobrescreve — usa "(2)"). `PdfToolsRepositoryImpl` monta o PDF na memória e grava com `CREATE_NEW` no fim;
   originais só são lidos. O PDF criado é selecionado e aparece na lista.
 - **Atualização automática:** as duas pastas são observadas (`FileRepository.watch`, WatchService) e a tela se

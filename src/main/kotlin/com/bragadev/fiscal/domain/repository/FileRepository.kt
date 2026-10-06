@@ -26,6 +26,9 @@ interface FileRepository {
     /** Lista os PDFs da pasta, sem entrar nas subpastas. Outros arquivos são ignorados. */
     suspend fun listPdfFiles(folder: Path): Outcome<List<Document>>
 
+    /** Lista os PDFs e as imagens (JPEG/PNG) da pasta, sem entrar nas subpastas. */
+    suspend fun listDocuments(folder: Path): Outcome<List<Document>>
+
     /**
      * Move (ou renomeia) um arquivo criando as pastas de destino quando necessário.
      * Nunca sobrescreve: falha com DestinationAlreadyExists se o destino existir.

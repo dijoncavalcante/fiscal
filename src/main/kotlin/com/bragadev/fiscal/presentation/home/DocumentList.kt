@@ -117,7 +117,8 @@ private fun DocumentRow(document: Document, isSelected: Boolean, onSelect: (Docu
             .clickable { onSelect(document) }
             .padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
-        Text(text = "📄 ${document.name}", maxLines = 2, overflow = TextOverflow.Ellipsis)
+        val icon = if (document.isImage) "🖼" else "📄"
+        Text(text = "$icon ${document.name}", maxLines = 2, overflow = TextOverflow.Ellipsis)
         Text(
             text = Strings.modifiedAt(modifiedFormat.format(document.lastModified)),
             style = MaterialTheme.typography.labelSmall,

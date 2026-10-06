@@ -63,4 +63,19 @@ class FileRepositoryImplTest {
 
         assertEquals(Unit, changes.await())
     }
+
+    @Test
+    fun `lista de documentos inclui imagens jpeg e png`() = runTest {
+        val root = temp.root.toPath()
+        root.createFakePdf("um.pdf")
+        Files.writeString(root.resolve("foto.JPG"), "x")
+        Files.writeString(root.resolve("print.png"), "x")
+        Files.writeString(root.resolve("planilha.xlsx"), "x")
+        Files.writeString(root.resolve("._foto.jpg"), "x")
+
+        val documents = (repository.listDocuments(root) as Outcome.Success).value
+
+        assertEquals(setOf("um.pdf", "foto.JPG", "print.png"), documents.map { it.name }.toSet())
+        assertEquals(setOf("foto.JPG", "print.png"), documents.filter { it.isImage }.map { it.name }.toSet())
+    }
 }

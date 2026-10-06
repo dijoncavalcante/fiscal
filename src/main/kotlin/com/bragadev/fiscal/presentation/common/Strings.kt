@@ -61,7 +61,7 @@ object Strings {
     // Documentos
     const val DOCUMENTS = "DOCUMENTOS"
     const val CATEGORIES = "CATEGORIAS"
-    const val NO_DOCUMENTS = "Nenhum PDF nesta pasta."
+    const val NO_DOCUMENTS = "Nenhum PDF ou imagem nesta pasta."
     const val LOADING = "Carregando..."
 
     fun statusDocuments(count: Int) = when (count) {
@@ -170,7 +170,7 @@ object Strings {
     const val SORT_NEWEST = "Mais recentes"
     const val SORT_NAME = "Nome"
     const val SEARCH = "Buscar nesta pasta"
-    const val NO_SEARCH_RESULTS = "Nenhum PDF com esse nome."
+    const val NO_SEARCH_RESULTS = "Nenhum arquivo com esse nome."
 
     fun modifiedAt(text: String) = "Modificado em $text"
 
@@ -193,9 +193,16 @@ object Strings {
     const val MOVE_DOWN = "Descer"
     const val ROTATE = "Girar"
     const val REMOVE_ITEM = "Tirar da lista"
-    const val IMAGES_TO_PDF_HINT = "Cada imagem vira uma página A4, na ordem da lista. Use ↻ para girar fotos deitadas."
-    const val MERGE_HINT = "As páginas ficam na ordem da lista. Os arquivos originais não são alterados."
+    const val IMAGES_TO_PDF_HINT = "Clique numa imagem à esquerda para ver no preview e arraste para cá. Cada imagem vira uma página A4, na ordem da lista; use ↻ para girar fotos deitadas."
+    const val MERGE_HINT = "Clique num PDF à esquerda para ver no preview e arraste para cá. As páginas ficam na ordem da lista; os originais não são alterados."
     const val EMPTY_TOOL_LIST = "Nenhum arquivo na lista."
+    const val DROP_IMAGES_HERE = "Arraste aqui as imagens da lista de documentos ou do Windows Explorer"
+    const val DROP_PDFS_HERE = "Arraste aqui os PDFs da lista de documentos ou do Windows Explorer"
+    const val DRAG_TO_REORDER = "Arraste para mudar a ordem"
+    const val CLOSE_TOOL = "Fechar"
+    const val ONLY_IMAGES_ACCEPTED = "Alguns arquivos foram ignorados: aqui só entram imagens JPEG ou PNG."
+    const val ONLY_PDFS_ACCEPTED = "Alguns arquivos foram ignorados: aqui só entram PDFs."
+    const val ALREADY_IN_LIST = "Arquivo já está na lista."
     const val MERGED_SUFFIX = " - unido"
 
     fun pdfCreated(name: String) = "✓ PDF criado: $name"

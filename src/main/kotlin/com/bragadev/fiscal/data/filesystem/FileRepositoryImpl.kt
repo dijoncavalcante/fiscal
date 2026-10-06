@@ -4,6 +4,7 @@ import com.bragadev.fiscal.domain.model.Document
 import com.bragadev.fiscal.domain.model.Outcome
 import com.bragadev.fiscal.domain.repository.FileRepository
 import com.bragadev.fiscal.domain.rules.FileNameRules
+import com.bragadev.fiscal.domain.rules.ImageFileRules
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
@@ -58,7 +59,16 @@ class FileRepositoryImpl(
     override suspend fun listPdfFiles(folder: Path): Outcome<List<Document>> = io {
         catching {
             val documents = mutableListOf<Document>()
-            Files.walkFileTree(folder, emptySet(), SINGLE_LEVEL, PdfCollector(documents))
+            Files.walkFileTree(folder, emptySet(), SINGLE_LEVEL, DocumentCollector(documents, FileNameRules::hasPdfExtension))
+            documents.toList()
+        }
+    }
+
+    override suspend fun listDocuments(folder: Path): Outcome<List<Document>> = io {
+        catching {
+            val documents = mutableListOf<Document>()
+            val accepts = { name: String -> FileNameRules.hasPdfExtension(name) || ImageFileRules.isSupported(name) }
+            Files.walkFileTree(folder, emptySet(), SINGLE_LEVEL, DocumentCollector(documents, accepts))
             documents.toList()
         }
     }
@@ -115,11 +125,14 @@ class FileRepositoryImpl(
     }
 
     /** Coleta PDFs e ignora pastas sem permissão de leitura em vez de interromper a busca. */
-    private class PdfCollector(private val documents: MutableList<Document>) : SimpleFileVisitor<Path>() {
+    private class DocumentCollector(
+        private val documents: MutableList<Document>,
+        private val accepts: (String) -> Boolean,
+    ) : SimpleFileVisitor<Path>() {
         override fun visitFile(file: Path, attributes: BasicFileAttributes): FileVisitResult {
             val name = file.fileName.toString()
-            // "._arquivo.pdf" são metadados criados pelo macOS no pendrive, não PDFs de verdade.
-            if (attributes.isRegularFile && FileNameRules.hasPdfExtension(name) && !name.startsWith(MAC_METADATA_PREFIX)) {
+            // "._arquivo.pdf" são metadados criados pelo macOS no pendrive, não arquivos de verdade.
+            if (attributes.isRegularFile && accepts(name) && !name.startsWith(MAC_METADATA_PREFIX)) {
                 documents += Document(file, attributes.size(), attributes.lastModifiedTime().toInstant())
             }
             return FileVisitResult.CONTINUE
