@@ -174,6 +174,33 @@ object Strings {
 
     fun modifiedAt(text: String) = "Modificado em $text"
 
+    // Menu PDF
+    const val PDF_MENU = "PDF ▾"
+    const val IMAGES_TO_PDF = "Converter JPEG para PDF"
+    const val MERGE_PDFS = "Juntar PDFs"
+    const val ADD_IMAGES = "Adicionar imagens"
+    const val ADD_PDFS = "Adicionar PDFs"
+    const val IMAGES_PICKER_TITLE = "Escolha as imagens (JPEG ou PNG)"
+    const val PDFS_PICKER_TITLE = "Escolha os PDFs para juntar"
+    const val IMAGES_FILTER = "Imagens JPEG ou PNG"
+    const val PDFS_FILTER = "Arquivos PDF"
+    const val OUTPUT_FOLDER_PICKER_TITLE = "Escolha onde salvar o PDF"
+    const val OUTPUT_FOLDER = "Salvar na pasta"
+    const val OUTPUT_FOLDER_EDIT = "Trocar a pasta onde o PDF será salvo"
+    const val OUTPUT_NAME = "Nome do PDF"
+    const val CREATE_PDF = "Criar PDF"
+    const val MOVE_UP = "Subir"
+    const val MOVE_DOWN = "Descer"
+    const val ROTATE = "Girar"
+    const val REMOVE_ITEM = "Tirar da lista"
+    const val IMAGES_TO_PDF_HINT = "Cada imagem vira uma página A4, na ordem da lista. Use ↻ para girar fotos deitadas."
+    const val MERGE_HINT = "As páginas ficam na ordem da lista. Os arquivos originais não são alterados."
+    const val EMPTY_TOOL_LIST = "Nenhum arquivo na lista."
+    const val MERGED_SUFFIX = " - unido"
+
+    fun pdfCreated(name: String) = "✓ PDF criado: $name"
+    fun pageCountLabel(count: Int) = if (count == 1) "1 arquivo" else "$count arquivos"
+
     // Resultado
     const val ORGANIZED = "✓ Documento organizado."
     const val UNDONE = "✓ Operação desfeita."

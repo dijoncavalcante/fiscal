@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -26,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -45,6 +48,8 @@ import com.bragadev.fiscal.presentation.organizer.OrganizerDialogHost
 import com.bragadev.fiscal.presentation.organizer.OrganizerScreen
 import com.bragadev.fiscal.presentation.organizer.OrganizerUiState
 import com.bragadev.fiscal.presentation.organizer.OrganizerViewModel
+import com.bragadev.fiscal.presentation.pdftools.PdfToolsDialogHost
+import com.bragadev.fiscal.presentation.pdftools.PdfToolsViewModel
 import com.bragadev.fiscal.presentation.preview.PdfPreviewScreen
 import com.bragadev.fiscal.presentation.preview.PdfPreviewViewModel
 import java.util.UUID
@@ -58,8 +63,10 @@ fun HomeScreen(
     organizerViewModel: OrganizerViewModel,
     monthFilesViewModel: MonthFilesViewModel,
     navigatorViewModel: MonthNavigatorViewModel,
+    pdfToolsViewModel: PdfToolsViewModel,
     onOpenSettings: () -> Unit,
 ) {
+    val pdfTools by pdfToolsViewModel.uiState.collectAsState()
     val navigator by navigatorViewModel.uiState.collectAsState()
     val home by homeViewModel.uiState.collectAsState()
     val organizer by organizerViewModel.uiState.collectAsState()
@@ -68,6 +75,7 @@ fun HomeScreen(
 
     MessageEffect(organizer.message, snackbarHostState, organizerViewModel::undo, organizerViewModel::onMessageShown)
     MessageEffect(monthFiles.message, snackbarHostState, organizerViewModel::undo, monthFilesViewModel::onMessageShown)
+    MessageEffect(pdfTools.message, snackbarHostState, organizerViewModel::undo, pdfToolsViewModel::onMessageShown)
     ErrorEffect(home.error, snackbarHostState, homeViewModel::onErrorShown)
     ErrorEffect(navigator.error, snackbarHostState, navigatorViewModel::onErrorShown)
 
@@ -78,6 +86,8 @@ fun HomeScreen(
                 onRefresh = homeViewModel::onRefresh,
                 onUndo = { organizerViewModel.undo() },
                 onOpenSettings = onOpenSettings,
+                onImagesToPdf = pdfToolsViewModel::onOpenImagesToPdf,
+                onMergePdfs = { pdfToolsViewModel.onOpenMerge(home.selectedDocument?.path) },
             )
         },
         bottomBar = { StatusBar(home) },
@@ -104,6 +114,7 @@ fun HomeScreen(
     }
     OrganizerDialogHost(organizer, organizerViewModel)
     MonthFilesDialogHost(monthFiles, monthFilesViewModel)
+    PdfToolsDialogHost(pdfTools, pdfToolsViewModel)
 }
 
 @Composable
@@ -191,6 +202,8 @@ private fun TopBar(
     onRefresh: () -> Unit,
     onUndo: () -> Unit,
     onOpenSettings: () -> Unit,
+    onImagesToPdf: () -> Unit,
+    onMergePdfs: () -> Unit,
 ) {
     Surface(tonalElevation = 3.dp) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -200,9 +213,23 @@ private fun TopBar(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f),
             )
+            PdfMenu(onImagesToPdf, onMergePdfs)
             TextButton(onClick = onUndo, enabled = canUndo) { Text(Strings.UNDO_LAST) }
             TextButton(onClick = onRefresh) { Text(Strings.REFRESH) }
             TextButton(onClick = onOpenSettings) { Text("⚙ ${Strings.SETTINGS}") }
+        }
+    }
+}
+
+/** Menu "PDF": converter imagens em PDF e juntar PDFs. */
+@Composable
+private fun PdfMenu(onImagesToPdf: () -> Unit, onMergePdfs: () -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        TextButton(onClick = { open = true }) { Text(Strings.PDF_MENU) }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(text = { Text(Strings.IMAGES_TO_PDF) }, onClick = { open = false; onImagesToPdf() })
+            DropdownMenuItem(text = { Text(Strings.MERGE_PDFS) }, onClick = { open = false; onMergePdfs() })
         }
     }
 }

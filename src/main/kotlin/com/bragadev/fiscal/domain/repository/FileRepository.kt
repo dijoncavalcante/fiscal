@@ -20,6 +20,9 @@ interface FileRepository {
     /** Subpastas diretas, em ordem alfabética (sem pastas ocultas). Vazio se a pasta não existir. */
     suspend fun listSubfolders(folder: Path): List<Path>
 
+    /** Conteúdo do arquivo (usado para mostrar imagens). */
+    suspend fun readBytes(file: Path): Outcome<ByteArray>
+
     /** Lista os PDFs da pasta, sem entrar nas subpastas. Outros arquivos são ignorados. */
     suspend fun listPdfFiles(folder: Path): Outcome<List<Document>>
 

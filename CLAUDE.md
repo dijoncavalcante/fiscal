@@ -51,6 +51,7 @@ presentation/
   organizer/    Lado direito: mês em edição, árvore de categorias, diálogos de organizar
   monthfiles/   Ações sobre arquivos já no mês: renomear, retirar do mês, marcar pendência (MonthFilesViewModel)
   navigator/    Seletor de mês: pasta raiz das contas → conta → ano de serviço → trimestre → mês (MonthNavigatorViewModel)
+  pdftools/     Menu "PDF ▾": converter JPEG/PNG em PDF e juntar PDFs (PdfToolsViewModel, PdfToolsDialog)
   settings/     Tela de configurações
 ```
 
@@ -84,6 +85,11 @@ Regras de camada:
   do mês aberto ou o mais recente) e trimestres (mais recente primeiro) com os meses; um clique troca a pasta do mês
   (`ChangeMonthFolderUseCase`). Árvore montada por `BrowseMonthFoldersUseCase` (ignora pastas sem mês). O "Caminho
   completo da pasta do mês" (somente leitura + lápis) fica dentro desse bloco, logo abaixo da pasta raiz.
+- **Menu PDF ▾ (barra superior):** "Converter JPEG para PDF" (uma página A4 por imagem, orientação conforme a
+  imagem, ↻ para girar) e "Juntar PDFs" (ordem da lista; já inclui o documento selecionado). Lista com ↑ ↓ ✕ e
+  visualização do item. Salva por padrão na pasta de origem (`PdfOutputResolver`: valida nome, recusa mês fechado,
+  nunca sobrescreve — usa "(2)"). `PdfToolsRepositoryImpl` monta o PDF na memória e grava com `CREATE_NEW` no fim;
+  originais só são lidos. O PDF criado é selecionado e aparece na lista.
 - **Atualização automática:** as duas pastas são observadas (`FileRepository.watch`, WatchService) e a tela se
   atualiza quando algo muda no Explorer.
 - Arrastar um PDF (da lista ou do Windows Explorer) para uma categoria, ou selecionar e clicar na categoria, abre a

@@ -37,6 +37,7 @@ fun App() {
                     organizerViewModel = koinInject(),
                     monthFilesViewModel = koinInject(),
                     navigatorViewModel = koinInject(),
+                    pdfToolsViewModel = koinInject(),
                     onOpenSettings = { screen = Screen.SETTINGS },
                 )
                 Screen.SETTINGS -> SettingsScreen(

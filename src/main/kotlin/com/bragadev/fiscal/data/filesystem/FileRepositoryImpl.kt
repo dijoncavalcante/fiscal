@@ -42,6 +42,8 @@ class FileRepositoryImpl(
         Files.list(directory).use { entries -> entries.map { it.fileName.toString() }.toList().toSet() }
     }
 
+    override suspend fun readBytes(file: Path): Outcome<ByteArray> = io { catching { Files.readAllBytes(file) } }
+
     override suspend fun listSubfolders(folder: Path): List<Path> = io {
         if (!Files.isDirectory(folder)) return@io emptyList()
         runCatching {

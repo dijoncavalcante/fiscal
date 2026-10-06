@@ -25,6 +25,9 @@ fun FileOperationError.toUserMessage(): String = when (this) {
     FileOperationError.AlreadyInPlace -> Strings.ALREADY_ORGANIZED
     FileOperationError.DescriptionRequired -> "Escreva a descrição para montar o nome do arquivo."
     FileOperationError.NameRequired -> "Escreva o novo nome do arquivo."
+    FileOperationError.NoInputFiles -> "Adicione os arquivos antes de continuar (para juntar, pelo menos dois PDFs)."
+    FileOperationError.UnsupportedImage -> "Use imagens JPEG ou PNG."
+    FileOperationError.PdfCreationFailed -> "Não foi possível criar o PDF. Verifique se os arquivos não estão corrompidos."
     FileOperationError.InvalidSequenceNumber -> "Número inválido para esta categoria. Use, por exemplo, 3, 3.1 ou 3.2 em Despesas."
     FileOperationError.ReturnFolderIsMonthFolder ->
         "A pasta de origem (à esquerda) é a própria pasta do mês. Escolha outra pasta de origem para receber o arquivo."
