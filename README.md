@@ -12,14 +12,14 @@ Escopo por fases e decisões sobre as regras: [docs/MVP.md](docs/MVP.md).
 ## Requisitos
 
 - Windows 10/11
-- JDK 17+
+- JDK 17+ só para compilar; quem usa o instalador não precisa instalar Java (vem embutido)
 
 ## Comandos
 
 ```bash
 ./gradlew run            # executa o app
 ./gradlew test           # testes unitários
-./gradlew packageMsi     # gera instalador em build/compose/binaries/main/msi
+./gradlew packageMsi     # gera instalador em build/compose/binaries/main/msi (Java embutido; ver docs/DISTRIBUICAO.md)
 ```
 
 ## Como usar
@@ -37,6 +37,8 @@ MANUTENÇÃO), a pasta de origem dos PDFs e o mês em edição. Dá para reabri-
 
 7. Ao terminar o mês, clique em **Concluir mês** (no topo do mês em edição): o FISCAL mostra o que está faltando e as
    pendências e gera um **relatório em PDF** com o que existe em cada categoria (salvo na pasta de origem).
+
+A versão em uso aparece na barra de status (clique para ver **Sobre**: versão, data e pastas de dados).
 
 **Histórico** (barra superior) lista tudo o que foi renomeado ou movido, com busca e **Desfazer** em qualquer operação
 que ainda possa ser desfeita. O **mês de corte** (meses anteriores ficam somente leitura) fica em **Configurações →

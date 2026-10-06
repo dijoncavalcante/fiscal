@@ -1,5 +1,6 @@
 package com.bragadev.fiscal.presentation.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -84,6 +85,8 @@ fun HomeScreen(
     monthClosingViewModel: MonthClosingViewModel,
     onOpenSettings: () -> Unit,
     onOpenHistory: () -> Unit,
+    appVersion: String = "",
+    onOpenAbout: () -> Unit = {},
 ) {
     val pdfTools by pdfToolsViewModel.uiState.collectAsState()
     val navigator by navigatorViewModel.uiState.collectAsState()
@@ -120,7 +123,7 @@ fun HomeScreen(
                 onMergePdfs = { pdfToolsViewModel.onOpenMerge(home.selectedDocument?.path) },
             )
         },
-        bottomBar = { StatusBar(home) },
+        bottomBar = { StatusBar(home, appVersion, onOpenAbout) },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
@@ -310,10 +313,21 @@ private fun PdfMenu(onImagesToPdf: () -> Unit, onMergePdfs: () -> Unit) {
 }
 
 @Composable
-private fun StatusBar(home: HomeUiState) {
+private fun StatusBar(home: HomeUiState, appVersion: String, onOpenAbout: () -> Unit) {
     Surface(tonalElevation = 3.dp) {
-        val text = if (home.isLoading) Strings.LOADING else Strings.statusDocuments(home.documents.size)
-        Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            val text = if (home.isLoading) Strings.LOADING else Strings.statusDocuments(home.documents.size)
+            Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+            // Versão sempre à vista: clicar abre "Sobre".
+            if (appVersion.isNotBlank()) {
+                Text(
+                    Strings.statusVersion(appVersion),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable(onClick = onOpenAbout),
+                )
+            }
+        }
     }
 }
 

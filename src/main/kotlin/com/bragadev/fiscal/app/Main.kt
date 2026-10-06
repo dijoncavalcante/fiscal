@@ -55,7 +55,7 @@ fun main() {
         exitProcess(0)
     }
     AppLog.init(directories.logDirectory)
-    AppLog.info("Iniciando ${AppInfo.NAME} ${AppInfo.VERSION}")
+    AppLog.info("Iniciando ${AppInfo.NAME} ${AppInfo.FULL_VERSION}")
     Thread.setDefaultUncaughtExceptionHandler { _, error -> UnexpectedErrors.report(error) }
 
     DataMaintenanceRepositoryImpl.applyPendingImport(directories)

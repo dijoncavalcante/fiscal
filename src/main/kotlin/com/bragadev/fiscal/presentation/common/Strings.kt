@@ -274,6 +274,25 @@ object Strings {
         "Relatório - ${monthTitle(month)}" + (account?.let { " - $it" } ?: "")
     fun reportCreated(name: String) = "Relatório criado: $name"
 
+    // Sobre
+    const val ABOUT = "Sobre o FISCAL"
+    const val ABOUT_NOTE = "Versão em uso, data da compilação e pastas de dados — útil ao relatar um problema."
+    const val ABOUT_VERSION = "Versão"
+    const val ABOUT_COMMIT = "Código (commit)"
+    const val ABOUT_JAVA = "Java embutido"
+    const val ABOUT_WINDOWS = "Windows"
+    const val ABOUT_DATA_FOLDER = "Dados do app"
+    const val ABOUT_COPY = "Copiar informações"
+    const val ABOUT_COPIED = "Informações copiadas. Cole onde quiser enviar."
+    const val ABOUT_OPEN_DATA = "Abrir pasta de dados"
+    const val ABOUT_OFFLINE = "Funciona sem internet: nenhum documento ou dado sai deste computador."
+
+    fun aboutVersion(version: String) = "Versão $version"
+    fun aboutBuildDate(date: java.time.LocalDate) =
+        "Compilada em %02d/%02d/%d".format(date.dayOfMonth, date.monthValue, date.year)
+    fun aboutCopyright(year: Int) = "© $year BragaDev"
+    fun statusVersion(version: String) = "Versão $version"
+
     // Histórico
     const val HISTORY = "Histórico"
     const val HISTORY_SHORTCUT = "Todas as operações, com Desfazer"

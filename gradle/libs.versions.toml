@@ -7,6 +7,7 @@ koin = "4.1.1"
 pdfbox = "3.0.5"
 sqlite-jdbc = "3.50.3.0"
 junit = "4.13.2"
+jsign = "7.1"
 
 [libraries]
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "material3" }
@@ -19,6 +20,7 @@ pdfbox = { module = "org.apache.pdfbox:pdfbox", version.ref = "pdfbox" }
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
 junit = { module = "junit:junit", version.ref = "junit" }
 kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
+jsign-core = { module = "net.jsign:jsign-core", version.ref = "jsign" }
 
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

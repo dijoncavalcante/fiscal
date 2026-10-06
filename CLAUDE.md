@@ -17,7 +17,7 @@ O usuário conversa em **português (pt-BR)**; UI, comentários do código e men
 ./gradlew run            # abre o app
 ./gradlew test           # testes (JUnit 4 + kotlin-test)
 ./gradlew compileKotlin  # checagem rápida de compilação
-./gradlew packageMsi     # instalador em build/compose/binaries/main/msi
+./gradlew packageMsi     # instalador em build/compose/binaries/main/msi (assina se fiscal.sign.* configurado)
 ```
 
 - JDK 17 (toolchain). Gradle 8.14.3 (wrapper). Kotlin 2.3.0, Compose Multiplatform 1.10.0, Material3 1.10.0-alpha05,
@@ -59,6 +59,7 @@ presentation/
   settings/     Tela de configurações (inclui CutoffMonthSection: mês de corte)
   closing/      "Concluir mês": conferência + relatório PDF (MonthClosingViewModel, MonthClosingDialogHost)
   history/      Tela "Histórico": todas as operações, busca e Desfazer em qualquer uma válida (HistoryViewModel)
+  about/        Tela "Sobre": versão, data da compilação, commit, Java embutido, pastas (AboutInfo montado no AppModule)
 ```
 
 Regras de camada:
@@ -215,6 +216,26 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   monitor; senão centraliza. Primeira vez = maximizada. As configurações são carregadas no `main` antes da janela; se o
   banco falhar, abre com os padrões e mostra "Algo deu errado".
 
+## Distribuição (detalhes em docs/DISTRIBUICAO.md)
+
+- **Versão única** em `version` do `build.gradle.kts` (o usuário definiu 2.0.0). A task `generateBuildInfo` grava
+  `fiscal-build.properties` (versão, data, commit) nos resources; `AppInfo.VERSION/BUILD_DATE/COMMIT/FULL_VERSION`
+  leem dali ("dev" sem o arquivo). Vai para o MSI (`packageVersion`), tela Sobre, log e diagnóstico. Aumentar a cada
+  instalador entregue (formato MSI: números, MAIOR ≤ 255).
+- **MSI**: Java embutido (`modules("java.sql", "jdk.unsupported")`), pasta "FISCAL" no menu Iniciar + atalho na área de
+  trabalho, `upgradeUuid` fixo (atualiza por cima; versão menor é recusada). O app nunca grava na própria pasta
+  (testado), então desinstalar remove tudo; `%APPDATA%\Fiscal` (dados do usuário) é mantido de propósito.
+- **Assinatura**: `signMsi`/`signExe` rodam depois de `packageMsi`/`packageExe` (jsign no classpath do buildscript),
+  com `fiscal.sign.*` do `gradle.properties` do usuário. Sem configuração: aviso e MSI sem assinatura. Certificado
+  autoassinado é recusado (o jsign omite certificados raiz da assinatura → Windows não acha o editor).
+- Para testar a assinatura sem certificado real: CA de teste + certificado emitido por ela, só em arquivos `.p12`
+  (keytool `-gencert`), passados com `-Pfiscal.sign.*` na linha de comando; nunca instalar na loja de certificados
+  do Windows. `Get-AuthenticodeSignature` deve mostrar o assinante e "raiz não confiável".
+- `Fiscal.exe` (launcher do jpackage) abre um processo filho, que é o dono da janela. A pasta do app gerada é
+  somente leitura.
+- **Sobre** (Configurações → Sobre o FISCAL, ou clicar em "Versão x" na barra de status): versão, data, commit, Java
+  embutido, Windows, pasta de dados; copiar informações (diagnóstico) e abrir pastas.
+
 ## Confiabilidade
 
 - **Uma cópia só** (`data/instance/SingleInstance`): trava `%APPDATA%\Fiscal\fiscal.lock`; a segunda cópia grava
@@ -289,3 +310,4 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
 
 - `README.md` — como usar e comandos.
 - `docs/MVP.md` — fases do MVP, regras da pasta do mês e decisões sobre conflitos de regras do prompt original.
+- `docs/DISTRIBUICAO.md` — o que o instalador faz, versão, assinatura de código (certificado) e checklist de entrega.

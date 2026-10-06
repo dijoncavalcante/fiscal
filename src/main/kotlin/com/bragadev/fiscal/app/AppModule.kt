@@ -69,6 +69,7 @@ import com.bragadev.fiscal.presentation.navigator.MonthNavigatorViewModel
 import com.bragadev.fiscal.presentation.organizer.OrganizerViewModel
 import com.bragadev.fiscal.presentation.pdftools.PdfToolsViewModel
 import com.bragadev.fiscal.presentation.preview.PdfPreviewViewModel
+import com.bragadev.fiscal.presentation.about.AboutInfo
 import com.bragadev.fiscal.presentation.closing.MonthClosingViewModel
 import com.bragadev.fiscal.presentation.history.HistoryViewModel
 import com.bragadev.fiscal.presentation.onboarding.OnboardingViewModel
@@ -96,7 +97,19 @@ fun appModule(directories: AppDirectories) = module {
     single<FileFlagRepository> { FileFlagRepositoryImpl(get()) }
     single<PdfToolsRepository> { PdfToolsRepositoryImpl() }
     single<DataMaintenanceRepository> { DataMaintenanceRepositoryImpl(get(), get()) }
-    single<DiagnosticsRepository> { DiagnosticsRepositoryImpl(AppInfo.NAME, AppInfo.VERSION) }
+    single<DiagnosticsRepository> { DiagnosticsRepositoryImpl(AppInfo.NAME, AppInfo.FULL_VERSION) }
+    single {
+        AboutInfo(
+            name = AppInfo.NAME,
+            version = AppInfo.VERSION,
+            buildDate = AppInfo.BUILD_DATE,
+            commit = AppInfo.COMMIT,
+            javaVersion = "${System.getProperty("java.version")} (${System.getProperty("java.vendor")})",
+            windowsVersion = "${System.getProperty("os.name")} ${System.getProperty("os.version")} (${System.getProperty("os.arch")})",
+            dataFolder = directories.dataDirectory,
+            logFolder = directories.logDirectory,
+        )
+    }
 
     // Domain
     factory { ScanDocumentsUseCase(get()) }

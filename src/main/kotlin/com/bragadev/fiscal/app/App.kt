@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.bragadev.fiscal.domain.usecase.CleanOldBackupsUseCase
 import com.bragadev.fiscal.domain.usecase.ObserveSettingsUseCase
+import com.bragadev.fiscal.presentation.about.AboutScreen
 import com.bragadev.fiscal.presentation.common.UnexpectedErrorDialog
 import com.bragadev.fiscal.presentation.history.HistoryScreen
 import com.bragadev.fiscal.presentation.home.HomeScreen
@@ -20,7 +21,7 @@ import com.bragadev.fiscal.presentation.settings.SettingsScreen
 import com.bragadev.fiscal.presentation.theme.FiscalTheme
 import org.koin.compose.koinInject
 
-private enum class Screen { ONBOARDING, HOME, SETTINGS, HISTORY }
+private enum class Screen { ONBOARDING, HOME, SETTINGS, HISTORY, ABOUT }
 
 @Composable
 fun App() {
@@ -28,6 +29,8 @@ fun App() {
     // As configurações já foram carregadas antes de abrir a janela: o assistente só abre sozinho para usuário novo.
     // A decisão é tomada uma vez, para o assistente não sumir no meio quando o usuário escolhe as pastas.
     var screen by remember { mutableStateOf(if (settings.needsOnboarding) Screen.ONBOARDING else Screen.HOME) }
+    // "Sobre" abre da barra de status (volta à tela principal) ou das Configurações (volta para lá).
+    var aboutReturnsTo by remember { mutableStateOf(Screen.HOME) }
 
     // Ao abrir: limpa backups antigos, só se o usuário ligou essa opção nas Configurações.
     val cleanOldBackups = koinInject<CleanOldBackupsUseCase>()
@@ -58,13 +61,17 @@ fun App() {
                     monthClosingViewModel = koinInject(),
                     onOpenSettings = { screen = Screen.SETTINGS },
                     onOpenHistory = { screen = Screen.HISTORY },
+                    appVersion = AppInfo.VERSION,
+                    onOpenAbout = { aboutReturnsTo = Screen.HOME; screen = Screen.ABOUT },
                 )
                 Screen.HISTORY -> HistoryScreen(viewModel = koinInject(), onBack = { screen = Screen.HOME })
+                Screen.ABOUT -> AboutScreen(info = koinInject(), diagnostics = koinInject(), onBack = { screen = aboutReturnsTo })
                 Screen.SETTINGS -> {
                     val onboarding = koinInject<OnboardingViewModel>()
                     SettingsScreen(
                         viewModel = koinInject(),
                         onBack = { screen = Screen.HOME },
+                        onOpenAbout = { aboutReturnsTo = Screen.SETTINGS; screen = Screen.ABOUT },
                         onOpenOnboarding = {
                             onboarding.onStart()
                             screen = Screen.ONBOARDING

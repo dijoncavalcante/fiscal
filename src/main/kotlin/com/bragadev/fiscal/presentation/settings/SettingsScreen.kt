@@ -36,7 +36,7 @@ import com.bragadev.fiscal.presentation.components.pickFolder
 import org.koin.compose.koinInject
 
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit, onOpenOnboarding: () -> Unit) {
+fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit, onOpenOnboarding: () -> Unit, onOpenAbout: () -> Unit = {}) {
     val state by viewModel.uiState.collectAsState()
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
@@ -56,6 +56,12 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit, onOpenOnboa
             DuplicatesSection(state.duplicatePolicy, viewModel::onDuplicatePolicyChanged)
             ConfirmationSection(state, viewModel)
             Section(Strings.DATA_SECTION) { DataSafetySection(koinInject()) }
+            Section(Strings.ABOUT) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(Strings.ABOUT_NOTE, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    OutlinedButton(onClick = onOpenAbout, modifier = Modifier.padding(start = 12.dp)) { Text(Strings.ABOUT) }
+                }
+            }
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
     }
