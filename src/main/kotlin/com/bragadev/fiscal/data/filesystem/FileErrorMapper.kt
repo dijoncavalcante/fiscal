@@ -1,5 +1,6 @@
 package com.bragadev.fiscal.data.filesystem
 
+import com.bragadev.fiscal.data.logging.AppLog
 import com.bragadev.fiscal.domain.model.FileOperationError
 import java.io.IOException
 import java.nio.file.AccessDeniedException
@@ -12,9 +13,18 @@ import java.nio.file.NoSuchFileException
 object FileErrorMapper {
     private val lockedFileHints = listOf("another process", "outro processo", "being used", "sendo usado")
 
-    fun map(error: Throwable): FileOperationError = when (error) {
+    fun map(error: Throwable): FileOperationError = classify(error).also { mapped ->
+        if (mapped is FileOperationError.Unknown) {
+            AppLog.error("Erro inesperado em operação de arquivo", error)
+        } else {
+            AppLog.warn("Operação de arquivo recusada (${mapped::class.simpleName}): ${error.message}")
+        }
+    }
+
+    private fun classify(error: Throwable): FileOperationError = when (error) {
         is NoSuchFileException -> FileOperationError.FileNotFound
         is FileAlreadyExistsException -> FileOperationError.DestinationAlreadyExists
+        is CopyVerificationException -> FileOperationError.CopyVerificationFailed
         is AccessDeniedException -> FileOperationError.PermissionDenied
         is FileSystemException -> if (isLocked(error)) FileOperationError.FileLocked else FileOperationError.MoveError
         is InvalidPathException -> FileOperationError.InvalidFileName

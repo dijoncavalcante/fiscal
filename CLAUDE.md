@@ -159,7 +159,26 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
 - **Renomear** mantém na pasta atual; **Renomear e Mover** leva para a pasta do mês. A proposta (com destino) é sempre
   mostrada; as opções "Confirmar antes de mover/renomear" só controlam o passo extra "Confirmar operação?".
 
-## Dados locais
+## Confiabilidade
+
+- **Uma cópia só** (`data/instance/SingleInstance`): trava `%APPDATA%iscaliscal.lock`; a segunda cópia grava
+  `abrir-janela.sinal` e fecha; a primeira (watchservice) traz a janela para a frente. o log só é iniciado depois da trava.
+- **log** (`data/logging/applog`): `%appdata%iscalogsiscal-n.log` (5 × 1 mb, `java.util.logging`). registra
+  início/fim, movimentações (`safefilemover`), erros de arquivo (`fileerrormapper`) e erros inesperados.
+- **erros inesperados**: `unexpectederrors.report` (de `coroutineexceptionhandler` do `viewmodel`, do
+  `localwindowexceptionhandlerfactory` e do `thread.setdefaultuncaughtexceptionhandler`) abre `unexpectederrordialog`
+  ("algo deu errado" + copiar diagnóstico / abrir pasta de logs). `diagnosticsrepositoryimpl` monta o texto (versão
+  `appinfo`, sistema, erro, final do log). nada é enviado.
+- **mover entre unidades** (`safefilemover`): mesma unidade = `files.move`; unidades diferentes = copia para
+  `~fiscal-<uuid>.parcial` no destino, `force`, confere tamanho + sha-256, renomeia e só então apaga o original; se não
+  conseguir apagar o original, desfaz a cópia. erro de verificação = `copyverificationfailed`.
+- **backups** (configurações → dados e segurança, `datasafetyviewmodel`): limpeza automática ao abrir **só se o usuário
+  ligar** (`auto_clean_backups`, `backup_retention_days` 30/90/180/365) e "apagar agora…" com confirmação.
+- **exportar/importar dados**: exporta com `vacuum into` (nunca sobrescreve); importar confere se é banco do fiscal,
+  guarda como `fiscal-importado.db` e `datamaintenancerepositoryimpl.applypendingimport` (no `main`, antes de abrir o
+  banco) guarda o atual como `fiscal-antes-da-importacao-<data>.db` e coloca o importado no lugar.
+
+## dados locais
 
 - `%APPDATA%\Fiscal\fiscal.db` (SQLite) e `%APPDATA%\Fiscal\backup\`.
 - Tabelas: `documents`, `categories` (+ `file_base_name`, `optional`), `file_operations` (+ `backup_path`, `undone`), `settings`,

@@ -9,6 +9,8 @@ import com.bragadev.fiscal.data.database.FileOperationDao
 import com.bragadev.fiscal.data.database.SettingsDao
 import com.bragadev.fiscal.data.filesystem.BackupStorageImpl
 import com.bragadev.fiscal.data.filesystem.FileRepositoryImpl
+import com.bragadev.fiscal.data.logging.DiagnosticsRepositoryImpl
+import com.bragadev.fiscal.data.maintenance.DataMaintenanceRepositoryImpl
 import com.bragadev.fiscal.data.pdf.PdfRepositoryImpl
 import com.bragadev.fiscal.data.pdf.PdfToolsRepositoryImpl
 import com.bragadev.fiscal.data.repository.CategoryRepositoryImpl
@@ -18,6 +20,8 @@ import com.bragadev.fiscal.data.repository.OperationHistoryRepositoryImpl
 import com.bragadev.fiscal.data.settings.SettingsRepositoryImpl
 import com.bragadev.fiscal.domain.repository.BackupStorage
 import com.bragadev.fiscal.domain.repository.CategoryRepository
+import com.bragadev.fiscal.domain.repository.DataMaintenanceRepository
+import com.bragadev.fiscal.domain.repository.DiagnosticsRepository
 import com.bragadev.fiscal.domain.repository.DocumentRepository
 import com.bragadev.fiscal.domain.repository.FileFlagRepository
 import com.bragadev.fiscal.domain.repository.FileRepository
@@ -30,9 +34,12 @@ import com.bragadev.fiscal.domain.usecase.BrowseMonthFoldersUseCase
 import com.bragadev.fiscal.domain.usecase.ChangeMonthFolderUseCase
 import com.bragadev.fiscal.domain.usecase.ChangeMonthsRootUseCase
 import com.bragadev.fiscal.domain.usecase.ChangeSourceFolderUseCase
+import com.bragadev.fiscal.domain.usecase.CleanOldBackupsUseCase
 import com.bragadev.fiscal.domain.usecase.CreatePdfFromImagesUseCase
 import com.bragadev.fiscal.domain.usecase.DescribeMonthFolderUseCase
+import com.bragadev.fiscal.domain.usecase.ExportDataUseCase
 import com.bragadev.fiscal.domain.usecase.FileFlagUseCase
+import com.bragadev.fiscal.domain.usecase.GetBackupStatsUseCase
 import com.bragadev.fiscal.domain.usecase.GetCategoryTreeUseCase
 import com.bragadev.fiscal.domain.usecase.GetMonthChecklistUseCase
 import com.bragadev.fiscal.domain.usecase.ObserveSettingsUseCase
@@ -45,6 +52,7 @@ import com.bragadev.fiscal.domain.usecase.ReadImageUseCase
 import com.bragadev.fiscal.domain.usecase.RecordedFileMover
 import com.bragadev.fiscal.domain.usecase.RemoveFromMonthUseCase
 import com.bragadev.fiscal.domain.usecase.ResolveMonthsRootUseCase
+import com.bragadev.fiscal.domain.usecase.ImportDataUseCase
 import com.bragadev.fiscal.domain.usecase.LoadInitialFoldersUseCase
 import com.bragadev.fiscal.domain.usecase.MergePdfsUseCase
 import com.bragadev.fiscal.domain.usecase.ScanDocumentsUseCase
@@ -58,6 +66,7 @@ import com.bragadev.fiscal.presentation.navigator.MonthNavigatorViewModel
 import com.bragadev.fiscal.presentation.organizer.OrganizerViewModel
 import com.bragadev.fiscal.presentation.pdftools.PdfToolsViewModel
 import com.bragadev.fiscal.presentation.preview.PdfPreviewViewModel
+import com.bragadev.fiscal.presentation.settings.DataSafetyViewModel
 import com.bragadev.fiscal.presentation.settings.SettingsViewModel
 import org.koin.dsl.module
 
@@ -80,6 +89,8 @@ fun appModule(directories: AppDirectories) = module {
     single<SettingsRepository> { SettingsRepositoryImpl(get()) }
     single<FileFlagRepository> { FileFlagRepositoryImpl(get()) }
     single<PdfToolsRepository> { PdfToolsRepositoryImpl() }
+    single<DataMaintenanceRepository> { DataMaintenanceRepositoryImpl(get(), get()) }
+    single<DiagnosticsRepository> { DiagnosticsRepositoryImpl(AppInfo.NAME, AppInfo.VERSION) }
 
     // Domain
     factory { ScanDocumentsUseCase(get()) }
@@ -107,6 +118,10 @@ fun appModule(directories: AppDirectories) = module {
     factory { CreatePdfFromImagesUseCase(get(), get(), get()) }
     factory { MergePdfsUseCase(get(), get(), get()) }
     factory { ReadImageUseCase(get()) }
+    factory { GetBackupStatsUseCase(get()) }
+    factory { CleanOldBackupsUseCase(get(), get()) }
+    factory { ExportDataUseCase(get()) }
+    factory { ImportDataUseCase(get()) }
     factory { PreviewPdfUseCase(get()) }
 
     // Presentation
@@ -118,4 +133,5 @@ fun appModule(directories: AppDirectories) = module {
     single { MonthNavigatorViewModel(get(), get(), get(), get(), get(), get()) }
     single { PdfToolsViewModel(get(), get(), get(), get()) }
     single { SettingsViewModel(get(), get(), get(), get(), get()) }
+    single { DataSafetyViewModel(get(), get(), get(), get(), get(), get(), get()) }
 }

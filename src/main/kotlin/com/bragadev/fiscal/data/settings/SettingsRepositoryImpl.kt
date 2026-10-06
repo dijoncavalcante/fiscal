@@ -32,6 +32,8 @@ class SettingsRepositoryImpl(
             documentSort = values[Keys.DOCUMENT_SORT]
                 ?.let { runCatching { DocumentSort.valueOf(it) }.getOrNull() }
                 ?: defaults.documentSort,
+            autoCleanBackups = values[Keys.AUTO_CLEAN_BACKUPS]?.toBooleanStrictOrNull() ?: defaults.autoCleanBackups,
+            backupRetentionDays = values[Keys.BACKUP_RETENTION_DAYS]?.toIntOrNull() ?: defaults.backupRetentionDays,
         )
         state.value = loaded
         return loaded
@@ -48,6 +50,8 @@ class SettingsRepositoryImpl(
                 Keys.CONFIRM_MOVE to settings.confirmBeforeMove.toString(),
                 Keys.CONFIRM_RENAME to settings.confirmBeforeRename.toString(),
                 Keys.DOCUMENT_SORT to settings.documentSort.name,
+                Keys.AUTO_CLEAN_BACKUPS to settings.autoCleanBackups.toString(),
+                Keys.BACKUP_RETENTION_DAYS to settings.backupRetentionDays.toString(),
             ),
         )
         state.value = settings
@@ -62,6 +66,8 @@ class SettingsRepositoryImpl(
         const val CONFIRM_MOVE = "confirm_before_move"
         const val CONFIRM_RENAME = "confirm_before_rename"
         const val DOCUMENT_SORT = "document_sort"
+        const val AUTO_CLEAN_BACKUPS = "auto_clean_backups"
+        const val BACKUP_RETENTION_DAYS = "backup_retention_days"
     }
 
     companion object {

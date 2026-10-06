@@ -28,6 +28,7 @@ import com.bragadev.fiscal.domain.model.DuplicatePolicy
 import com.bragadev.fiscal.presentation.common.Strings
 import com.bragadev.fiscal.presentation.components.FolderPathField
 import com.bragadev.fiscal.presentation.components.pickFolder
+import org.koin.compose.koinInject
 
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
@@ -43,6 +44,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
             Section(Strings.SETTINGS_LOCK_SECTION) { Text(Strings.lockedHint(state.firstEditableMonth)) }
             DuplicatesSection(state.duplicatePolicy, viewModel::onDuplicatePolicyChanged)
             ConfirmationSection(state, viewModel)
+            Section(Strings.DATA_SECTION) { DataSafetySection(koinInject()) }
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
     }

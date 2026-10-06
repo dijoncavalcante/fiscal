@@ -27,6 +27,9 @@ fun FileOperationError.toUserMessage(): String = when (this) {
     FileOperationError.NameRequired -> "Escreva o novo nome do arquivo."
     FileOperationError.NoInputFiles -> "Adicione os arquivos antes de continuar (para juntar, pelo menos dois PDFs)."
     FileOperationError.UnsupportedImage -> "Use imagens JPEG ou PNG."
+    FileOperationError.InvalidBackupFile -> "Este arquivo não é uma cópia de segurança do FISCAL."
+    FileOperationError.CopyVerificationFailed ->
+        "A cópia para o destino não ficou idêntica ao original, então nada foi alterado. Verifique o pendrive e tente de novo."
     FileOperationError.PdfCreationFailed -> "Não foi possível criar o PDF. Verifique se os arquivos não estão corrompidos."
     FileOperationError.InvalidSequenceNumber -> "Número inválido para esta categoria. Use, por exemplo, 3, 3.1 ou 3.2 em Despesas."
     FileOperationError.ReturnFolderIsMonthFolder ->

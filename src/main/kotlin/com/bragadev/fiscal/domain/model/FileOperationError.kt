@@ -24,6 +24,8 @@ sealed class FileOperationError {
     data object NoInputFiles : FileOperationError()
     data object UnsupportedImage : FileOperationError()
     data object PdfCreationFailed : FileOperationError()
+    data object CopyVerificationFailed : FileOperationError()
+    data object InvalidBackupFile : FileOperationError()
     data object ReturnFolderIsMonthFolder : FileOperationError()
     data object ReadError : FileOperationError()
     data object MoveError : FileOperationError()

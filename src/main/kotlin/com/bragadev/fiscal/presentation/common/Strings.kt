@@ -208,6 +208,45 @@ object Strings {
     fun pdfCreated(name: String) = "✓ PDF criado: $name"
     fun pageCountLabel(count: Int) = if (count == 1) "1 arquivo" else "$count arquivos"
 
+    // Erros inesperados e dados
+    const val UNEXPECTED_ERROR_TITLE = "Algo deu errado"
+    const val UNEXPECTED_ERROR_BODY =
+        "O FISCAL encontrou um problema inesperado. Nenhum arquivo é apagado por causa de um erro; confira o " +
+            "mês em edição antes de continuar. Se o problema se repetir, clique em \"Copiar diagnóstico\" e envie o texto."
+    const val COPY_DIAGNOSTICS = "Copiar diagnóstico"
+    const val DIAGNOSTICS_COPIED = "✓ Diagnóstico copiado. Cole onde quiser enviar."
+    const val OPEN_LOG_FOLDER = "Abrir pasta de logs"
+    const val DATA_SECTION = "Dados e segurança"
+    const val BACKUPS_TITLE = "Arquivos substituídos (backup)"
+    const val BACKUPS_EXPLANATION =
+        "Ao escolher \"Substituir\", o arquivo antigo é guardado para o \"Desfazer\" funcionar. Eles ficam em %APPDATA%\\Fiscal\\backup."
+    const val AUTO_CLEAN = "Apagar automaticamente, ao abrir o app, backups com mais de"
+    const val DAYS = "dias"
+    const val CLEAN_NOW = "Apagar backups antigos agora…"
+    const val CLEAN_CONFIRM_TITLE = "Apagar backups antigos?"
+    const val EXPORT_IMPORT_TITLE = "Cópia de segurança dos dados"
+    const val EXPORT_IMPORT_EXPLANATION =
+        "Guarda configurações, histórico e pendências num arquivo, para levar a outro computador. Os PDFs não entram na cópia."
+    const val EXPORT_DATA = "Exportar dados…"
+    const val IMPORT_DATA = "Importar dados…"
+    const val EXPORT_PICKER_TITLE = "Onde salvar a cópia de segurança"
+    const val IMPORT_PICKER_TITLE = "Escolha a cópia de segurança do FISCAL"
+    const val BACKUP_FILE_FILTER = "Cópia de segurança do FISCAL (.db)"
+    const val IMPORT_CONFIRM_TITLE = "Importar dados?"
+    const val IMPORT_CONFIRM_BODY =
+        "As configurações, o histórico e as pendências atuais serão substituídos pelos da cópia ao reabrir o app. " +
+            "Os dados atuais ficam guardados em %APPDATA%\\Fiscal como \"fiscal-antes-da-importacao\". Os PDFs não são alterados."
+    const val IMPORT_READY = "✓ Cópia pronta. Feche e abra o FISCAL para concluir a importação."
+    const val DIAGNOSTICS_TITLE = "Diagnóstico"
+    const val DIAGNOSTICS_EXPLANATION = "Use se algo não funcionar: copia versão, sistema e o final do log, sem enviar nada."
+
+    fun backupStats(count: Int, bytes: Long) = "$count arquivo(s), ${"%.1f".format(bytes / 1_048_576.0)} MB"
+    fun cleanConfirmBody(days: Int) =
+        "Os arquivos substituídos há mais de $days dias serão apagados de vez, e substituições antigas não poderão mais ser desfeitas."
+    fun backupsCleaned(count: Int) = "✓ $count backup(s) antigo(s) apagado(s)."
+    fun dataExported(name: String) = "✓ Dados exportados para $name"
+    fun exportFileName(date: String) = "fiscal-dados-$date.db"
+
     // Resultado
     const val ORGANIZED = "✓ Documento organizado."
     const val UNDONE = "✓ Operação desfeita."

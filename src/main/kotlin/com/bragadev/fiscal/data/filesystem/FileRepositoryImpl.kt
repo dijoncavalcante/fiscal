@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit
 
 class FileRepositoryImpl(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val mover: SafeFileMover = SafeFileMover(),
 ) : FileRepository {
 
     override suspend fun exists(path: Path): Boolean = io { Files.exists(path) }
@@ -74,12 +75,7 @@ class FileRepositoryImpl(
     }
 
     override suspend fun move(source: Path, target: Path): Outcome<Unit> = io {
-        catching {
-            target.parent?.let(Files::createDirectories)
-            // Sem REPLACE_EXISTING: o NIO falha se o destino existir, impedindo sobrescrita.
-            Files.move(source, target)
-            Unit
-        }
+        catching { mover.move(source, target) }
     }
 
     override fun watch(folder: Path): Flow<Unit> = callbackFlow {

@@ -13,7 +13,15 @@ data class AppSettings(
     val confirmBeforeMove: Boolean = true,
     val confirmBeforeRename: Boolean = true,
     val documentSort: DocumentSort = DocumentSort.MODIFIED_NEWEST_FIRST,
-)
+    /** Apagar sozinho os backups de arquivos substituídos mais antigos que [backupRetentionDays]. Desligado por padrão. */
+    val autoCleanBackups: Boolean = false,
+    val backupRetentionDays: Int = DEFAULT_BACKUP_RETENTION_DAYS,
+) {
+    companion object {
+        const val DEFAULT_BACKUP_RETENTION_DAYS = 90
+        val BACKUP_RETENTION_OPTIONS = listOf(30, 90, 180, 365)
+    }
+}
 
 /** Ordem da lista de documentos (lado esquerdo). */
 enum class DocumentSort {

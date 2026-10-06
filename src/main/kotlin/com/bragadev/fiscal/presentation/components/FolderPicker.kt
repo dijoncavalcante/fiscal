@@ -27,3 +27,16 @@ fun pickFiles(title: String, initial: Path?, filterDescription: String, extensio
     if (chooser.showOpenDialog(null) != JFileChooser.APPROVE_OPTION) return emptyList()
     return chooser.selectedFiles.map { it.toPath() }
 }
+
+/** Abre a janela "Salvar como" nativa. Retorna `null` se o usuário cancelar. Nunca sobrescreve: arquivos existentes são recusados por quem salva. */
+fun pickSaveFile(title: String, initialFolder: Path?, suggestedName: String, filterDescription: String, extension: String): Path? {
+    val chooser = JFileChooser().apply {
+        dialogTitle = title
+        fileFilter = FileNameExtensionFilter(filterDescription, extension)
+        initialFolder?.toFile()?.takeIf { it.exists() }?.let { currentDirectory = it }
+        selectedFile = java.io.File(currentDirectory, suggestedName)
+    }
+    if (chooser.showSaveDialog(null) != JFileChooser.APPROVE_OPTION) return null
+    val chosen = chooser.selectedFile.toPath()
+    return if (chosen.fileName.toString().endsWith(".$extension", ignoreCase = true)) chosen else chosen.resolveSibling("${chosen.fileName}.$extension")
+}
