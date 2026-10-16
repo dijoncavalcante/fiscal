@@ -25,4 +25,7 @@ data class FileOperation(
 enum class OperationType {
     RENAME,
     MOVE,
+
+    /** Excluído pelo usuário: o arquivo foi para a lixeira do FISCAL ([FileOperation.newPath]) e pode voltar com Desfazer. */
+    DELETE,
 }

@@ -2,6 +2,7 @@ package com.bragadev.fiscal.data.maintenance
 
 import com.bragadev.fiscal.data.AppDirectories
 import com.bragadev.fiscal.data.database.Database
+import com.bragadev.fiscal.data.filesystem.BackupStorageImpl
 import com.bragadev.fiscal.data.filesystem.FileErrorMapper
 import com.bragadev.fiscal.data.logging.AppLog
 import com.bragadev.fiscal.domain.model.BackupStats
@@ -18,6 +19,7 @@ import java.nio.file.StandardCopyOption
 import java.sql.DriverManager
 import java.time.Instant
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
@@ -34,7 +36,7 @@ class DataMaintenanceRepositoryImpl(
 
     override suspend fun deleteBackupsOlderThan(days: Int): Int = withContext(ioDispatcher) {
         val limit = Instant.now().minus(days.toLong(), ChronoUnit.DAYS)
-        val old = backupFiles().filter { runCatching { Files.getLastModifiedTime(it).toInstant() < limit }.getOrDefault(false) }
+        val old = backupFiles().filter { storedAt(it)?.let { stored -> stored < limit } ?: false }
         val deleted = old.count { runCatching { Files.delete(it) }.isSuccess }
         AppLog.info("Limpeza de backups com mais de $days dias: $deleted de ${old.size} apagados")
         deleted
@@ -65,10 +67,21 @@ class DataMaintenanceRepositoryImpl(
         }
     }
 
+    /** Arquivos substituídos (backup) e excluídos (lixeira): os dois só existem para o Desfazer. */
     private fun backupFiles(): List<Path> {
-        val folder = directories.backupDirectory
-        if (!Files.isDirectory(folder)) return emptyList()
-        return Files.list(folder).use { entries -> entries.filter { Files.isRegularFile(it) }.toList() }
+        return listOf(directories.backupDirectory, directories.trashDirectory).filter { Files.isDirectory(it) }.flatMap { folder ->
+            Files.list(folder).use { entries -> entries.filter { Files.isRegularFile(it) }.toList() }
+        }
+    }
+
+    /**
+     * Quando o arquivo foi guardado: pela data no começo do nome ("20261016-143000-..."). A data de modificação
+     * não serve, porque mover mantém a do arquivo original (um PDF antigo excluído hoje seria apagado na hora).
+     */
+    private fun storedAt(file: Path): Instant? {
+        val stamp = file.fileName.toString().take(STAMP_LENGTH)
+        return runCatching { LocalDateTime.parse(stamp, BackupStorageImpl.TIMESTAMP_FORMAT).atZone(ZoneId.systemDefault()).toInstant() }
+            .getOrElse { runCatching { Files.getLastModifiedTime(file).toInstant() }.getOrNull() }
     }
 
     private fun isFiscalDatabase(file: Path): Boolean = runCatching {
@@ -84,6 +97,7 @@ class DataMaintenanceRepositoryImpl(
     }.getOrDefault(false)
 
     companion object {
+        private const val STAMP_LENGTH = 15
         private val REQUIRED_TABLES = setOf("settings", "categories", "file_operations")
         private val stamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
 

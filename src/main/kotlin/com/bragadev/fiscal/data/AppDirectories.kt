@@ -3,10 +3,13 @@ package com.bragadev.fiscal.data
 import java.nio.file.Files
 import java.nio.file.Path
 
-/** Pastas e arquivos locais da aplicação (banco, backups, logs, controle de instância). Nada sai desta máquina. */
+/** Pastas e arquivos locais da aplicação (banco, backups, lixeira, logs, controle de instância). Nada sai desta máquina. */
 class AppDirectories(val dataDirectory: Path = defaultDataDirectory()) {
     val databaseFile: Path get() = dataDirectory.resolve(DATABASE_FILE_NAME)
     val backupDirectory: Path get() = dataDirectory.resolve(BACKUP_FOLDER_NAME)
+
+    /** Lixeira do FISCAL: os arquivos excluídos pelo app ficam aqui até o Desfazer ou a limpeza. */
+    val trashDirectory: Path get() = dataDirectory.resolve(TRASH_FOLDER_NAME)
     val logDirectory: Path get() = dataDirectory.resolve(LOG_FOLDER_NAME)
 
     /** Banco importado aguardando a próxima abertura do app para substituir o atual. */
@@ -17,6 +20,7 @@ class AppDirectories(val dataDirectory: Path = defaultDataDirectory()) {
     fun ensureCreated() {
         Files.createDirectories(dataDirectory)
         Files.createDirectories(backupDirectory)
+        Files.createDirectories(trashDirectory)
         Files.createDirectories(logDirectory)
     }
 
@@ -24,6 +28,7 @@ class AppDirectories(val dataDirectory: Path = defaultDataDirectory()) {
         private const val APP_FOLDER_NAME = "Fiscal"
         private const val DATABASE_FILE_NAME = "fiscal.db"
         private const val BACKUP_FOLDER_NAME = "backup"
+        private const val TRASH_FOLDER_NAME = "lixeira"
         private const val LOG_FOLDER_NAME = "logs"
         private const val PENDING_IMPORT_FILE_NAME = "fiscal-importado.db"
         private const val LOCK_FILE_NAME = "fiscal.lock"

@@ -54,6 +54,7 @@ presentation/
   preview/      Preview do PDF (zoom, páginas, ajustar)
   organizer/    Lado direito: mês em edição, árvore de categorias, diálogos de organizar
   monthfiles/   Ações sobre arquivos já no mês: renomear, retirar do mês, marcar pendência (MonthFilesViewModel)
+  documentactions/ Botão direito na lista de documentos: renomear, copiar, excluir para a lixeira (DocumentActionsViewModel)
   navigator/    Seletor de mês: pasta raiz das contas → conta → ano de serviço → trimestre → mês (MonthNavigatorViewModel)
   pdftools/     Menu "PDF": converter JPEG/PNG em PDF e juntar PDFs (PdfToolsViewModel, PdfToolsDialog)
   settings/     Tela de configurações (inclui CutoffMonthSection: mês de corte)
@@ -78,6 +79,15 @@ Regras de camada:
   imagens JPEG/PNG (ícone de imagem, `Document.isImage`, `FileRepository.listDocuments`) da
   própria pasta (sem subpastas; ignora `._*.pdf` do macOS), com busca por nome e ordem "Mais recentes" (padrão, como
   "Data de modificação" do Explorer) ou "Nome" (salva em `document_sort`). Itens podem ser arrastados.
+  **Botão direito** (ou o ⋮, visível com o mouse em cima ou no selecionado) → Renomear / Copiar / Excluir
+  (`DocumentActionsViewModel`, pacote `presentation/documentactions/`); com a lista focada, F2 / Ctrl+C / Delete
+  (`handleDocumentKey`, só para documento desta lista — não para um arquivo do mês aberto no preview).
+  Renomear (`RenameDocumentUseCase`) fica na pasta, **mantém a extensão** (`FileNameRules.keepingExtension`) e nunca
+  substitui. Copiar põe o arquivo na área de transferência como o Explorer (`DesktopActions.copyFilesToClipboard`,
+  `javaFileListFlavor`): cola em pasta, WhatsApp, e-mail. **Excluir nunca apaga** (`DeleteDocumentUseCase`): move para
+  a lixeira do FISCAL (`%APPDATA%\Fiscal\lixeira`, `BackupStorage.newTrashPath`), grava `OperationType.DELETE` e o
+  Desfazer devolve (a Lixeira do Windows não serve: em pendrive ela apaga de vez). Depois de excluir, a seleção vai
+  para o vizinho (`HomeViewModel.selectionAfterRemoving`, calculado antes, porque o WatchService pode atualizar antes).
 - **Centro — preview** (PDFBox; imagens via `ImageThumbnail`). O PDF é lido para memória: o arquivo nunca fica bloqueado nem é alterado.
 - **Direita — mês em edição:** mês em destaque ("Junho de 2026" + "Liberado para edição" / cadeado "Somente leitura"), conta detectada,
   caminho completo **somente leitura** (texto copiável, pasta do mês em negrito) e lápis para trocar. Abaixo, grupos
@@ -169,7 +179,8 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   `%APPDATA%\Fiscal\backup` e o Desfazer restaura os dois. Nomes comparados sem diferenciar maiúsculas (Windows).
 - **Histórico:** toda movimentação/renomeação passa por `RecordedFileMover` (grava `file_operations` e leva a
   pendência junto). Organizar (`OrganizeDocumentUseCase`), renomear (`PlanRenameUseCase` / `PlanOrganizationUseCase`
-  com descrição) e retirar do mês (`RemoveFromMonthUseCase`) usam o mesmo caminho e podem ser desfeitos.
+  com descrição), retirar do mês (`RemoveFromMonthUseCase`) e renomear/excluir da lista de documentos
+  (`RenameDocumentUseCase`, `DeleteDocumentUseCase`) usam o mesmo caminho e podem ser desfeitos.
 - **Desfazer (`UndoOperationUseCase`):** valida antes (operação existe, não desfeita, arquivo no destino, origem livre,
   backup presente, meses liberados); nada é alterado se não for seguro.
 - **Renomear** mantém na pasta atual; **Renomear e Mover** leva para a pasta do mês. A proposta (com destino) é sempre
@@ -250,14 +261,16 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   `~fiscal-<uuid>.parcial` no destino, `force`, confere tamanho + SHA-256, renomeia e só então apaga o original; se não
   conseguir apagar o original, desfaz a cópia. Erro de verificação = `CopyVerificationFailed`.
 - **Backups** (Configurações → Dados e segurança, `DataSafetyViewModel`): limpeza automática ao abrir **só se o usuário
-  ligar** (`auto_clean_backups`, `backup_retention_days` 30/90/180/365) e "Apagar agora…" com confirmação.
+  ligar** (`auto_clean_backups`, `backup_retention_days` 30/90/180/365) e "Apagar agora…" com confirmação. Vale para
+  `backup\` e `lixeira\`; a idade vem da data no começo do nome (`yyyyMMdd-HHmmss-…`, `BackupStorageImpl`), não da
+  data de modificação (mover mantém a do PDF original).
 - **Exportar/importar dados:** exporta com `VACUUM INTO` (nunca sobrescreve); importar confere se é banco do FISCAL,
   guarda como `fiscal-importado.db` e `DataMaintenanceRepositoryImpl.applyPendingImport` (no `main`, antes de abrir o
   banco) guarda o atual como `fiscal-antes-da-importacao-<data>.db` e coloca o importado no lugar.
 
 ## Dados locais
 
-- `%APPDATA%\Fiscal\fiscal.db` (SQLite) e `%APPDATA%\Fiscal\backup\`.
+- `%APPDATA%\Fiscal\fiscal.db` (SQLite), `%APPDATA%\Fiscal\backup\` e `%APPDATA%\Fiscal\lixeira\` (excluídos).
 - Tabelas: `documents`, `categories` (+ `file_base_name`, `optional`), `file_operations` (+ `backup_path`, `undone`), `settings`,
   `file_flags` (pendências por pasta + nome, em minúsculas).
 - Colunas novas: adicionar em `Schema.statements` **e** em `Schema.addedColumns` (migração por `ALTER TABLE` se faltar).

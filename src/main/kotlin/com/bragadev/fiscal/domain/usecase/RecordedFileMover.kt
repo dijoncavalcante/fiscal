@@ -13,7 +13,8 @@ import java.util.UUID
 
 /**
  * Move ou renomeia um arquivo e registra a operação no histórico, para que possa ser desfeita.
- * Usado por organizar, renomear e retirar do mês. A pendência do arquivo acompanha o novo caminho.
+ * Usado por organizar, renomear, retirar do mês e excluir (para a lixeira do FISCAL).
+ * A pendência do arquivo acompanha o novo caminho.
  */
 class RecordedFileMover(
     private val fileRepository: FileRepository,
@@ -23,13 +24,20 @@ class RecordedFileMover(
     private val now: () -> LocalDateTime = LocalDateTime::now,
     private val newId: () -> UUID = UUID::randomUUID,
 ) {
-    suspend fun move(source: Path, target: Path, categoryId: String?, backupPath: Path? = null): Outcome<FileOperation> {
+    /** @param type tipo gravado no histórico; sem ele, mesma pasta = renomear e pasta diferente = mover. */
+    suspend fun move(
+        source: Path,
+        target: Path,
+        categoryId: String?,
+        backupPath: Path? = null,
+        type: OperationType? = null,
+    ): Outcome<FileOperation> {
         val moved = fileRepository.move(source, target)
         if (moved is Outcome.Failure) return moved
 
         val operation = FileOperation(
             id = newId(),
-            type = if (source.parent.normalize() == target.parent.normalize()) OperationType.RENAME else OperationType.MOVE,
+            type = type ?: if (source.parent.normalize() == target.parent.normalize()) OperationType.RENAME else OperationType.MOVE,
             originalPath = source.toString(),
             originalName = source.fileName.toString(),
             newPath = target.toString(),

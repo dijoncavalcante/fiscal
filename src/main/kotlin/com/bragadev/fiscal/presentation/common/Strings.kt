@@ -159,6 +159,21 @@ object Strings {
     const val PREVIEW_FILE = "Ver no preview"
     const val FILE_RENAMED = "Arquivo renomeado."
     const val FILE_REMOVED = "Arquivo retirado do mês."
+
+    // Ações na lista de documentos (botão direito)
+    const val FOLDER = "Pasta:"
+    const val COPY_FILE = "Copiar"
+    const val DELETE_FILE = "Excluir"
+    const val SHORTCUT_RENAME = "F2"
+    const val SHORTCUT_COPY = "Ctrl+C"
+    const val SHORTCUT_DELETE = "Delete"
+    const val FILE_COPIED = "Arquivo copiado. Cole com Ctrl+V numa pasta, no WhatsApp ou no e-mail."
+    const val FILE_COPY_FAILED = "Não foi possível copiar. Tente de novo."
+    const val DELETE_FILE_TITLE = "Excluir arquivo?"
+    const val DELETE_EXPLANATION =
+        "O arquivo sai desta pasta e fica guardado na lixeira do FISCAL. Se mudar de ideia, use \"Desfazer\" (aqui ou no Histórico)."
+    const val FILE_DELETED = "Arquivo excluído (guardado na lixeira do FISCAL)."
+    fun nameWithExtension(extension: String) = "A extensão \"$extension\" é mantida."
     const val ISSUE_MARKED = "Pendência marcada."
     const val ISSUE_CLEARED = "Pendência removida."
 
@@ -216,10 +231,11 @@ object Strings {
     const val DIAGNOSTICS_COPIED = "Diagnóstico copiado. Cole onde quiser enviar."
     const val OPEN_LOG_FOLDER = "Abrir pasta de logs"
     const val DATA_SECTION = "Dados e segurança"
-    const val BACKUPS_TITLE = "Arquivos substituídos (backup)"
+    const val BACKUPS_TITLE = "Arquivos substituídos e excluídos"
     const val BACKUPS_EXPLANATION =
-        "Ao escolher \"Substituir\", o arquivo antigo é guardado para o \"Desfazer\" funcionar. Eles ficam em %APPDATA%\\Fiscal\\backup."
-    const val AUTO_CLEAN = "Apagar automaticamente, ao abrir o app, backups com mais de"
+        "Ao escolher \"Substituir\" ou \"Excluir\", o arquivo é guardado para o \"Desfazer\" funcionar. " +
+            "Eles ficam em %APPDATA%\\Fiscal\\backup e %APPDATA%\\Fiscal\\lixeira."
+    const val AUTO_CLEAN = "Apagar automaticamente, ao abrir o app, backups e excluídos com mais de"
     const val DAYS = "dias"
     const val CLEAN_NOW = "Apagar backups antigos agora…"
     const val CLEAN_CONFIRM_TITLE = "Apagar backups antigos?"
@@ -241,8 +257,8 @@ object Strings {
 
     fun backupStats(count: Int, bytes: Long) = "$count arquivo(s), ${"%.1f".format(bytes / 1_048_576.0)} MB"
     fun cleanConfirmBody(days: Int) =
-        "Os arquivos substituídos há mais de $days dias serão apagados de vez, e substituições antigas não poderão mais ser desfeitas."
-    fun backupsCleaned(count: Int) = "$count backup(s) antigo(s) apagado(s)."
+        "Os arquivos substituídos ou excluídos há mais de $days dias serão apagados de vez e essas operações não poderão mais ser desfeitas."
+    fun backupsCleaned(count: Int) = "$count arquivo(s) antigo(s) apagado(s) do backup e da lixeira."
     fun dataExported(name: String) = "Dados exportados para $name"
     fun exportFileName(date: String) = "fiscal-dados-$date.db"
 
@@ -302,6 +318,8 @@ object Strings {
     const val HISTORY_EMPTY = "Nenhuma operação ainda."
     const val HISTORY_MOVED = "Movido"
     const val HISTORY_RENAMED = "Renomeado"
+    const val HISTORY_DELETED = "Excluído"
+    const val HISTORY_IN_TRASH = "Guardado na lixeira do FISCAL"
     const val HISTORY_UNDONE = "Desfeita"
     const val HISTORY_REPLACED = "Substituiu um arquivo (o antigo está guardado)"
     const val HISTORY_FILE_CHANGED = "Não dá para desfazer: o arquivo foi mexido depois (renomeado, movido ou apagado)."

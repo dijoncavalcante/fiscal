@@ -17,6 +17,27 @@ object FileNameRules {
 
     fun withPdfExtension(baseName: String): String = "$baseName$PDF_EXTENSION"
 
+    /** Extensão com o ponto (".pdf", ".jpg"); vazio se o nome não tiver. */
+    fun extension(fileName: String): String {
+        val dot = fileName.lastIndexOf('.')
+        return if (dot > 0) fileName.substring(dot) else ""
+    }
+
+    /**
+     * Novo nome digitado pelo usuário mantendo a extensão do arquivo atual: "Recibo" em "foto.jpg" → "Recibo.jpg".
+     * Se o usuário já digitou a mesma extensão, ela não se repete. Vazio = o usuário não escreveu um nome.
+     */
+    fun keepingExtension(currentName: String, typedName: String): String {
+        val extension = extension(currentName)
+        val typed = typedName.trim()
+        val base = if (extension.isNotEmpty() && typed.endsWith(extension, ignoreCase = true)) {
+            typed.dropLast(extension.length).trim()
+        } else {
+            typed
+        }
+        return if (base.isEmpty()) "" else "$base$extension"
+    }
+
     /** Valida um nome de arquivo segundo as regras do Windows. */
     fun isValid(fileName: String): Boolean {
         if (fileName.isBlank()) return false

@@ -65,4 +65,15 @@ class NamingRulesTest {
         assertFalse(FileNameRules.isValid("  "))
         assertFalse(FileNameRules.isValid("arquivo."))
     }
+
+    @Test
+    fun `renomear documento mantem a extensao do arquivo`() {
+        assertEquals(".jpg", FileNameRules.extension("WhatsApp Image 2026-06-03.jpg"))
+        assertEquals("", FileNameRules.extension("sem extensao"))
+        assertEquals("Recibo luz.jpg", FileNameRules.keepingExtension("WhatsApp Image 2026-06-03.jpg", "  Recibo luz "))
+        // Quem digita a extensão junto não ganha ".pdf.pdf".
+        assertEquals("Extrato.pdf", FileNameRules.keepingExtension("scan001.pdf", "Extrato.PDF"))
+        assertEquals("", FileNameRules.keepingExtension("scan001.pdf", " .pdf "))
+        assertEquals("nota.fiscal.pdf", FileNameRules.keepingExtension("scan001.pdf", "nota.fiscal"))
+    }
 }

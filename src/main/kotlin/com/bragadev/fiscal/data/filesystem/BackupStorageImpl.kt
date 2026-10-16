@@ -8,10 +8,15 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 class BackupStorageImpl(private val directories: AppDirectories) : BackupStorage {
-    private val timestampFormat = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
+    override fun newBackupPath(fileName: String): Path = directories.backupDirectory.resolve(stamped(fileName))
 
-    override fun newBackupPath(fileName: String): Path {
-        val uniquePrefix = "${LocalDateTime.now().format(timestampFormat)}-${UUID.randomUUID().toString().take(8)}"
-        return directories.backupDirectory.resolve("$uniquePrefix-$fileName")
+    override fun newTrashPath(fileName: String): Path = directories.trashDirectory.resolve(stamped(fileName))
+
+    /** "20261016-143000-1a2b3c4d-Nome.pdf": a data no começo diz quando o arquivo foi guardado (usada na limpeza). */
+    private fun stamped(fileName: String): String =
+        "${LocalDateTime.now().format(TIMESTAMP_FORMAT)}-${UUID.randomUUID().toString().take(8)}-$fileName"
+
+    companion object {
+        val TIMESTAMP_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
     }
 }

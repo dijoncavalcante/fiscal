@@ -8,7 +8,7 @@ import java.nio.file.Path
 interface DataMaintenanceRepository {
     suspend fun backupStats(): BackupStats
 
-    /** Apaga só os backups de substituições mais antigos que [days] dias. Retorna quantos foram apagados. */
+    /** Apaga os backups de substituições e os arquivos da lixeira guardados há mais de [days] dias. Retorna quantos foram apagados. */
     suspend fun deleteBackupsOlderThan(days: Int): Int
 
     /** Grava uma cópia consistente de configurações, histórico e pendências em [target] (nunca sobrescreve). */

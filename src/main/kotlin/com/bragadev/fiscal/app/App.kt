@@ -59,6 +59,7 @@ fun App() {
                     navigatorViewModel = koinInject(),
                     pdfToolsViewModel = koinInject(),
                     monthClosingViewModel = koinInject(),
+                    documentActionsViewModel = koinInject(),
                     onOpenSettings = { screen = Screen.SETTINGS },
                     onOpenHistory = { screen = Screen.HISTORY },
                     appVersion = AppInfo.VERSION,

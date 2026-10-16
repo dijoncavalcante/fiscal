@@ -10,9 +10,13 @@ class DocumentChangeNotifier {
     private val events = MutableSharedFlow<DocumentsChanged>(extraBufferCapacity = 8)
     val changes: SharedFlow<DocumentsChanged> = events.asSharedFlow()
 
-    fun notifyChanged(selectPath: Path? = null) {
-        events.tryEmit(DocumentsChanged(selectPath))
+    /**
+     * @param selectPath documento que deve ficar selecionado.
+     * @param removedPath documento que deixou de existir (excluído): se estava selecionado, a seleção vai para o vizinho.
+     */
+    fun notifyChanged(selectPath: Path? = null, removedPath: Path? = null) {
+        events.tryEmit(DocumentsChanged(selectPath, removedPath))
     }
 }
 
-data class DocumentsChanged(val selectPath: Path?)
+data class DocumentsChanged(val selectPath: Path?, val removedPath: Path? = null)

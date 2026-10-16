@@ -2,6 +2,7 @@ package com.bragadev.fiscal.data
 
 import com.bragadev.fiscal.data.database.Database
 import com.bragadev.fiscal.data.database.SettingsDao
+import com.bragadev.fiscal.data.filesystem.BackupStorageImpl
 import com.bragadev.fiscal.data.filesystem.SafeFileMover
 import com.bragadev.fiscal.data.instance.SingleInstance
 import com.bragadev.fiscal.data.logging.AppLog
@@ -23,6 +24,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.FileTime
 import java.time.Instant
+import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -132,6 +134,24 @@ class ReliabilityTest {
 
         assertFalse(Files.exists(old))
         assertTrue(Files.exists(recent))
+    }
+
+    @Test
+    fun `limpeza conta da data em que o arquivo foi para a lixeira, nao da data do PDF`() = runTest {
+        val (repository, directories) = maintenance()
+        val storage = BackupStorageImpl(directories)
+        // PDF antigo (modificado há 200 dias) excluído agora: fica.
+        val justDeleted = Files.writeString(storage.newTrashPath("Extrato 2025.pdf"), "x")
+        Files.setLastModifiedTime(justDeleted, FileTime.from(Instant.now().minus(200, ChronoUnit.DAYS)))
+        // Excluído há 100 dias: sai.
+        val stamp = LocalDateTime.now().minusDays(100).format(BackupStorageImpl.TIMESTAMP_FORMAT)
+        val oldDeleted = Files.writeString(directories.trashDirectory.resolve("$stamp-1a2b3c4d-Recibo.pdf"), "x")
+
+        assertEquals(2, repository.backupStats().fileCount)
+        assertEquals(1, repository.deleteBackupsOlderThan(90))
+
+        assertTrue(Files.exists(justDeleted))
+        assertFalse(Files.exists(oldDeleted))
     }
 
     @Test

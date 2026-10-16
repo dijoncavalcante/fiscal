@@ -117,19 +117,33 @@ private fun HistoryRow(entry: HistoryEntry, enabled: Boolean, onUndo: () -> Unit
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.width(150.dp)) {
             Text(HistoryViewModel.formatDate(entry), style = MaterialTheme.typography.bodySmall)
-            val (icon, label) = if (operation.type == OperationType.MOVE) AppIcons.FolderOpen to Strings.HISTORY_MOVED else AppIcons.Pencil to Strings.HISTORY_RENAMED
+            val (icon, label) = when (operation.type) {
+                OperationType.MOVE -> AppIcons.FolderOpen to Strings.HISTORY_MOVED
+                OperationType.RENAME -> AppIcons.Pencil to Strings.HISTORY_RENAMED
+                OperationType.DELETE -> AppIcons.Delete to Strings.HISTORY_DELETED
+            }
             IconText(icon, label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, iconSize = 14.dp)
         }
+        // Excluído: o nome na lixeira tem data no começo; o que interessa é o nome e a pasta de antes.
+        val deleted = operation.type == OperationType.DELETE
         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-            Text(operation.newName, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
-                Strings.historyWasNamed(operation.originalName),
+                if (deleted) operation.originalName else operation.newName,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                if (deleted) Strings.HISTORY_IN_TRASH else Strings.historyWasNamed(operation.originalName),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            val folders = if (from == to) Strings.historyFolder(to.toString()) else Strings.historyFromTo(from.toString(), to.toString())
+            val folders = when {
+                deleted || from == to -> Strings.historyFolder(from.toString())
+                else -> Strings.historyFromTo(from.toString(), to.toString())
+            }
             Text(
                 folders,
                 style = MaterialTheme.typography.labelSmall,

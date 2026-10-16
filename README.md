@@ -35,6 +35,10 @@ MANUTENÇÃO), a pasta de origem dos PDFs e o mês em edição. Dá para reabri-
 5. Confira o nome atual, o novo nome, o mês e o destino e escolha **Renomear** ou **Renomear e Mover**.
 6. Use **Desfazer** no aviso ou no topo da tela para reverter a última operação.
 
+Clique com o **botão direito** num documento da lista (ou no ⋮) para **Renomear** (F2), **Copiar** (Ctrl+C, depois
+cole numa pasta, no WhatsApp ou no e-mail) ou **Excluir** (Delete). Excluir não apaga: o arquivo fica guardado na
+lixeira do FISCAL (`%APPDATA%\Fiscal\lixeira`) e volta com **Desfazer**.
+
 7. Ao terminar o mês, clique em **Concluir mês** (no topo do mês em edição): o FISCAL mostra o que está faltando e as
    pendências e gera um **relatório em PDF** com o que existe em cada categoria (salvo na pasta de origem).
 

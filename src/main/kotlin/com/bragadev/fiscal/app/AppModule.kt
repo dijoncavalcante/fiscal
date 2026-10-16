@@ -51,6 +51,8 @@ import com.bragadev.fiscal.domain.usecase.PreviewPdfUseCase
 import com.bragadev.fiscal.domain.usecase.ReadImageUseCase
 import com.bragadev.fiscal.domain.usecase.RecordedFileMover
 import com.bragadev.fiscal.domain.usecase.RemoveFromMonthUseCase
+import com.bragadev.fiscal.domain.usecase.RenameDocumentUseCase
+import com.bragadev.fiscal.domain.usecase.DeleteDocumentUseCase
 import com.bragadev.fiscal.domain.usecase.ResolveMonthsRootUseCase
 import com.bragadev.fiscal.domain.usecase.ImportDataUseCase
 import com.bragadev.fiscal.domain.usecase.LoadInitialFoldersUseCase
@@ -64,6 +66,7 @@ import com.bragadev.fiscal.domain.usecase.UpdateSettingsUseCase
 import com.bragadev.fiscal.domain.usecase.WatchFolderUseCase
 import com.bragadev.fiscal.presentation.common.DocumentChangeNotifier
 import com.bragadev.fiscal.presentation.home.HomeViewModel
+import com.bragadev.fiscal.presentation.documentactions.DocumentActionsViewModel
 import com.bragadev.fiscal.presentation.monthfiles.MonthFilesViewModel
 import com.bragadev.fiscal.presentation.navigator.MonthNavigatorViewModel
 import com.bragadev.fiscal.presentation.organizer.OrganizerViewModel
@@ -132,6 +135,8 @@ fun appModule(directories: AppDirectories) = module {
     factory { GenerateMonthReportUseCase(get(), get()) }
     factory { PlanRenameUseCase(get(), get(), get()) }
     factory { RemoveFromMonthUseCase(get(), get(), get(), get()) }
+    factory { RenameDocumentUseCase(get(), get(), get()) }
+    factory { DeleteDocumentUseCase(get(), get(), get(), get()) }
     factory { FileFlagUseCase(get()) }
     factory { WatchFolderUseCase(get()) }
     factory { ResolveMonthsRootUseCase(get(), get()) }
@@ -153,6 +158,7 @@ fun appModule(directories: AppDirectories) = module {
     single { PdfPreviewViewModel(get()) }
     single { OrganizerViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     single { MonthFilesViewModel(get(), get(), get(), get(), get(), get(), get()) }
+    single { DocumentActionsViewModel(get(), get(), get()) }
     single { MonthNavigatorViewModel(get(), get(), get(), get(), get(), get()) }
     single { PdfToolsViewModel(get(), get(), get(), get()) }
     single { SettingsViewModel(get(), get(), get(), get(), get()) }

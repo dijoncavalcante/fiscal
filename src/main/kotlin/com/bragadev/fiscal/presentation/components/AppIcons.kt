@@ -148,6 +148,14 @@ object AppIcons {
 
     val Flag = icon("Flag", "M14.4,6L14,4H5v17h2v-7h5.6l0.4,2h7V6z")
 
+    val Delete = icon("Delete", "M6,19c0,1.1 0.9,2 2,2h8c1.1,0 2,-0.9 2,-2V7H6v12zM19,4h-3.5l-1,-1h-5l-1,1H5v2h14V4z")
+
+    val Copy = icon(
+        "Copy",
+        "M16,1H4c-1.1,0 -2,0.9 -2,2v14h2V3h12V1zM19,5H8c-1.1,0 -2,0.9 -2,2v14c0,1.1 0.9,2 2,2h11c1.1,0 2,-0.9 2,-2V7" +
+            "c0,-1.1 -0.9,-2 -2,-2zM19,21H8V7h11v14z",
+    )
+
     private fun icon(name: String, pathData: String): ImageVector = ImageVector.Builder(
         name = name,
         defaultWidth = 24.dp,

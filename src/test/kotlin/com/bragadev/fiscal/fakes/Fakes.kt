@@ -59,8 +59,10 @@ class NoOpDocumentRepository : DocumentRepository {
     override suspend fun recordRestored(currentPath: Path, restoredPath: Path) = Unit
 }
 
-class TempBackupStorage(private val directory: Path) : BackupStorage {
+class TempBackupStorage(private val directory: Path, private val trash: Path = directory.resolveSibling("lixeira")) : BackupStorage {
     override fun newBackupPath(fileName: String): Path = directory.resolve("${UUID.randomUUID()}-$fileName")
+
+    override fun newTrashPath(fileName: String): Path = trash.resolve("${UUID.randomUUID()}-$fileName")
 }
 
 /** Cria um arquivo com assinatura de PDF suficiente para a validação do repositório. */

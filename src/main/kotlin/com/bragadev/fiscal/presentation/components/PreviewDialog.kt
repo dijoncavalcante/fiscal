@@ -22,10 +22,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.bragadev.fiscal.domain.model.ImagePage
+import com.bragadev.fiscal.domain.rules.ImageFileRules
 import java.nio.file.Path
 
 /**
- * Diálogo largo com a visualização do PDF à esquerda e o formulário à direita,
+ * Diálogo largo com a visualização do PDF (ou da imagem) à esquerda e o formulário à direita,
  * para o usuário conferir o arquivo antes de confirmar qualquer alteração. Enter confirma e Esc cancela.
  */
 @Composable
@@ -45,7 +47,12 @@ fun PreviewDialog(
             modifier = Modifier.width(980.dp).height(640.dp).dialogKeys(onConfirm, onDismiss),
         ) {
             Row(Modifier.padding(20.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                PdfThumbnail(file, Modifier.width(420.dp).fillMaxHeight().clip(MaterialTheme.shapes.medium))
+                val thumbnail = Modifier.width(420.dp).fillMaxHeight().clip(MaterialTheme.shapes.medium)
+                if (ImageFileRules.isSupported(file.fileName.toString())) {
+                    ImageThumbnail(ImagePage(file), thumbnail)
+                } else {
+                    PdfThumbnail(file, thumbnail)
+                }
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 12.dp))
                     Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) { content() }

@@ -55,7 +55,7 @@ class HomeViewModel(
             }
         }
         scope.launch {
-            documentChanges.changes.collect { change -> refresh(currentSourceFolder, change.selectPath) }
+            documentChanges.changes.collect { change -> refresh(currentSourceFolder, change.selectPath, change.removedPath) }
         }
     }
 
@@ -86,20 +86,35 @@ class HomeViewModel(
         onDocumentSelected(listed ?: documentAt(path))
     }
 
+    /**
+     * O que deve ficar selecionado se [removed] sair da lista (como no Explorer): sendo ele o selecionado, o
+     * documento de baixo, ou o de cima se era o último; senão, a seleção atual. Calcular antes de excluir,
+     * porque a observação da pasta pode atualizar a lista antes do fim da operação.
+     */
+    fun selectionAfterRemoving(removed: Path): Path? {
+        val selected = state.value.selectedDocument?.path
+        if (selected != removed) return selected
+        val visible = state.value.visibleDocuments
+        val index = visible.indexOfFirst { it.path == removed }
+        if (index < 0) return null
+        return (visible.getOrNull(index + 1) ?: visible.getOrNull(index - 1))?.path
+    }
+
     fun onErrorShown() {
         state.update { it.copy(error = null) }
     }
 
-    private suspend fun refresh(folder: Path?, selectPath: Path? = null) {
+    /** @param removedPath documento que deixou de existir: não continua no preview. */
+    private suspend fun refresh(folder: Path?, selectPath: Path? = null, removedPath: Path? = null) {
         state.update { it.copy(sourceFolder = folder?.toString().orEmpty(), isLoading = true) }
         when (val result = scanDocuments(folder)) {
-            is Outcome.Success -> showDocuments(result.value, selectPath)
+            is Outcome.Success -> showDocuments(result.value, selectPath, removedPath)
             is Outcome.Failure -> showScanFailure(result.error)
         }
     }
 
-    private fun showDocuments(documents: List<Document>, selectPath: Path?) {
-        val current = state.value.selectedDocument
+    private fun showDocuments(documents: List<Document>, selectPath: Path?, removedPath: Path? = null) {
+        val current = state.value.selectedDocument?.takeUnless { it.path == removedPath }
         val wanted = selectPath ?: current?.path
         // Um arquivo que saiu desta pasta (ex.: foi para o mês) continua no preview.
         val selection = documents.firstOrNull { it.path == wanted } ?: selectPath?.let(::documentAt) ?: current
