@@ -2,7 +2,7 @@ package com.bragadev.fiscal.presentation.common
 
 import java.time.YearMonth
 import java.time.format.TextStyle
-import java.util.Locale
+import java.util.*
 
 /** Textos da interface concentrados em um único lugar. */
 object Strings {
@@ -181,6 +181,7 @@ object Strings {
 
     // Documentos: ordenação e busca
     const val REFRESH_FOLDER = "Atualizar a pasta"
+    const val OPEN_IN_EXPLORER = "Abrir a pasta no Explorer"
     const val SORT_NEWEST = "Mais recentes"
     const val SORT_NAME = "Nome"
     const val SEARCH = "Buscar nesta pasta"

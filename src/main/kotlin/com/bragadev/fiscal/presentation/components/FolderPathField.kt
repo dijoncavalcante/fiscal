@@ -1,32 +1,20 @@
 package com.bragadev.fiscal.presentation.components
 
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PlainTooltip
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TooltipAnchorPosition
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.rememberTooltipState
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.bragadev.fiscal.presentation.common.Strings
 import java.io.File
 
 /**
@@ -34,6 +22,7 @@ import java.io.File
  * O texto pode ser selecionado e copiado; só o lápis permite trocar a pasta.
  *
  * [highlightedSegment], quando informado, aparece em destaque (ex.: a pasta do mês).
+ * [onOpenInExplorer], quando informado, mostra o ícone de pasta que abre o caminho no Explorer (só com caminho preenchido).
  */
 @Composable
 fun FolderPathField(
@@ -44,6 +33,7 @@ fun FolderPathField(
     onEdit: () -> Unit,
     modifier: Modifier = Modifier,
     highlightedSegment: String? = null,
+    onOpenInExplorer: (() -> Unit)? = null,
 ) {
     Column(modifier) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -60,7 +50,10 @@ fun FolderPathField(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                EditButton(editDescription, onEdit)
+                if (onOpenInExplorer != null && path.isNotBlank()) {
+                    FieldButton(AppIcons.FolderOpen, Strings.OPEN_IN_EXPLORER, onOpenInExplorer)
+                }
+                FieldButton(AppIcons.Pencil, editDescription, onEdit)
             }
         }
     }
@@ -68,14 +61,19 @@ fun FolderPathField(
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-private fun EditButton(description: String, onEdit: () -> Unit) {
+private fun FieldButton(icon: ImageVector, description: String, onClick: () -> Unit) {
     TooltipBox(
         positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
         tooltip = { PlainTooltip { Text(description) } },
         state = rememberTooltipState(),
     ) {
-        IconButton(onClick = onEdit) {
-            Icon(AppIcons.Pencil, contentDescription = description, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+        IconButton(onClick = onClick) {
+            Icon(
+                icon,
+                contentDescription = description,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }

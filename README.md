@@ -28,6 +28,7 @@ Na primeira vez, o assistente pede três coisas: a pasta raiz das contas (a que 
 MANUTENÇÃO), a pasta de origem dos PDFs e o mês em edição. Dá para reabri-lo em **Configurações**.
 
 1. **Esquerda:** clique no lápis e escolha a pasta do computador com os PDFs (sugestão inicial: `D:\Modelo\jw\pendriver`).
+   O ícone de pasta ao lado abre essa pasta no Explorer.
 2. **Direita:** em "Escolher mês", clique no mês (ou no lápis para escolher a pasta, ex.: `...\4. TRIMESTRE Jun-Jul-Ago\1. JUNHO`).
    Confira o mês em destaque. Meses anteriores a junho de 2026 ficam **somente leitura** (com cadeado).
 3. Clique em um PDF da lista para ver o preview.

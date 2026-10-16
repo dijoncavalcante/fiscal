@@ -1,37 +1,17 @@
 package com.bragadev.fiscal.presentation.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.draganddrop.dragAndDropSource
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.draganddrop.dragAndDropSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -40,15 +20,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEvent
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.isAltPressed
-import androidx.compose.ui.input.key.isCtrlPressed
-import androidx.compose.ui.input.key.isShiftPressed
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.onPointerEvent
@@ -95,6 +67,7 @@ fun DocumentList(
     onSortChanged: (DocumentSort) -> Unit,
     onQueryChanged: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onOpenInExplorer: () -> Unit = {},
 ) {
     Panel(title = Strings.DOCUMENTS, modifier = modifier) {
         Row(Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp), verticalAlignment = Alignment.Bottom) {
@@ -106,9 +79,14 @@ fun DocumentList(
                 onEdit = onChangeFolder,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(onClick = onRefresh) {
-                Icon(AppIcons.Refresh, contentDescription = Strings.REFRESH_FOLDER, tint = MaterialTheme.colorScheme.primary)
-            }
+            // Só com a pasta encontrada: pasta ausente (pendrive desconectado) não tem o que abrir.
+            HeaderButton(
+                AppIcons.FolderOpen,
+                Strings.OPEN_IN_EXPLORER,
+                enabled = state.folderStatus == FolderStatus.READY,
+                onClick = onOpenInExplorer
+            )
+            HeaderButton(AppIcons.Refresh, Strings.REFRESH_FOLDER, onClick = onRefresh)
         }
         if (state.folderStatus == FolderStatus.READY) ListControls(state, onSortChanged, onQueryChanged)
         HorizontalDivider()
@@ -165,6 +143,25 @@ private fun ListControls(state: HomeUiState, onSortChanged: (DocumentSort) -> Un
                 selected = state.sort == DocumentSort.NAME,
                 onClick = { onSortChanged(DocumentSort.NAME) },
                 label = { Text(Strings.SORT_NAME) },
+            )
+        }
+    }
+}
+
+/** Botão de ícone do cabeçalho; a dica com o nome aparece com o mouse em cima. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HeaderButton(icon: ImageVector, label: String, enabled: Boolean = true, onClick: () -> Unit) {
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Below),
+        tooltip = { PlainTooltip { Text(label) } },
+        state = rememberTooltipState(),
+    ) {
+        IconButton(onClick = onClick, enabled = enabled) {
+            Icon(
+                icon,
+                contentDescription = label,
+                tint = if (enabled) MaterialTheme.colorScheme.primary else LocalContentColor.current
             )
         }
     }

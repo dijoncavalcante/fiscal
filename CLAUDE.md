@@ -75,7 +75,8 @@ Regras de camada:
 
 ## Layout da tela
 
-- **Esquerda — pasta de origem:** qualquer pasta do PC, escolhida pelo lápis; botão de atualizar. Lista os PDFs e as
+- **Esquerda — pasta de origem:** qualquer pasta do PC, escolhida pelo lápis; botões "Abrir a pasta no Explorer" (
+  `DesktopActions.openFolder`, só com a pasta encontrada) e atualizar. Lista os PDFs e as
   imagens JPEG/PNG (ícone de imagem, `Document.isImage`, `FileRepository.listDocuments`) da
   própria pasta (sem subpastas; ignora `._*.pdf` do macOS), com busca por nome e ordem "Mais recentes" (padrão, como
   "Data de modificação" do Explorer) ou "Nome" (salva em `document_sort`). Itens podem ser arrastados.
@@ -104,7 +105,8 @@ Regras de camada:
   se vazia, deduzida da pasta do mês via `MonthFolderParser.accountsRootOf`); botões de conta, ano de serviço (padrão: o
   do mês aberto ou o mais recente) e trimestres (mais recente primeiro) com os meses; um clique troca a pasta do mês
   (`ChangeMonthFolderUseCase`). Árvore montada por `BrowseMonthFoldersUseCase` (ignora pastas sem mês). O "Caminho
-  completo da pasta do mês" (somente leitura + lápis) fica dentro desse bloco, logo abaixo da pasta raiz.
+  completo da pasta do mês" (somente leitura + lápis) fica dentro desse bloco, logo abaixo da pasta raiz. Os dois
+  campos têm o ícone de pasta que abre o caminho no Explorer (`FolderPathField(onOpenInExplorer = …)`).
 - **Menu PDF (barra superior):** "Converter JPEG para PDF" (uma página A4 por imagem, orientação conforme a
   imagem; **fotos de celular giram sozinhas** pela orientação EXIF — `ExifOrientation`, somada ao botão Girar no
   `PdfToolsRepositoryImpl`; o preview (Skia) já mostra a foto em pé, por isso Girar é relativo ao que se vê) e "Juntar PDFs" (ordem da lista; já inclui o documento selecionado). Abre como **painel no

@@ -1,46 +1,10 @@
 package com.bragadev.fiscal.presentation.home
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PlainTooltip
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TooltipAnchorPosition
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.rememberTooltipState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -52,27 +16,20 @@ import com.bragadev.fiscal.presentation.closing.MonthClosingViewModel
 import com.bragadev.fiscal.presentation.common.RegisterShortcuts
 import com.bragadev.fiscal.presentation.common.Strings
 import com.bragadev.fiscal.presentation.common.UserMessage
-import com.bragadev.fiscal.presentation.components.AppIcons
-import com.bragadev.fiscal.presentation.components.ImageThumbnail
-import com.bragadev.fiscal.presentation.components.Panel
-import com.bragadev.fiscal.presentation.components.pickFolder
+import com.bragadev.fiscal.presentation.components.*
 import com.bragadev.fiscal.presentation.documentactions.DocumentActionsDialogHost
 import com.bragadev.fiscal.presentation.documentactions.DocumentActionsViewModel
 import com.bragadev.fiscal.presentation.monthfiles.MonthFilesDialogHost
 import com.bragadev.fiscal.presentation.monthfiles.MonthFilesViewModel
 import com.bragadev.fiscal.presentation.navigator.MonthNavigator
 import com.bragadev.fiscal.presentation.navigator.MonthNavigatorViewModel
-import com.bragadev.fiscal.presentation.organizer.MonthFileActions
-import com.bragadev.fiscal.presentation.organizer.OrganizerDialogHost
-import com.bragadev.fiscal.presentation.organizer.OrganizerScreen
-import com.bragadev.fiscal.presentation.organizer.OrganizerUiState
-import com.bragadev.fiscal.presentation.organizer.OrganizerViewModel
+import com.bragadev.fiscal.presentation.organizer.*
 import com.bragadev.fiscal.presentation.pdftools.PdfToolsPanel
 import com.bragadev.fiscal.presentation.pdftools.PdfToolsViewModel
 import com.bragadev.fiscal.presentation.preview.PdfPreviewScreen
 import com.bragadev.fiscal.presentation.preview.PdfPreviewViewModel
 import java.nio.file.Path
-import java.util.UUID
+import java.util.*
 
 private val WIDE_LAYOUT_MIN_WIDTH = 1100.dp
 
@@ -154,6 +111,7 @@ fun HomeScreen(
                         pickFolder(Strings.MONTHS_ROOT_PICKER_TITLE, navigatorViewModel.currentRoot)
                             ?.let(navigatorViewModel::onRootSelected)
                     },
+                    onOpenFolder = DesktopActions::openFolder,
                 )
             }
             if (organizer.isWorking || monthFiles.isWorking || documentActions.isWorking) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
@@ -205,6 +163,7 @@ private fun Workspace(
                     ?.let(homeViewModel::onSourceFolderSelected)
             },
             modifier = modifier,
+            onOpenInExplorer = { homeViewModel.currentSourceFolder?.let(DesktopActions::openFolder) },
         )
     }
     val categories: @Composable (Modifier) -> Unit = toolPanel ?: { modifier ->
