@@ -31,6 +31,7 @@ class MonthFileRowTest {
         onRemove = { calls += "retirar ${it.fileName}" },
         onFlag = { file, _ -> calls += "pendencia ${file.fileName}" },
         onClearFlag = {},
+        onSendWhatsApp = { calls += "whatsapp ${it.fileName}" },
     )
 
     private fun rowTest(category: DocumentCategory?, editable: Boolean = true, block: ComposeUiTest.() -> Unit) =
@@ -66,6 +67,11 @@ class MonthFileRowTest {
         menuItem(Strings.COPY_FILE).performClick()
         waitForIdle()
         assertEquals("copiar ${despesa.fileName}", calls.last())
+
+        rightClickFile()
+        menuItem(Strings.SEND_WHATSAPP).performClick()
+        waitForIdle()
+        assertEquals("whatsapp ${despesa.fileName}", calls.last())
 
         rightClickFile()
         menuItem(Strings.DELETE_FILE).performClick()

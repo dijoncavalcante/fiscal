@@ -169,6 +169,12 @@ object Strings {
     const val SHORTCUT_DELETE = "Delete"
     const val FILE_COPIED = "Arquivo copiado. Cole com Ctrl+V numa pasta, no WhatsApp ou no e-mail."
     const val FILE_COPY_FAILED = "Não foi possível copiar. Tente de novo."
+    const val SEND_WHATSAPP = "Enviar pelo WhatsApp"
+    const val WHATSAPP_APP_OPENED = "Arquivo copiado e WhatsApp aberto. Abra a conversa e aperte Ctrl+V para anexar."
+    const val WHATSAPP_WEB_OPENED =
+        "Arquivo copiado e WhatsApp Web aberto no navegador. Abra a conversa e aperte Ctrl+V para anexar."
+    const val WHATSAPP_NOT_OPENED =
+        "Arquivo copiado, mas não foi possível abrir o WhatsApp. Abra-o, escolha a conversa e aperte Ctrl+V."
     const val DELETE_FILE_TITLE = "Excluir arquivo?"
     const val DELETE_EXPLANATION =
         "O arquivo sai desta pasta e fica guardado na lixeira do FISCAL. Se mudar de ideia, use \"Desfazer\" (aqui ou no Histórico)."

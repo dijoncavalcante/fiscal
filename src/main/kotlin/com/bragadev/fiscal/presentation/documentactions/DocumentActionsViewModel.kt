@@ -6,32 +6,29 @@ import com.bragadev.fiscal.domain.model.Outcome
 import com.bragadev.fiscal.domain.rules.FileNameRules
 import com.bragadev.fiscal.domain.usecase.DeleteDocumentUseCase
 import com.bragadev.fiscal.domain.usecase.RenameDocumentUseCase
-import com.bragadev.fiscal.presentation.common.DocumentChangeNotifier
-import com.bragadev.fiscal.presentation.common.Strings
-import com.bragadev.fiscal.presentation.common.UserMessage
-import com.bragadev.fiscal.presentation.common.ViewModel
-import com.bragadev.fiscal.presentation.common.toUserMessage
+import com.bragadev.fiscal.presentation.common.*
 import com.bragadev.fiscal.presentation.components.DesktopActions
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import com.bragadev.fiscal.presentation.components.WhatsAppTarget
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import java.nio.file.Path
 
 /**
- * Renomear, copiar e excluir documentos da lista da esquerda (menu do botão direito, F2, Ctrl+C e Delete).
+ * Renomear, copiar, enviar pelo WhatsApp e excluir documentos (menu do botão direito, F2, Ctrl+C e Delete).
  * Renomear e excluir entram no histórico e podem ser desfeitos; excluir nunca apaga (vai para a lixeira do FISCAL).
  *
  * @param copyFiles coloca os arquivos na área de transferência do Windows; `false` se não conseguiu.
+ * @param openWhatsApp abre o app do WhatsApp ou o WhatsApp Web (chamado fora da thread da interface).
  */
 class DocumentActionsViewModel(
     private val renameDocument: RenameDocumentUseCase,
     private val deleteDocument: DeleteDocumentUseCase,
     private val documentChanges: DocumentChangeNotifier,
     private val copyFiles: (List<Path>) -> Boolean = DesktopActions::copyFilesToClipboard,
+    private val openWhatsApp: () -> WhatsAppTarget = DesktopActions::openWhatsApp,
 ) : ViewModel() {
     private val state = MutableStateFlow(DocumentActionsUiState())
     val uiState: StateFlow<DocumentActionsUiState> = state.asStateFlow()
@@ -94,6 +91,25 @@ class DocumentActionsViewModel(
         val copied = copyFiles(listOf(file))
         state.update {
             it.copy(message = if (copied) UserMessage(Strings.FILE_COPIED) else UserMessage(Strings.FILE_COPY_FAILED, isError = true))
+        }
+    }
+
+    // ---- Enviar pelo WhatsApp ----
+
+    /**
+     * O WhatsApp não deixa outro programa anexar arquivos: o arquivo é copiado (como o Ctrl+C do Explorer) e o
+     * WhatsApp é aberto (app do Windows ou, sem ele, o WhatsApp Web); na conversa, o usuário cola com Ctrl+V.
+     */
+    fun onSendWhatsAppRequested(file: Path) {
+        if (!copyFiles(listOf(file))) return showError(Strings.FILE_COPY_FAILED)
+        scope.launch {
+            val opened = withContext(Dispatchers.IO) { openWhatsApp() }
+            val text = when (opened) {
+                WhatsAppTarget.APP -> Strings.WHATSAPP_APP_OPENED
+                WhatsAppTarget.WEB -> Strings.WHATSAPP_WEB_OPENED
+                WhatsAppTarget.NONE -> Strings.WHATSAPP_NOT_OPENED
+            }
+            state.update { it.copy(message = UserMessage(text)) }
         }
     }
 

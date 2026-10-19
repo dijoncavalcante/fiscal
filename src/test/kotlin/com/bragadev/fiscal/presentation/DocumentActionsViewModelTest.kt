@@ -5,27 +5,19 @@ import com.bragadev.fiscal.domain.rules.EditablePeriodPolicy
 import com.bragadev.fiscal.domain.usecase.DeleteDocumentUseCase
 import com.bragadev.fiscal.domain.usecase.RecordedFileMover
 import com.bragadev.fiscal.domain.usecase.RenameDocumentUseCase
-import com.bragadev.fiscal.fakes.InMemoryFlagRepository
-import com.bragadev.fiscal.fakes.InMemoryHistoryRepository
-import com.bragadev.fiscal.fakes.NoOpDocumentRepository
-import com.bragadev.fiscal.fakes.TempBackupStorage
-import com.bragadev.fiscal.fakes.createFakePdf
+import com.bragadev.fiscal.fakes.*
 import com.bragadev.fiscal.presentation.common.DocumentChangeNotifier
 import com.bragadev.fiscal.presentation.common.DocumentsChanged
 import com.bragadev.fiscal.presentation.common.Strings
+import com.bragadev.fiscal.presentation.components.WhatsAppTarget
 import com.bragadev.fiscal.presentation.documentactions.DocumentActionDialog
 import com.bragadev.fiscal.presentation.documentactions.DocumentActionsUiState
 import com.bragadev.fiscal.presentation.documentactions.DocumentActionsViewModel
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.async
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
-import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -34,11 +26,7 @@ import org.junit.rules.TemporaryFolder
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.YearMonth
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertIs
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 /** Ações do botão direito: o que o usuário vê (diálogo, mensagem com Desfazer) e o aviso para a lista. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -49,6 +37,8 @@ class DocumentActionsViewModelTest {
     private val notifier = DocumentChangeNotifier()
     private val copied = mutableListOf<List<Path>>()
     private var clipboardWorks = true
+    private var whatsAppTarget = WhatsAppTarget.WEB
+    private var whatsAppOpened = 0
     private lateinit var downloads: Path
     private lateinit var viewModel: DocumentActionsViewModel
 
@@ -65,6 +55,7 @@ class DocumentActionsViewModelTest {
             DeleteDocumentUseCase(files, backups, mover, policy),
             notifier,
             copyFiles = { copied += it; clipboardWorks },
+            openWhatsApp = { whatsAppOpened++; whatsAppTarget },
         )
     }
 
@@ -85,6 +76,35 @@ class DocumentActionsViewModelTest {
         clipboardWorks = false
         viewModel.onCopyRequested(file)
         assertTrue(viewModel.uiState.value.message!!.isError)
+    }
+
+    @Test
+    fun `enviar pelo whatsapp copia o arquivo, abre o WhatsApp e explica como colar`() {
+        val file = downloads.resolve("8. Extrato Bancário.pdf")
+
+        viewModel.onSendWhatsAppRequested(file)
+        assertEquals(listOf(listOf(file)), copied)
+        assertEquals(Strings.WHATSAPP_WEB_OPENED, awaitState { it.message != null }.message?.text)
+        assertEquals(1, whatsAppOpened)
+
+        viewModel.onMessageShown()
+        whatsAppTarget = WhatsAppTarget.APP
+        viewModel.onSendWhatsAppRequested(file)
+        assertEquals(Strings.WHATSAPP_APP_OPENED, awaitState { it.message != null }.message?.text)
+
+        viewModel.onMessageShown()
+        whatsAppTarget = WhatsAppTarget.NONE
+        viewModel.onSendWhatsAppRequested(file)
+        assertEquals(Strings.WHATSAPP_NOT_OPENED, awaitState { it.message != null }.message?.text)
+    }
+
+    @Test
+    fun `sem conseguir copiar o WhatsApp nem abre`() {
+        clipboardWorks = false
+        viewModel.onSendWhatsAppRequested(downloads.resolve("scan.pdf"))
+
+        assertTrue(viewModel.uiState.value.message!!.isError)
+        assertEquals(0, whatsAppOpened)
     }
 
     @Test

@@ -85,7 +85,13 @@ Regras de camada:
   (`handleDocumentKey`, só para documento desta lista — não para um arquivo do mês aberto no preview).
   Renomear (`RenameDocumentUseCase`) fica na pasta, **mantém a extensão** (`FileNameRules.keepingExtension`) e nunca
   substitui. Copiar põe o arquivo na área de transferência como o Explorer (`DesktopActions.copyFilesToClipboard`,
-  `javaFileListFlavor`): cola em pasta, WhatsApp, e-mail. **Excluir nunca apaga** (`DeleteDocumentUseCase`): move para
+  `javaFileListFlavor`): cola em pasta, WhatsApp, e-mail. **Enviar pelo WhatsApp** (também no menu do mês em
+  edição, inclusive em mês fechado): o WhatsApp não aceita anexo vindo de outro programa, então copia o arquivo e
+  abre o WhatsApp (`DesktopActions.openWhatsApp`: app do Windows se o link `whatsapp:` estiver registrado — consulta
+  `reg query`, só leitura —, senão `web.whatsapp.com` no navegador, que é o que o usuário usa hoje); a mensagem
+  diz para colar com Ctrl+V na conversa. Exceção combinada com o usuário à regra "sem internet": o FISCAL só pede
+  ao Windows para abrir o app/navegador, nunca acessa a rede. **Excluir nunca apaga** (`DeleteDocumentUseCase`): move
+  para
   a lixeira do FISCAL (`%APPDATA%\Fiscal\lixeira`, `BackupStorage.newTrashPath`), grava `OperationType.DELETE` e o
   Desfazer devolve (a Lixeira do Windows não serve: em pendrive ela apaga de vez). Depois de excluir, a seleção vai
   para o vizinho (`HomeViewModel.selectionAfterRemoving`, calculado antes, porque o WatchService pode atualizar antes).

@@ -1,25 +1,11 @@
 package com.bragadev.fiscal.presentation
 
 import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performKeyInput
-import androidx.compose.ui.test.performMouseInput
-import androidx.compose.ui.test.pressKey
-import androidx.compose.ui.test.rightClick
-import androidx.compose.ui.test.runComposeUiTest
-import androidx.compose.ui.test.withKeyDown
+import androidx.compose.ui.test.*
 import com.bragadev.fiscal.domain.model.Document
 import com.bragadev.fiscal.domain.rules.DocumentSorting
 import com.bragadev.fiscal.presentation.common.Strings
-import com.bragadev.fiscal.presentation.home.DOCUMENT_LIST_TAG
-import com.bragadev.fiscal.presentation.home.DocumentActions
-import com.bragadev.fiscal.presentation.home.DocumentList
-import com.bragadev.fiscal.presentation.home.FolderStatus
-import com.bragadev.fiscal.presentation.home.HomeUiState
+import com.bragadev.fiscal.presentation.home.*
 import org.junit.Test
 import java.nio.file.Path
 import java.time.Instant
@@ -39,6 +25,7 @@ class DocumentListTest {
         onRename = { calls += "renomear ${it.fileName}" },
         onCopy = { calls += "copiar ${it.fileName}" },
         onDelete = { calls += "excluir ${it.fileName}" },
+        onSendWhatsApp = { calls += "whatsapp ${it.fileName}" },
     )
 
     private fun listTest(selected: Document? = null, block: androidx.compose.ui.test.ComposeUiTest.() -> Unit) = runComposeUiTest {
@@ -73,6 +60,7 @@ class DocumentListTest {
         assertEquals(listOf("selecionar Recibo.jpg"), calls)
         onNodeWithText(Strings.RENAME).assertIsDisplayed()
         onNodeWithText(Strings.COPY_FILE).assertIsDisplayed()
+        onNodeWithText(Strings.SEND_WHATSAPP).assertIsDisplayed()
         onNodeWithText(Strings.DELETE_FILE).performClick()
         waitForIdle()
 

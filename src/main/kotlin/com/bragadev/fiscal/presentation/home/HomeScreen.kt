@@ -150,11 +150,13 @@ private fun Workspace(
         onRemove = monthFilesViewModel::onRemoveRequested,
         onFlag = monthFilesViewModel::onFlagRequested,
         onClearFlag = monthFilesViewModel::onFlagCleared,
+        onSendWhatsApp = documentActionsViewModel::onSendWhatsAppRequested,
     )
     val documentActions = DocumentActions(
         onRename = documentActionsViewModel::onRenameRequested,
         onCopy = documentActionsViewModel::onCopyRequested,
         onDelete = { file -> documentActionsViewModel.onDeleteRequested(file, homeViewModel.selectionAfterRemoving(file)) },
+        onSendWhatsApp = documentActionsViewModel::onSendWhatsAppRequested,
     )
     // Painéis recolhidos para a borda (só no layout largo); o preview ganha o espaço.
     var documentsCollapsed by rememberSaveable { mutableStateOf(false) }

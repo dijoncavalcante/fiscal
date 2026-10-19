@@ -39,6 +39,7 @@ class MonthFileActions(
     val onRemove: (Path) -> Unit,
     val onFlag: (file: Path, currentNote: String?) -> Unit,
     val onClearFlag: (Path) -> Unit,
+    val onSendWhatsApp: (Path) -> Unit = {},
 )
 
 /**
@@ -146,6 +147,7 @@ private fun MonthFileMenu(expanded: Boolean, menu: MonthFileMenuContext, onDismi
         )
         }
         MenuItem(AppIcons.Copy, Strings.COPY_FILE) { onDismiss(); actions.onCopy(file) }
+        MenuItem(AppIcons.Send, Strings.SEND_WHATSAPP) { onDismiss(); actions.onSendWhatsApp(file) }
         MenuItem(
             AppIcons.Delete,
             Strings.DELETE_FILE,

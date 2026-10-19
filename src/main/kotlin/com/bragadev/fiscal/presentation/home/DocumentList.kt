@@ -53,6 +53,7 @@ class DocumentActions(
     val onRename: (Path) -> Unit,
     val onCopy: (Path) -> Unit,
     val onDelete: (Path) -> Unit,
+    val onSendWhatsApp: (Path) -> Unit = {},
 )
 
 /**
@@ -263,6 +264,7 @@ private fun DocumentMenu(expanded: Boolean, file: Path, actions: DocumentActions
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         MenuItem(AppIcons.Pencil, Strings.RENAME, Strings.SHORTCUT_RENAME) { onDismiss(); actions.onRename(file) }
         MenuItem(AppIcons.Copy, Strings.COPY_FILE, Strings.SHORTCUT_COPY) { onDismiss(); actions.onCopy(file) }
+        MenuItem(AppIcons.Send, Strings.SEND_WHATSAPP, shortcut = "") { onDismiss(); actions.onSendWhatsApp(file) }
         HorizontalDivider()
         MenuItem(AppIcons.Delete, Strings.DELETE_FILE, Strings.SHORTCUT_DELETE, color = MaterialTheme.colorScheme.error) {
             onDismiss()
