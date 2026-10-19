@@ -15,10 +15,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.bragadev.fiscal.domain.model.DocumentCategory
+import com.bragadev.fiscal.domain.model.ExpenseStatus
 import com.bragadev.fiscal.presentation.common.Strings
 import com.bragadev.fiscal.presentation.components.AppIcons
 import com.bragadev.fiscal.presentation.components.IconText
@@ -59,6 +62,8 @@ fun MonthFileRow(
     actions: MonthFileActions,
     modifier: Modifier = Modifier,
     isSelected: Boolean = false,
+    /** Conferência automática (despesas da Conta da Manutenção); `null` = arquivo não é conferido. */
+    expenseStatus: ExpenseStatus? = null,
 ) {
     // Mesmo destaque da lista de documentos (lado esquerdo) para o arquivo aberto no preview.
     val background = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
@@ -89,6 +94,7 @@ fun MonthFileRow(
                     maxLines = 1,
                     modifier = Modifier.weight(1f).clickable { actions.onPreview(file) }.padding(vertical = 4.dp),
                 )
+                ExpenseStatusIcon(expenseStatus, hasIssue = issue != null)
                 if (editable && category != null) {
                     IconButton(onClick = { actions.onRename(file, category) }, modifier = Modifier.size(28.dp)) {
                         Icon(
@@ -121,6 +127,38 @@ fun MonthFileRow(
         pointerMenuAt?.let { at ->
             Box(Modifier.offset { IntOffset(at.x.roundToInt(), at.y.roundToInt()) }) {
                 MonthFileMenu(expanded = true, menu, onDismiss = { pointerMenuAt = null })
+            }
+        }
+    }
+}
+
+/**
+ * Ao lado do nome da despesa: "certo" verde quando cupom/nota, comprovante e assinatura foram encontrados, ou
+ * um indicador enquanto confere. Com pendência não mostra nada: a própria pendência diz o que falta.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ExpenseStatusIcon(status: ExpenseStatus?, hasIssue: Boolean) {
+    val description = when {
+        status == ExpenseStatus.CHECKING -> Strings.EXPENSE_CHECKING
+        status == ExpenseStatus.VERIFIED && !hasIssue -> Strings.EXPENSE_VERIFIED
+        else -> return
+    }
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+        tooltip = { PlainTooltip { Text(description) } },
+        state = rememberTooltipState(),
+    ) {
+        Box(Modifier.size(28.dp).semantics { contentDescription = description }, contentAlignment = Alignment.Center) {
+            if (status == ExpenseStatus.CHECKING) {
+                CircularProgressIndicator(Modifier.size(13.dp), strokeWidth = 2.dp)
+            } else {
+                Icon(
+                    AppIcons.CheckCircle,
+                    contentDescription = null,
+                    Modifier.size(17.dp),
+                    tint = StatusColors.Positive
+                )
             }
         }
     }

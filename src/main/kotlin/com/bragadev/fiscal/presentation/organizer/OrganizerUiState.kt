@@ -1,15 +1,10 @@
 package com.bragadev.fiscal.presentation.organizer
 
-import com.bragadev.fiscal.domain.model.AccountGroup
-import com.bragadev.fiscal.domain.model.DocumentCategory
-import com.bragadev.fiscal.domain.model.DuplicateResolution
-import com.bragadev.fiscal.domain.model.MonthChecklist
-import com.bragadev.fiscal.domain.model.MonthFolderInfo
-import com.bragadev.fiscal.domain.model.OrganizationPlan
+import com.bragadev.fiscal.domain.model.*
 import com.bragadev.fiscal.presentation.common.UserMessage
 import java.nio.file.Path
 import java.time.YearMonth
-import java.util.UUID
+import java.util.*
 
 data class OrganizerUiState(
     val groups: List<AccountGroup> = emptyList(),
@@ -21,7 +16,11 @@ data class OrganizerUiState(
     val isWorking: Boolean = false,
     val lastUndoableOperationId: UUID? = null,
     val message: UserMessage? = null,
+    /** Conferência das despesas da Conta da Manutenção, por nome de arquivo em minúsculas. */
+    val expenseChecks: Map<String, ExpenseStatus> = emptyMap(),
 ) {
+    fun expenseStatus(fileName: String): ExpenseStatus? = expenseChecks[fileName.lowercase()]
+
     /** Só é possível organizar documentos com um mês identificado e liberado. */
     val canOrganize: Boolean get() = monthFolder?.isEditable == true
 }

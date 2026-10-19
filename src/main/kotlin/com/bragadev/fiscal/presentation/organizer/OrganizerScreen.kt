@@ -27,10 +27,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.bragadev.fiscal.domain.model.AccountGroup
-import com.bragadev.fiscal.domain.model.CategoryNode
-import com.bragadev.fiscal.domain.model.DocumentCategory
-import com.bragadev.fiscal.domain.model.MonthChecklist
+import com.bragadev.fiscal.domain.model.*
 import com.bragadev.fiscal.presentation.common.Strings
 import com.bragadev.fiscal.presentation.components.*
 import java.nio.file.Path
@@ -51,6 +48,8 @@ private class MonthContext(
     val onCategoryClick: (DocumentCategory) -> Unit,
     /** Arquivo aberto no preview, destacado na lista como no lado esquerdo. */
     val selectedFile: Path?,
+    /** Conferência automática das despesas (Conta da Manutenção); `null` para os demais arquivos. */
+    val expenseStatus: (String) -> ExpenseStatus?,
 ) {
     fun fileIn(name: String): Path? = monthFolder?.resolve(name)
 
@@ -88,6 +87,7 @@ fun OrganizerScreen(
             if (selectedDocument != null) onDrop(listOf(selectedDocument), category.id) else onCategoryClickedWithoutDocument()
         },
         selectedFile = selectedDocument,
+        expenseStatus = state::expenseStatus,
     )
 
     Panel(title = Strings.MONTH_PANEL, modifier = modifier, collapse = collapse) {
@@ -267,6 +267,7 @@ private fun CategoryRow(entry: TreeEntry, context: MonthContext) {
                 isSelected = context.isSelected(file),
                 actions = context.fileActions,
                 modifier = Modifier.padding(start = 4.dp),
+                expenseStatus = context.expenseStatus(name),
             )
         }
         if (showDropHighlight) {

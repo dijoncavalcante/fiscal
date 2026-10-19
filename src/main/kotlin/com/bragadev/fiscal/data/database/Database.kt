@@ -105,5 +105,18 @@ private object Schema {
             PRIMARY KEY (folder, file_name)
         )
         """,
+        // Conferência das despesas (cupom, comprovante, assinatura): vale enquanto tamanho e data não mudarem.
+        """
+        CREATE TABLE IF NOT EXISTS expense_checks (
+            folder TEXT NOT NULL,
+            file_name TEXT NOT NULL,
+            size_bytes INTEGER NOT NULL,
+            modified_millis INTEGER NOT NULL,
+            missing TEXT NOT NULL,
+            unreadable INTEGER NOT NULL DEFAULT 0,
+            checked_at TEXT NOT NULL,
+            PRIMARY KEY (folder, file_name)
+        )
+        """,
     )
 }

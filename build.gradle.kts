@@ -37,6 +37,13 @@ dependencies {
     implementation(libs.koin.compose)
     implementation(libs.pdfbox)
     implementation(libs.sqlite.jdbc)
+    // OCR local (Tesseract) para ler cupom fotografado nas despesas. As ferramentas de linha de comando do
+    // PDFBox que ele traz não são usadas.
+    implementation(libs.tess4j) {
+        exclude(group = "org.apache.pdfbox", module = "pdfbox-tools")
+        exclude(group = "org.apache.pdfbox", module = "pdfbox-debugger")
+        exclude(group = "info.picocli")
+    }
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test.junit)

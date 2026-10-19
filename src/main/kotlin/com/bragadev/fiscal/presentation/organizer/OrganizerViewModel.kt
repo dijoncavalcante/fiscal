@@ -1,48 +1,21 @@
 package com.bragadev.fiscal.presentation.organizer
 
-import com.bragadev.fiscal.domain.model.CategoryNode
-import com.bragadev.fiscal.domain.model.DocumentCategory
-import com.bragadev.fiscal.domain.model.DuplicatePolicy
-import com.bragadev.fiscal.domain.model.DuplicateResolution
-import com.bragadev.fiscal.domain.model.FileOperationError
-import com.bragadev.fiscal.domain.model.MonthFolderStatus
-import com.bragadev.fiscal.domain.model.OrganizationPlan
-import com.bragadev.fiscal.domain.model.OrganizeMode
-import com.bragadev.fiscal.domain.model.Outcome
-import com.bragadev.fiscal.domain.model.getOrNull
+import com.bragadev.fiscal.domain.model.*
 import com.bragadev.fiscal.domain.rules.EditablePeriodPolicy
-import com.bragadev.fiscal.domain.usecase.ChangeMonthFolderUseCase
-import com.bragadev.fiscal.domain.usecase.DescribeMonthFolderUseCase
-import com.bragadev.fiscal.domain.usecase.GetCategoryTreeUseCase
-import com.bragadev.fiscal.domain.usecase.GetMonthChecklistUseCase
-import com.bragadev.fiscal.domain.usecase.ObserveSettingsUseCase
-import com.bragadev.fiscal.domain.usecase.OrganizeDocumentUseCase
-import com.bragadev.fiscal.domain.usecase.OrganizeResult
-import com.bragadev.fiscal.domain.usecase.PlanOrganizationUseCase
-import com.bragadev.fiscal.domain.usecase.UndoOperationUseCase
-import com.bragadev.fiscal.domain.usecase.WatchFolderUseCase
-import com.bragadev.fiscal.presentation.common.DocumentChangeNotifier
-import com.bragadev.fiscal.presentation.common.Strings
-import com.bragadev.fiscal.presentation.common.UserMessage
-import com.bragadev.fiscal.presentation.common.ViewModel
-import com.bragadev.fiscal.presentation.common.toUserMessage
+import com.bragadev.fiscal.domain.usecase.*
+import com.bragadev.fiscal.presentation.common.*
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.nio.file.Path
-import java.util.UUID
+import java.util.*
 
 /** Lado direito: mês em edição, categorias e as operações de organizar e desfazer. */
 class OrganizerViewModel(
     private val getCategoryTree: GetCategoryTreeUseCase,
     private val getMonthChecklist: GetMonthChecklistUseCase,
+    private val checkExpenses: CheckExpensesUseCase,
     private val planOrganization: PlanOrganizationUseCase,
     private val organizeDocument: OrganizeDocumentUseCase,
     private val undoOperation: UndoOperationUseCase,
@@ -54,6 +27,7 @@ class OrganizerViewModel(
     periodPolicy: EditablePeriodPolicy,
 ) : ViewModel() {
     private var descriptionJob: Job? = null
+    private var expenseJob: Job? = null
     private val state = MutableStateFlow(OrganizerUiState(firstEditableMonth = periodPolicy.firstEditableMonth))
     val uiState: StateFlow<OrganizerUiState> = state.asStateFlow()
 
@@ -143,7 +117,8 @@ class OrganizerViewModel(
     private suspend fun showMonthFolder(folder: Path?) {
         val info = folder?.let { describeMonthFolder(it) }
         val groups = getCategoryTree(info?.account)
-        state.update { it.copy(monthFolder = info, groups = groups) }
+        // Outro mês: as despesas são conferidas de novo (nomes iguais em meses diferentes são outros arquivos).
+        state.update { it.copy(monthFolder = info, groups = groups, expenseChecks = emptyMap()) }
         refreshChecklist()
     }
 
@@ -152,6 +127,33 @@ class OrganizerViewModel(
         val info = state.value.monthFolder
         val checklist = info?.let { getMonthChecklist(it.path, it.account) }
         state.update { it.copy(checklist = checklist) }
+        startExpenseCheck(info, checklist)
+    }
+
+    /**
+     * Confere as despesas da Conta da Manutenção em segundo plano (pode levar alguns segundos por arquivo novo,
+     * por causa do OCR). Cada resultado aparece assim que sai; se alguma pendência mudou, a lista é relida.
+     */
+    private fun startExpenseCheck(info: MonthFolderInfo?, checklist: MonthChecklist?) {
+        expenseJob?.cancel()
+        val names =
+            if (info != null && checklist != null) checkExpenses.expenseFiles(info.account, checklist) else emptyList()
+        val known = state.value.expenseChecks
+        state.update { current ->
+            current.copy(expenseChecks = names.associate {
+                it.lowercase() to (known[it.lowercase()] ?: ExpenseStatus.CHECKING)
+            })
+        }
+        if (info == null || checklist == null || names.isEmpty()) return
+        expenseJob = scope.launch {
+            val flagsChanged = checkExpenses(info.path, info.account, checklist) { name, status ->
+                state.update { it.copy(expenseChecks = it.expenseChecks + (name.lowercase() to status)) }
+            }
+            if (flagsChanged && state.value.monthFolder?.path == info.path) {
+                val updated = getMonthChecklist(info.path, info.account)
+                state.update { it.copy(checklist = updated) }
+            }
+        }
     }
 
     /** Motivo para recusar a organização antes mesmo de calcular a proposta. */

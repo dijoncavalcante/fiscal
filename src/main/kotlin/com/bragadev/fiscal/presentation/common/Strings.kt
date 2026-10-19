@@ -185,6 +185,10 @@ object Strings {
 
     fun issueLabel(note: String) = "Pendência: $note"
 
+    // Conferência das despesas da Conta da Manutenção (cupom/nota fiscal, comprovante e assinatura)
+    const val EXPENSE_VERIFIED = "Verificado: cupom ou nota fiscal, comprovante Pix/TED e assinatura de Elves Lincoln"
+    const val EXPENSE_CHECKING = "Conferindo cupom, comprovante e assinatura…"
+
     // Documentos: ordenação e busca
     const val REFRESH_FOLDER = "Atualizar a pasta"
     const val OPEN_IN_EXPLORER = "Abrir a pasta no Explorer"

@@ -21,7 +21,7 @@ O usuário conversa em **português (pt-BR)**; UI, comentários do código e men
 ```
 
 - JDK 17 (toolchain). Gradle 8.14.3 (wrapper). Kotlin 2.3.0, Compose Multiplatform 1.10.0, Material3 1.10.0-alpha05,
-  Koin 4.1.1, PDFBox 3.0.5, sqlite-jdbc 3.50.3.0. Versões em `gradle/libs.versions.toml`.
+  Koin 4.1.1, PDFBox 3.0.5, sqlite-jdbc 3.50.3.0, tess4j 5.13.0 (OCR). Versões em `gradle/libs.versions.toml`.
 - Projeto de módulo único (`kotlin("jvm")` + plugin Compose), `mainClass = com.bragadev.fiscal.app.MainKt`.
 - Ambiente: Windows, shell Git Bash e PowerShell. Não há Python nem `gh` CLI instalados.
 
@@ -202,6 +202,25 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
 - **Renomear** mantém na pasta atual; **Renomear e Mover** leva para a pasta do mês. A proposta (com destino) é sempre
   mostrada; as opções "Confirmar antes de mover/renomear" só controlam o passo extra "Confirmar operação?".
 
+## Conferência das despesas (Conta da Manutenção)
+
+- Só `manutencao.despesas` ("3. Despesas" da Manutenção). Cada PDF precisa ter **cupom ou nota fiscal**, **comprovante
+  Pix/TED** e **assinatura de Elves Lincoln Menezes de Lima** (regras puras em `ExpenseDocumentRules`).
+- Leitura (`PdfContentReaderImpl`): texto do PDFBox por página; página sem texto (cupom fotografado) passa pelo **OCR
+  local** (`TesseractOcrEngine`, tess4j com o modelo `eng` que vem no jar — nada é baixado; carrega antes
+  `msvcp140`/`vcruntime140` do Java embutido). Páginas com texto + imagem só vão ao OCR enquanto faltar algo
+  (`hasEnoughText`). Exceção combinada com o usuário à regra "sem IA": OCR offline.
+- Assinatura = nome no **certificado** da assinatura digital (`CertificateFactory` lê o PKCS#7; gov.br usa tamanho
+  indefinido `30 80`, não cortar) ou o selo "Documento assinado digitalmente" + nome no texto/OCR (data ignorada).
+  O nome solto **não** vale: ele aparece como recebedor do Pix. A integridade criptográfica não é verificada.
+- Termos procurados palavra a palavra com tolerância a erros do OCR (Levenshtein). Orçamento e recibo à mão não
+  contam como cupom.
+- `CheckExpensesUseCase` (no `OrganizerViewModel`, em segundo plano): incompleta → pendência "Falta …" (texto de
+  `issueNote`); corrigida → a pendência automática sai (`isAutomaticNote`). Pendência escrita pelo usuário nunca é
+  mexida. Resultado guardado em `expense_checks` por tamanho + data: não repete OCR, e pendência automática removida
+  pelo usuário não volta enquanto o arquivo não mudar. Falha passageira (arquivo em uso, OCR) = `NOT_CHECKED`, sem
+  pendência. Tela: "certo" verde ao lado do nome (`MonthFileRow.expenseStatus`) ou indicador enquanto confere.
+
 ## Fechamento do mês e histórico
 
 - **Concluir mês** (botão no cabeçalho do mês em edição, aparece com mês identificado — também em meses fechados):
@@ -299,7 +318,7 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
 
 - `%APPDATA%\Fiscal\fiscal.db` (SQLite), `%APPDATA%\Fiscal\backup\` e `%APPDATA%\Fiscal\lixeira\` (excluídos).
 - Tabelas: `documents`, `categories` (+ `file_base_name`, `optional`), `file_operations` (+ `backup_path`, `undone`), `settings`,
-  `file_flags` (pendências por pasta + nome, em minúsculas).
+  `file_flags` (pendências por pasta + nome, em minúsculas), `expense_checks` (conferência das despesas).
 - Colunas novas: adicionar em `Schema.statements` **e** em `Schema.addedColumns` (migração por `ALTER TABLE` se faltar).
 - Settings: `source_folder`, `month_folder`, `months_root`, `duplicate_policy`, `confirm_before_move`,
   `confirm_before_rename`, `document_sort`, `auto_clean_backups`, `backup_retention_days`, `theme_mode`,
@@ -316,6 +335,9 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   (Enter/Esc nos diálogos, Ctrl+Z/F5). Configurações salvas: `SettingsPersistenceTest`; janela: `WindowRestoreTest`.
 - Concluir mês com PDF real lido de volta (`PDFTextStripper`): `MonthClosingTest`; histórico: `HistoryTest`; mês de
   corte: `EditablePeriodPolicyTest`; EXIF: `ExifOrientationTest` (`jpegWithOrientation` cria foto "de celular").
+- Despesas: `ExpenseDocumentRulesTest` (textos reais de PDF e OCR), `CheckExpensesUseCaseTest`,
+  `PdfContentReaderImplTest`
+  (OCR de verdade numa página-foto gerada) e `ExpenseCheckDaoTest`.
 - Telas que não dá para clicar no app (a janela Java não aceita automação): renderize num `runComposeUiTest`
   descartável e salve `onAllNodes(isRoot())[i].captureToImage()` em PNG para conferir (diálogos são outra raiz).
 - Teste visual sem mexer nos dados do usuário: rode com `APPDATA` apontando para uma pasta temporária **de caminho
