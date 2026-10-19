@@ -1,20 +1,12 @@
 package com.bragadev.fiscal.presentation.monthfiles
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.bragadev.fiscal.presentation.common.Strings
+import com.bragadev.fiscal.presentation.components.CopyButton
 import com.bragadev.fiscal.presentation.components.LabeledValue
 import com.bragadev.fiscal.presentation.components.PreviewDialog
 import com.bragadev.fiscal.presentation.components.StatusColors
@@ -41,14 +33,14 @@ private fun RenameDialog(dialog: MonthFileDialog.Rename, isWorking: Boolean, vie
             Button(onClick = viewModel::onRenameConfirmed, enabled = dialog.canConfirm && !isWorking) { Text(Strings.RENAME) }
         },
     ) {
-        LabeledValue(Strings.CURRENT_FILE, dialog.file.fileName.toString())
+        LabeledValue(Strings.CURRENT_FILE, dialog.file.fileName.toString(), copyDescription = Strings.COPY_NAME)
         LabeledValue(Strings.DESTINATION, dialog.file.parent.toString())
         if (dialog.numberedModeAvailable) ModeSelector(dialog.mode, viewModel::onRenameModeChanged)
         when (dialog.mode) {
             RenameMode.NUMBER_AND_DESCRIPTION -> NumberAndDescriptionFields(dialog, viewModel)
             RenameMode.FULL_NAME -> FullNameField(dialog, viewModel)
         }
-        dialog.plan?.let { LabeledValue(Strings.NAME_PREVIEW, finalName(dialog)) }
+        dialog.plan?.let { LabeledValue(Strings.NAME_PREVIEW, finalName(dialog), copyDescription = Strings.COPY_NAME) }
         dialog.warning?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = StatusColors.Warning) }
     }
 }
@@ -105,6 +97,7 @@ private fun FullNameField(dialog: MonthFileDialog.Rename, viewModel: MonthFilesV
         value = dialog.fullName,
         onValueChange = viewModel::onRenameFullNameChanged,
         label = { Text(Strings.NEW_FILE_NAME) },
+        trailingIcon = { CopyButton(dialog.fullName, Strings.COPY_NAME) },
         singleLine = true,
         isError = dialog.inputError != null,
         supportingText = { Text(dialog.inputError ?: Strings.FULL_NAME_HINT) },
@@ -131,7 +124,7 @@ private fun RemoveDialog(dialog: MonthFileDialog.Remove, isWorking: Boolean, vie
         },
     ) {
         Text(Strings.REMOVE_EXPLANATION, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 8.dp))
-        LabeledValue(Strings.CURRENT_FILE, dialog.file.toString())
+        LabeledValue(Strings.CURRENT_FILE, dialog.file.toString(), copyDescription = Strings.COPY_PATH)
         LabeledValue(Strings.MOVE_TO, dialog.target.toString())
     }
 }
@@ -149,7 +142,7 @@ private fun FlagDialog(dialog: MonthFileDialog.Flag, viewModel: MonthFilesViewMo
         },
     ) {
         Text(Strings.ISSUE_EXPLANATION, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 8.dp))
-        LabeledValue(Strings.CURRENT_FILE, dialog.file.fileName.toString())
+        LabeledValue(Strings.CURRENT_FILE, dialog.file.fileName.toString(), copyDescription = Strings.COPY_NAME)
         OutlinedTextField(
             value = dialog.note,
             onValueChange = viewModel::onFlagNoteChanged,

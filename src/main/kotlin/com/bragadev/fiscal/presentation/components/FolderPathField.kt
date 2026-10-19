@@ -22,7 +22,8 @@ import java.io.File
  * O texto pode ser selecionado e copiado; só o lápis permite trocar a pasta.
  *
  * [highlightedSegment], quando informado, aparece em destaque (ex.: a pasta do mês).
- * [onOpenInExplorer], quando informado, mostra o ícone de pasta que abre o caminho no Explorer (só com caminho preenchido).
+ * [onOpenInExplorer], quando informado, mostra o ícone de pasta que abre o caminho no Explorer e, ao lado, o botão
+ * que copia o caminho (só com caminho preenchido).
  */
 @Composable
 fun FolderPathField(
@@ -51,6 +52,7 @@ fun FolderPathField(
                     )
                 }
                 if (onOpenInExplorer != null && path.isNotBlank()) {
+                    CopyButton(path, Strings.COPY_PATH)
                     FieldButton(AppIcons.FolderOpen, Strings.OPEN_IN_EXPLORER, onOpenInExplorer)
                 }
                 FieldButton(AppIcons.Pencil, editDescription, onEdit)

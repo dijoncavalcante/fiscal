@@ -1,36 +1,10 @@
 package com.bragadev.fiscal.presentation.pdftools
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draganddrop.DragAndDropEvent
@@ -44,14 +18,7 @@ import androidx.compose.ui.unit.dp
 import com.bragadev.fiscal.domain.model.ImagePage
 import com.bragadev.fiscal.domain.rules.ImageFileRules
 import com.bragadev.fiscal.presentation.common.Strings
-import com.bragadev.fiscal.presentation.components.AppIcons
-import com.bragadev.fiscal.presentation.components.DragPayload
-import com.bragadev.fiscal.presentation.components.FolderPathField
-import com.bragadev.fiscal.presentation.components.IconText
-import com.bragadev.fiscal.presentation.components.Panel
-import com.bragadev.fiscal.presentation.components.ReorderableColumn
-import com.bragadev.fiscal.presentation.components.pickFiles
-import com.bragadev.fiscal.presentation.components.pickFolder
+import com.bragadev.fiscal.presentation.components.*
 import java.nio.file.Path
 
 private const val MIN_PDFS_TO_MERGE = 2
@@ -239,6 +206,7 @@ private fun OutputFields(dialog: PdfToolDialog, viewModel: PdfToolsViewModel) {
         onValueChange = viewModel::onOutputNameChanged,
         label = { Text(Strings.OUTPUT_NAME) },
         suffix = { Text(".pdf") },
+        trailingIcon = { CopyButton(dialog.outputName, Strings.COPY_NAME) },
         singleLine = true,
         modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
     )

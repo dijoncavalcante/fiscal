@@ -150,6 +150,18 @@ object AppIcons {
 
     val Delete = icon("Delete", "M6,19c0,1.1 0.9,2 2,2h8c1.1,0 2,-0.9 2,-2V7H6v12zM19,4h-3.5l-1,-1h-5l-1,1H5v2h14V4z")
 
+    val DoubleArrowLeft = icon(
+        "DoubleArrowLeft",
+        "M17.59,18L19,16.59 14.42,12 19,7.41 17.59,6l-6,6zM11,18l1.41,-1.41L7.83,12l4.58,-4.59L11,6l-6,6z",
+    )
+
+    val DoubleArrowRight = icon(
+        "DoubleArrowRight",
+        "M6.41,6L5,7.41 9.58,12 5,16.59 6.41,18l6,-6zM13,6l-1.41,1.41L16.17,12l-4.58,4.59L13,18l6,-6z",
+    )
+
+    val Check = icon("Check", "M9,16.17L4.83,12l-1.42,1.41L9,19 21,7l-1.41,-1.41z")
+
     val Copy = icon(
         "Copy",
         "M16,1H4c-1.1,0 -2,0.9 -2,2v14h2V3h12V1zM19,5H8c-1.1,0 -2,0.9 -2,2v14c0,1.1 0.9,2 2,2h11c1.1,0 2,-0.9 2,-2V7" +

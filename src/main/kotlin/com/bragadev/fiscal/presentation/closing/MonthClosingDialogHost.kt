@@ -1,25 +1,9 @@
 package com.bragadev.fiscal.presentation.closing
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,13 +15,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.bragadev.fiscal.domain.model.MonthReview
 import com.bragadev.fiscal.domain.model.ReviewLine
 import com.bragadev.fiscal.presentation.common.Strings
-import com.bragadev.fiscal.presentation.components.AppIcons
-import com.bragadev.fiscal.presentation.components.DesktopActions
-import com.bragadev.fiscal.presentation.components.FolderPathField
-import com.bragadev.fiscal.presentation.components.IconText
-import com.bragadev.fiscal.presentation.components.StatusColors
-import com.bragadev.fiscal.presentation.components.dialogKeys
-import com.bragadev.fiscal.presentation.components.pickFolder
+import com.bragadev.fiscal.presentation.components.*
 
 /** "Concluir mês": conferência (faltando, pendências), onde salvar e "Gerar relatório PDF". Enter gera; Esc fecha. */
 @Composable
@@ -90,6 +68,7 @@ fun MonthClosingDialogHost(state: MonthClosingUiState, viewModel: MonthClosingVi
                     value = dialog.outputName,
                     onValueChange = viewModel::onOutputNameChanged,
                     label = { Text(Strings.REPORT_NAME) },
+                    trailingIcon = { CopyButton(dialog.outputName, Strings.COPY_NAME) },
                     singleLine = true,
                     enabled = dialog.created == null,
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -105,6 +84,7 @@ fun MonthClosingDialogHost(state: MonthClosingUiState, viewModel: MonthClosingVi
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.weight(1f),
                         )
+                        CopyButton(created.toString(), Strings.COPY_PATH)
                         OutlinedButton(onClick = { created.parent?.let(DesktopActions::openFolder) }) { Text(Strings.OPEN_REPORT_FOLDER) }
                         Button(onClick = viewModel::onOpenReport, modifier = Modifier.padding(start = 8.dp)) { Text(Strings.OPEN_REPORT) }
                     }

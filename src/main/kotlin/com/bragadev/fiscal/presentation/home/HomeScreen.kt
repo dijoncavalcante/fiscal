@@ -156,7 +156,10 @@ private fun Workspace(
         onCopy = documentActionsViewModel::onCopyRequested,
         onDelete = { file -> documentActionsViewModel.onDeleteRequested(file, homeViewModel.selectionAfterRemoving(file)) },
     )
-    val documents: @Composable (Modifier) -> Unit = { modifier ->
+    // Painéis recolhidos para a borda (só no layout largo); o preview ganha o espaço.
+    var documentsCollapsed by rememberSaveable { mutableStateOf(false) }
+    var monthCollapsed by rememberSaveable { mutableStateOf(false) }
+    val documents: @Composable (Modifier, PanelCollapse?) -> Unit = { modifier, collapse ->
         DocumentList(
             state = home,
             onSelect = homeViewModel::onDocumentSelected,
@@ -170,19 +173,25 @@ private fun Workspace(
             },
             modifier = modifier,
             onOpenInExplorer = { homeViewModel.currentSourceFolder?.let(DesktopActions::openFolder) },
+            collapse = collapse,
         )
     }
-    val categories: @Composable (Modifier) -> Unit = toolPanel ?: { modifier ->
-        OrganizerScreen(
-            state = organizer,
-            selectedDocument = selectedPath,
-            onDrop = organizerViewModel::onFilesDropped,
-            onCategoryClickedWithoutDocument = organizerViewModel::onCategoryClickedWithoutDocument,
-            fileActions = fileActions,
-            navigator = navigator,
-            onConcludeMonth = onConcludeMonth,
-            modifier = modifier,
-        )
+    val categories: @Composable (Modifier, PanelCollapse?) -> Unit = { modifier, collapse ->
+        if (toolPanel != null) {
+            toolPanel(modifier)
+        } else {
+            OrganizerScreen(
+                state = organizer,
+                selectedDocument = selectedPath,
+                onDrop = organizerViewModel::onFilesDropped,
+                onCategoryClickedWithoutDocument = organizerViewModel::onCategoryClickedWithoutDocument,
+                fileActions = fileActions,
+                navigator = navigator,
+                onConcludeMonth = onConcludeMonth,
+                modifier = modifier,
+                collapse = collapse,
+            )
+        }
     }
     val preview: @Composable (Modifier) -> Unit = { modifier ->
         // Imagens (JPEG/PNG) aparecem no preview para o usuário conferir antes de converter.
@@ -198,12 +207,27 @@ private fun Workspace(
     BoxWithConstraints(Modifier.fillMaxSize().padding(8.dp)) {
         if (maxWidth >= WIDE_LAYOUT_MIN_WIDTH) {
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                documents(Modifier.weight(0.25f).fillMaxHeight())
+                if (documentsCollapsed) {
+                    CollapsedPanel(Strings.DOCUMENTS, PanelSide.LEFT, onExpand = { documentsCollapsed = false })
+                } else {
+                    documents(
+                        Modifier.weight(0.25f).fillMaxHeight(),
+                        PanelCollapse(PanelSide.LEFT) { documentsCollapsed = true })
+                }
                 preview(Modifier.weight(0.43f).fillMaxHeight())
-                categories(Modifier.weight(0.32f).fillMaxHeight())
+                // As ferramentas de PDF ocupam o lugar do mês e ficam sempre abertas (não têm botão de recolher).
+                if (monthCollapsed && toolPanel == null) {
+                    CollapsedPanel(Strings.MONTH_PANEL, PanelSide.RIGHT, onExpand = { monthCollapsed = false })
+                } else {
+                    categories(
+                        Modifier.weight(0.32f).fillMaxHeight(),
+                        if (toolPanel == null) PanelCollapse(PanelSide.RIGHT) { monthCollapsed = true } else null,
+                    )
+                }
             }
         } else {
-            CompactWorkspace(documents, categories, preview)
+            // Nas abas da janela estreita não há o que recolher.
+            CompactWorkspace({ documents(it, null) }, { categories(it, null) }, preview)
         }
     }
 }

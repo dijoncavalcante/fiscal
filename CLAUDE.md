@@ -90,6 +90,11 @@ Regras de camada:
   Desfazer devolve (a Lixeira do Windows não serve: em pendrive ela apaga de vez). Depois de excluir, a seleção vai
   para o vizinho (`HomeViewModel.selectionAfterRemoving`, calculado antes, porque o WatchService pode atualizar antes).
 - **Centro — preview** (PDFBox; imagens via `ImageThumbnail`). O PDF é lido para memória: o arquivo nunca fica bloqueado nem é alterado.
+  **Rolagem contínua:** todas as páginas numa `LazyColumn` (uma abaixo da outra), roda do mouse / `ListScrollbar`
+  percorrem o PDF inteiro; tamanho de cada página calculado antes (`PreviewPage`), imagem desenhada só para as
+  visíveis ± 1 (`onVisiblePagesChanged`) e descartada além de ± 2 (memória). "Página X de N" = página que ocupa mais
+  espaço na tela; `<`/`>` só rolam até a página. Nos modos de ajuste cada página tem o seu zoom. Teste com PDF real e
+  roda do mouse simulada: `PdfPreviewScrollTest`.
 - **Direita — mês em edição:** mês em destaque ("Junho de 2026" + "Liberado para edição" / cadeado "Somente leitura"), conta detectada,
   caminho completo **somente leitura** (texto copiável, pasta do mês em negrito) e lápis para trocar. Abaixo, grupos
   recolhíveis por conta com as categorias, cada uma com o selo **Já existe** (e os arquivos encontrados) ou **Faltando**;
@@ -214,6 +219,17 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   `packaging/fiscal.ico` (instalador, atalho e `Fiscal.exe`: `nativeDistributions.windows.iconFile`).
 - **Ícones da interface:** só `AppIcons` (vetores do Material Icons), nunca emoji. `IconText` = ícone + texto na mesma
   cor; `ExpandIcon` = setinha dos grupos recolhíveis.
+- **Copiar caminho/nome:** `CopyButton` (ícone vira "certo" verde por 1,5 s). Todo "Abrir no Explorer" tem ao lado o
+  copiar caminho (`FolderPathField` com `onOpenInExplorer`, cabeçalho de Documentos, relatório do mês, pasta de dados
+  no Sobre); nomes de arquivo nos diálogos usam `LabeledValue(copyDescription = Strings.COPY_NAME)` e os campos de
+  nome têm `trailingIcon = { CopyButton(...) }` (copia o texto do campo, sem a extensão do sufixo).
+- **Recolher painéis:** botão « / » no título (`Panel(collapse = PanelCollapse(side) {…})`): Documentos recolhe para a
+  esquerda, Mês em edição para a direita, virando uma faixa de 40 dp com o título na vertical (`CollapsedPanel`;
+  clicar nela expande) e o preview ganha o espaço. Estado em `rememberSaveable` no `Workspace` (não é gravado no
+  banco). Só no layout largo; com as ferramentas de PDF abertas o painel da direita fica sempre aberto.
+  Teste: `CollapsiblePanelTest`.
+- **Barras de rolagem:** Documentos e Mês em edição usam `ListScrollbar` (ao lado da lista, não por cima, para não
+  cobrir o ⋮); testadas arrastando com mouse simulado em `CopyAndScrollTest`.
 - **Tema:** Configurações → Aparência: "Igual ao Windows" (padrão, `isSystemInDarkTheme`), "Claro" ou "Escuro"
   (`theme_mode`). `FiscalTheme` troca o esquema do Material3 e as `FiscalColors` (`StatusColors.*` lê do tema). As páginas
   do PDF continuam brancas no tema escuro; só o fundo atrás delas (`PreviewBackdrop`) muda.

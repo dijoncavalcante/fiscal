@@ -1,26 +1,9 @@
 package com.bragadev.fiscal.presentation.organizer
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -60,10 +43,10 @@ private fun ProposalDialog(dialog: OrganizerDialog.Proposal, state: OrganizerUiS
             ) { Text(Strings.RENAME_AND_MOVE) }
         },
     ) {
-        LabeledValue(Strings.CURRENT_FILE, dialog.source.fileName.toString())
+        LabeledValue(Strings.CURRENT_FILE, dialog.source.fileName.toString(), copyDescription = Strings.COPY_NAME)
         if (dialog.needsDescription) DescriptionField(dialog, viewModel::onDescriptionChanged)
         dialog.movePlan?.let { plan ->
-            LabeledValue(Strings.NEW_NAME, plan.suggestedName)
+            LabeledValue(Strings.NEW_NAME, plan.suggestedName, copyDescription = Strings.COPY_NAME)
             MonthLine(state)
             LabeledValue(Strings.DESTINATION, plan.targetDirectory.toString())
         }
@@ -121,10 +104,10 @@ private fun ConfirmDialog(dialog: OrganizerDialog.Confirm, state: OrganizerUiSta
             Button(onClick = viewModel::onConfirmed) { Text(Strings.CONFIRM) }
         },
     ) {
-        LabeledValue(Strings.CURRENT_FILE, dialog.plan.currentName)
+        LabeledValue(Strings.CURRENT_FILE, dialog.plan.currentName, copyDescription = Strings.COPY_NAME)
         if (dialog.plan.mode == OrganizeMode.RENAME_AND_MOVE) MonthLine(state)
         LabeledValue(Strings.DESTINATION, dialog.plan.targetDirectory.toString())
-        LabeledValue(Strings.NEW_NAME, dialog.finalName)
+        LabeledValue(Strings.NEW_NAME, dialog.finalName, copyDescription = Strings.COPY_NAME)
         if (dialog.resolution == DuplicateResolution.REPLACE) {
             Text(Strings.REPLACE_NOTE, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }

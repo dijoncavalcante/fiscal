@@ -2,18 +2,8 @@ package com.bragadev.fiscal.presentation.documentactions
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -22,6 +12,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.bragadev.fiscal.domain.rules.FileNameRules
 import com.bragadev.fiscal.presentation.common.Strings
+import com.bragadev.fiscal.presentation.components.CopyButton
 import com.bragadev.fiscal.presentation.components.LabeledValue
 import com.bragadev.fiscal.presentation.components.PreviewDialog
 
@@ -47,10 +38,16 @@ private fun RenameDialog(dialog: DocumentActionDialog.Rename, isWorking: Boolean
             Button(onClick = viewModel::onRenameConfirmed, enabled = dialog.canConfirm && !isWorking) { Text(Strings.RENAME) }
         },
     ) {
-        LabeledValue(Strings.CURRENT_FILE, dialog.file.fileName.toString())
+        LabeledValue(Strings.CURRENT_FILE, dialog.file.fileName.toString(), copyDescription = Strings.COPY_NAME)
         LabeledValue(Strings.FOLDER, dialog.file.parent.toString())
         NameField(dialog, extension, viewModel::onRenameNameChanged)
-        dialog.target?.let { LabeledValue(Strings.NAME_PREVIEW, it.fileName.toString()) }
+        dialog.target?.let {
+            LabeledValue(
+                Strings.NAME_PREVIEW,
+                it.fileName.toString(),
+                copyDescription = Strings.COPY_NAME
+            )
+        }
     }
 }
 
@@ -68,6 +65,7 @@ private fun NameField(dialog: DocumentActionDialog.Rename, extension: String, on
         },
         label = { Text(Strings.NEW_FILE_NAME) },
         suffix = extension.takeIf { it.isNotEmpty() }?.let { { Text(it) } },
+        trailingIcon = { CopyButton(value.text, Strings.COPY_NAME) },
         singleLine = true,
         isError = dialog.inputError != null,
         supportingText = { Text(dialog.inputError ?: Strings.nameWithExtension(extension)) },
@@ -92,7 +90,7 @@ private fun DeleteDialog(dialog: DocumentActionDialog.Delete, isWorking: Boolean
         },
     ) {
         Text(Strings.DELETE_EXPLANATION, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 8.dp))
-        LabeledValue(Strings.CURRENT_FILE, dialog.file.fileName.toString())
+        LabeledValue(Strings.CURRENT_FILE, dialog.file.fileName.toString(), copyDescription = Strings.COPY_NAME)
         LabeledValue(Strings.FOLDER, dialog.file.parent.toString())
     }
 }

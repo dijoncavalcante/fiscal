@@ -10,6 +10,7 @@ import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,10 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.bragadev.fiscal.domain.model.Document
 import com.bragadev.fiscal.domain.model.DocumentSort
 import com.bragadev.fiscal.presentation.common.Strings
-import com.bragadev.fiscal.presentation.components.AppIcons
-import com.bragadev.fiscal.presentation.components.DragPayload
-import com.bragadev.fiscal.presentation.components.FolderPathField
-import com.bragadev.fiscal.presentation.components.Panel
+import com.bragadev.fiscal.presentation.components.*
 import java.nio.file.Path
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -45,6 +43,10 @@ private val modifiedFormat = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").wit
 
 /** Marca da lista para os testes de teclado. */
 internal const val DOCUMENT_LIST_TAG = "lista-documentos"
+internal const val DOCUMENT_SCROLLBAR_TAG = "rolagem-documentos"
+
+// Botões do cabeçalho um pouco menores que o padrão: sobra espaço para o caminho da pasta.
+private val HEADER_BUTTON_SIZE = 36.dp
 
 /** O que o menu do botão direito (e o ⋮) faz com um documento da lista. */
 class DocumentActions(
@@ -68,8 +70,9 @@ fun DocumentList(
     onQueryChanged: (String) -> Unit,
     modifier: Modifier = Modifier,
     onOpenInExplorer: () -> Unit = {},
+    collapse: PanelCollapse? = null,
 ) {
-    Panel(title = Strings.DOCUMENTS, modifier = modifier) {
+    Panel(title = Strings.DOCUMENTS, modifier = modifier, collapse = collapse) {
         Row(Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp), verticalAlignment = Alignment.Bottom) {
             FolderPathField(
                 label = Strings.SOURCE_FOLDER_LABEL,
@@ -79,7 +82,8 @@ fun DocumentList(
                 onEdit = onChangeFolder,
                 modifier = Modifier.weight(1f),
             )
-            // Só com a pasta encontrada: pasta ausente (pendrive desconectado) não tem o que abrir.
+            // Copiar vale mesmo com a pasta ausente; abrir, só com a pasta encontrada (pendrive desconectado).
+            CopyButton(state.sourceFolder, Strings.COPY_PATH, Modifier.size(HEADER_BUTTON_SIZE))
             HeaderButton(
                 AppIcons.FolderOpen,
                 Strings.OPEN_IN_EXPLORER,
@@ -105,17 +109,28 @@ fun DocumentList(
                     runCatching { listFocus.requestFocus() }
                     Unit
                 }
-                LazyColumn(
-                    Modifier
-                        .fillMaxSize()
-                        .testTag(DOCUMENT_LIST_TAG)
-                        .focusRequester(listFocus)
-                        .onKeyEvent { event -> handleDocumentKey(event, selected, actions) }
-                        .focusable(),
-                ) {
-                    items(state.visibleDocuments, key = { it.path.toString() }) { document ->
-                        DocumentRow(document, isSelected = document.path == state.selectedDocument?.path, onSelect = select, actions = actions)
+                val listState = rememberLazyListState()
+                Row(Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .testTag(DOCUMENT_LIST_TAG)
+                            .focusRequester(listFocus)
+                            .onKeyEvent { event -> handleDocumentKey(event, selected, actions) }
+                            .focusable(),
+                        state = listState,
+                    ) {
+                        items(state.visibleDocuments, key = { it.path.toString() }) { document ->
+                            DocumentRow(
+                                document,
+                                isSelected = document.path == state.selectedDocument?.path,
+                                onSelect = select,
+                                actions = actions
+                            )
+                        }
                     }
+                    ListScrollbar(listState, Modifier.testTag(DOCUMENT_SCROLLBAR_TAG))
                 }
             }
         }
@@ -157,7 +172,7 @@ private fun HeaderButton(icon: ImageVector, label: String, enabled: Boolean = tr
         tooltip = { PlainTooltip { Text(label) } },
         state = rememberTooltipState(),
     ) {
-        IconButton(onClick = onClick, enabled = enabled) {
+        IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(HEADER_BUTTON_SIZE)) {
             Icon(
                 icon,
                 contentDescription = label,

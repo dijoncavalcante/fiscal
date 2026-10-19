@@ -1,30 +1,12 @@
 package com.bragadev.fiscal.presentation.about
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
@@ -33,10 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bragadev.fiscal.domain.repository.DiagnosticsRepository
 import com.bragadev.fiscal.presentation.common.Strings
-import com.bragadev.fiscal.presentation.components.AppIcons
-import com.bragadev.fiscal.presentation.components.DesktopActions
-import com.bragadev.fiscal.presentation.components.IconText
-import com.bragadev.fiscal.presentation.components.StatusColors
+import com.bragadev.fiscal.presentation.components.*
 import java.nio.file.Path
 import java.time.LocalDate
 import javax.imageio.ImageIO
@@ -93,7 +72,7 @@ fun AboutScreen(info: AboutInfo, diagnostics: DiagnosticsRepository, onBack: () 
                         info.commit?.let { InfoRow(Strings.ABOUT_COMMIT, it) }
                         InfoRow(Strings.ABOUT_JAVA, info.javaVersion)
                         InfoRow(Strings.ABOUT_WINDOWS, info.windowsVersion)
-                        InfoRow(Strings.ABOUT_DATA_FOLDER, info.dataFolder.toString())
+                        InfoRow(Strings.ABOUT_DATA_FOLDER, info.dataFolder.toString(), copyable = true)
                     }
                 }
 
@@ -123,10 +102,12 @@ fun AboutScreen(info: AboutInfo, diagnostics: DiagnosticsRepository, onBack: () 
 }
 
 @Composable
-private fun InfoRow(label: String, value: String) {
-    Row {
+private fun InfoRow(label: String, value: String, copyable: Boolean = false) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
         Text(label, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(170.dp))
-        Text(value, modifier = Modifier.weight(1f))
+        Text(value, modifier = Modifier.weight(1f, fill = !copyable))
+        // Caminho de pasta: copiar ao lado (a pasta abre pelo botão "Abrir pasta de dados").
+        if (copyable) CopyButton(value, Strings.COPY_PATH, Modifier.size(28.dp), iconSize = 16.dp)
     }
 }
 

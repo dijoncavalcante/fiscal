@@ -5,24 +5,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,6 +22,7 @@ import androidx.compose.ui.draganddrop.DragAndDropEvent
 import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -39,16 +32,14 @@ import com.bragadev.fiscal.domain.model.CategoryNode
 import com.bragadev.fiscal.domain.model.DocumentCategory
 import com.bragadev.fiscal.domain.model.MonthChecklist
 import com.bragadev.fiscal.presentation.common.Strings
-import com.bragadev.fiscal.presentation.components.AppIcons
-import com.bragadev.fiscal.presentation.components.DragPayload
-import com.bragadev.fiscal.presentation.components.ExpandIcon
-import com.bragadev.fiscal.presentation.components.IconText
-import com.bragadev.fiscal.presentation.components.Panel
-import com.bragadev.fiscal.presentation.components.StatusColors
+import com.bragadev.fiscal.presentation.components.*
 import java.nio.file.Path
 
 private const val LOCKED_ALPHA = 0.45f
 private const val UNMATCHED_GROUP_KEY = "unmatched"
+
+/** Marca da barra de rolagem do mês em edição, para os testes. */
+internal const val MONTH_SCROLLBAR_TAG = "rolagem-mes"
 
 /** Tudo o que as linhas da lista precisam saber sobre a pasta do mês. */
 private class MonthContext(
@@ -83,6 +74,7 @@ fun OrganizerScreen(
     /** Seletor de mês, mostrado no topo da lista (rola junto com as categorias). */
     navigator: @Composable () -> Unit = {},
     onConcludeMonth: (Path) -> Unit = {},
+    collapse: PanelCollapse? = null,
 ) {
     // Grupos começam expandidos, exceto a lista de arquivos sem número.
     val expanded = remember { mutableStateMapOf<String, Boolean>() }
@@ -98,7 +90,7 @@ fun OrganizerScreen(
         selectedFile = selectedDocument,
     )
 
-    Panel(title = Strings.MONTH_PANEL, modifier = modifier) {
+    Panel(title = Strings.MONTH_PANEL, modifier = modifier, collapse = collapse) {
         MonthHeader(state.monthFolder, state.firstEditableMonth, onConcludeMonth = onConcludeMonth)
         HorizontalDivider()
         Text(
@@ -107,10 +99,15 @@ fun OrganizerScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
         )
-        LazyColumn(Modifier.fillMaxWidth().weight(1f).padding(horizontal = 8.dp)) {
-            item(key = "navigator") { navigator() }
-            state.groups.forEach { group -> accountGroup(group, context, expanded) }
-            state.checklist?.unmatchedFiles?.takeIf { it.isNotEmpty() }?.let { files -> unmatchedFiles(files, context, expanded) }
+        val listState = rememberLazyListState()
+        Row(Modifier.fillMaxWidth().weight(1f)) {
+            LazyColumn(Modifier.weight(1f).fillMaxHeight().padding(start = 8.dp, end = 4.dp), state = listState) {
+                item(key = "navigator") { navigator() }
+                state.groups.forEach { group -> accountGroup(group, context, expanded) }
+                state.checklist?.unmatchedFiles?.takeIf { it.isNotEmpty() }
+                    ?.let { files -> unmatchedFiles(files, context, expanded) }
+            }
+            ListScrollbar(listState, Modifier.testTag(MONTH_SCROLLBAR_TAG))
         }
     }
 }

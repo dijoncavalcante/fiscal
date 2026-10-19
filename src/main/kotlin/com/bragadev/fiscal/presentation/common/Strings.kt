@@ -182,6 +182,14 @@ object Strings {
     // Documentos: ordenação e busca
     const val REFRESH_FOLDER = "Atualizar a pasta"
     const val OPEN_IN_EXPLORER = "Abrir a pasta no Explorer"
+    const val COPY_PATH = "Copiar o caminho"
+    const val COPY_NAME = "Copiar o nome"
+    const val COPIED = "Copiado!"
+
+    // Painéis recolhíveis (Documentos e Mês em edição)
+    fun collapsePanel(title: String) = "Recolher ${panelName(title)}"
+    fun expandPanel(title: String) = "Mostrar ${panelName(title)}"
+    private fun panelName(title: String) = title.lowercase().replaceFirstChar { it.uppercase() }
     const val SORT_NEWEST = "Mais recentes"
     const val SORT_NAME = "Nome"
     const val SEARCH = "Buscar nesta pasta"

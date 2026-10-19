@@ -28,10 +28,14 @@ Na primeira vez, o assistente pede três coisas: a pasta raiz das contas (a que 
 MANUTENÇÃO), a pasta de origem dos PDFs e o mês em edição. Dá para reabri-lo em **Configurações**.
 
 1. **Esquerda:** clique no lápis e escolha a pasta do computador com os PDFs (sugestão inicial: `D:\Modelo\jw\pendriver`).
-   O ícone de pasta ao lado abre essa pasta no Explorer.
+   O ícone de pasta ao lado abre essa pasta no Explorer e o de copiar copia o caminho (o mesmo vale para as pastas do
+   mês). Nos diálogos de renomear/organizar, o botão de copiar ao lado do nome copia o nome do arquivo.
 2. **Direita:** em "Escolher mês", clique no mês (ou no lápis para escolher a pasta, ex.: `...\4. TRIMESTRE Jun-Jul-Ago\1. JUNHO`).
    Confira o mês em destaque. Meses anteriores a junho de 2026 ficam **somente leitura** (com cadeado).
-3. Clique em um PDF da lista para ver o preview.
+3. Clique em um PDF da lista para ver o preview; use a roda do mouse para passar por todas as páginas. Para ver o PDF
+   maior, recolha os painéis pelo botão « / » no título
+   de **Documentos** (vai para a esquerda) e de **Mês em edição** (vai para a direita); clique na faixa para mostrar de
+   novo.
 4. Arraste o PDF (da lista ou do Windows Explorer) até uma categoria — ou selecione o PDF e clique na categoria.
 5. Confira o nome atual, o novo nome, o mês e o destino e escolha **Renomear** ou **Renomear e Mover**.
 6. Use **Desfazer** no aviso ou no topo da tela para reverter a última operação.
