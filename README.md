@@ -38,7 +38,8 @@ MANUTENÇÃO), a pasta de origem dos PDFs e o mês em edição. Dá para reabri-
 
 Clique com o **botão direito** num documento da lista (ou no ⋮) para **Renomear** (F2), **Copiar** (Ctrl+C, depois
 cole numa pasta, no WhatsApp ou no e-mail) ou **Excluir** (Delete). Excluir não apaga: o arquivo fica guardado na
-lixeira do FISCAL (`%APPDATA%\Fiscal\lixeira`) e volta com **Desfazer**.
+lixeira do FISCAL (`%APPDATA%\Fiscal\lixeira`) e volta com **Desfazer**. O mesmo menu aparece nos arquivos do
+**mês em edição** (junto com Retirar do mês e as pendências); em mês fechado, só Copiar fica disponível.
 
 7. Ao terminar o mês, clique em **Concluir mês** (no topo do mês em edição): o FISCAL mostra o que está faltando e as
    pendências e gera um **relatório em PDF** com o que existe em cada categoria (salvo na pasta de origem).

@@ -98,7 +98,10 @@ Regras de camada:
   (mesmo fundo da lista da esquerda, `MonthFileRow.isSelected`); o lápis renomeia. Despesas/Outros: modo "Número e
   descrição" (campo Número aceita `3`, `3.1`, `3.2`… via `DescribedSequenceNaming.parseIndex`; vazio = próximo livre;
   número repetido só gera aviso `sameNumberFiles`) ou "Nome completo" (livre, `PlanRenameUseCase`); demais categorias:
-  nome completo. Nunca sobrescreve; menu ⋮ → "Retirar do mês" (volta para a pasta de origem, com
+  nome completo. Nunca sobrescreve. **Botão direito** (abre onde o mouse está e mostra no preview) ou ⋮ → mesmo
+  menu da lista de documentos (Renomear / Copiar / Excluir, via `DocumentActionsViewModel`; Renomear de arquivo com
+  categoria usa o diálogo do mês, sem categoria usa `RenameDocumentUseCase`; mês fechado: só Copiar) + "Retirar do
+  mês" (volta para a pasta de origem, com
   Desfazer; nunca apaga) e "Marcar/Remover pendência" (nota com ícone de alerta; a categoria vira "Com pendência" e não
   conta no resumo). Diálogos de organizar/renomear/retirar/confirmar mostram o PDF ao lado (`PreviewDialog`).
 - **Seletor de mês (navigator):** no topo da lista do mês em edição (recolhível). "Pasta raiz das contas" (`months_root`;

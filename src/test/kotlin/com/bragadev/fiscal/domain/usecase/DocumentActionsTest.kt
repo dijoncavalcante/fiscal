@@ -5,11 +5,7 @@ import com.bragadev.fiscal.domain.model.FileOperationError
 import com.bragadev.fiscal.domain.model.OperationType
 import com.bragadev.fiscal.domain.model.Outcome
 import com.bragadev.fiscal.domain.rules.EditablePeriodPolicy
-import com.bragadev.fiscal.fakes.InMemoryFlagRepository
-import com.bragadev.fiscal.fakes.InMemoryHistoryRepository
-import com.bragadev.fiscal.fakes.NoOpDocumentRepository
-import com.bragadev.fiscal.fakes.TempBackupStorage
-import com.bragadev.fiscal.fakes.createFakePdf
+import com.bragadev.fiscal.fakes.*
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
@@ -22,7 +18,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
-/** Menu do botão direito na lista de documentos: excluir (para a lixeira do FISCAL) e renomear, com Desfazer. */
+/** Menu do botão direito na lista de documentos e no mês em edição: excluir (para a lixeira do FISCAL) e renomear, com Desfazer. */
 class DocumentActionsTest {
     @get:Rule
     val temp = TemporaryFolder()
@@ -32,6 +28,9 @@ class DocumentActionsTest {
     private val may: Path by lazy {
         temp.newFolder("pendriver").toPath().resolve("CONTAS CONGREGAÇÃO").resolve("ANO DE SERVIÇO 2025-2026")
             .resolve("3. TRIMESTRE Mar-Abr-Mai").resolve("3. MAIO").also(Files::createDirectories)
+    }
+    private val june: Path by lazy {
+        may.parent.parent.resolve("4. TRIMESTRE Jun-Jul-Ago").resolve("1. JUNHO").also(Files::createDirectories)
     }
 
     private val fileRepository = FileRepositoryImpl()
@@ -85,6 +84,29 @@ class DocumentActionsTest {
         assertIs<Outcome.Failure>(delete(file))
         assertTrue(Files.exists(file))
         assertTrue(history.operations.isEmpty())
+    }
+
+    @Test
+    fun `excluir arquivo do mes em edicao vai para a lixeira e o desfazer devolve com a pendencia`() = runTest {
+        val file = june.createFakePdf("3. Despesa - Material de limpeza.pdf")
+        flags.set(file, "Falta nota fiscal")
+
+        val operation = (delete(file) as Outcome.Success).value
+        assertFalse(Files.exists(file))
+
+        assertIs<Outcome.Success<*>>(undo(operation.id))
+        assertTrue(Files.exists(file))
+        assertEquals("Falta nota fiscal", flags.flags[file])
+    }
+
+    @Test
+    fun `renomear arquivo sem numero no mes em edicao fica na pasta do mes`() = runTest {
+        val file = june.createFakePdf("scan001.pdf")
+
+        val operation = (rename(file, "8. Extrato Bancário") as Outcome.Success).value
+
+        assertEquals(june.resolve("8. Extrato Bancário.pdf"), Path.of(operation.newPath))
+        assertTrue(Files.exists(june.resolve("8. Extrato Bancário.pdf")))
     }
 
     @Test

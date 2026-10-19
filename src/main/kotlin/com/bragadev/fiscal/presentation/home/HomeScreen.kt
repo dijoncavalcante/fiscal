@@ -140,7 +140,13 @@ private fun Workspace(
     val selectedPath = home.selectedDocument?.path
     val fileActions = MonthFileActions(
         onPreview = homeViewModel::onPreviewFile,
-        onRename = monthFilesViewModel::onRenameRequested,
+        // Arquivo com categoria segue a regra de nome dela; sem número, renomeia o nome livre (como na lista).
+        onRename = { file, category ->
+            if (category != null) monthFilesViewModel.onRenameRequested(file, category)
+            else documentActionsViewModel.onRenameRequested(file)
+        },
+        onCopy = documentActionsViewModel::onCopyRequested,
+        onDelete = { file -> documentActionsViewModel.onDeleteRequested(file) },
         onRemove = monthFilesViewModel::onRemoveRequested,
         onFlag = monthFilesViewModel::onFlagRequested,
         onClearFlag = monthFilesViewModel::onFlagCleared,
