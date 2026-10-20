@@ -64,6 +64,8 @@ fun MonthFileRow(
     isSelected: Boolean = false,
     /** Conferência automática (despesas da Conta da Manutenção); `null` = arquivo não é conferido. */
     expenseStatus: ExpenseStatus? = null,
+    /** De onde veio o total do cupom/nota quando o valor bateu (aparece junto do "certo" verde). */
+    expenseEvidence: String? = null,
 ) {
     // Mesmo destaque da lista de documentos (lado esquerdo) para o arquivo aberto no preview.
     val background = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
@@ -94,7 +96,7 @@ fun MonthFileRow(
                     maxLines = 1,
                     modifier = Modifier.weight(1f).clickable { actions.onPreview(file) }.padding(vertical = 4.dp),
                 )
-                ExpenseStatusIcon(expenseStatus, hasIssue = issue != null)
+                ExpenseStatusIcon(expenseStatus, hasIssue = issue != null, evidence = expenseEvidence)
                 if (editable && category != null) {
                     IconButton(onClick = { actions.onRename(file, category) }, modifier = Modifier.size(28.dp)) {
                         Icon(
@@ -135,13 +137,17 @@ fun MonthFileRow(
 /**
  * Ao lado do nome da despesa: "certo" verde quando cupom/nota, comprovante e assinatura foram encontrados, ou
  * um indicador enquanto confere. Com pendência não mostra nada: a própria pendência diz o que falta.
+ * O "certo" diz de onde veio o total do cupom/nota ([evidence]), para o usuário conferir num instante.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ExpenseStatusIcon(status: ExpenseStatus?, hasIssue: Boolean) {
+private fun ExpenseStatusIcon(status: ExpenseStatus?, hasIssue: Boolean, evidence: String?) {
     val description = when {
         status == ExpenseStatus.CHECKING -> Strings.EXPENSE_CHECKING
-        status == ExpenseStatus.VERIFIED && !hasIssue -> Strings.EXPENSE_VERIFIED
+        status == ExpenseStatus.VERIFIED && !hasIssue ->
+            listOfNotNull(
+                Strings.EXPENSE_VERIFIED,
+                evidence?.let { Strings.EXPENSE_AMOUNT_FROM + it }).joinToString("\n")
         else -> return
     }
     TooltipBox(

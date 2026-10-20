@@ -1,24 +1,22 @@
 package com.bragadev.fiscal.domain.rules
 
-import com.bragadev.fiscal.domain.model.AmountMismatch
-import com.bragadev.fiscal.domain.model.DocumentContent
-import com.bragadev.fiscal.domain.model.ExpenseCheck
-import com.bragadev.fiscal.domain.model.ExpenseRequirement
+import com.bragadev.fiscal.domain.model.*
+import com.bragadev.fiscal.domain.rules.ExpenseDocumentRules.MIN_CLAIM_CONFIDENCE
+import com.bragadev.fiscal.domain.rules.ExpenseDocumentRules.MIN_MATCH_CONFIDENCE
+import com.bragadev.fiscal.domain.rules.FuzzyText.findPhrase
+import com.bragadev.fiscal.domain.rules.FuzzyText.words
 import java.math.BigDecimal
-import java.text.DecimalFormat
-import java.text.DecimalFormatSymbols
 import java.text.Normalizer
-import java.util.*
 
 /**
- * Conferência das despesas da Conta da Manutenção ("3. Despesas"): cada PDF precisa ter o cupom ou a nota
- * fiscal, o comprovante do Pix/TED e a assinatura digital (gov.br) de Elves Lincoln Menezes de Lima; e o valor
- * pago no comprovante precisa bater com o cupom/nota.
+ * Conferência das despesas da Conta da Manutenção ("3. Despesas"): cada PDF precisa ter o cupom, a nota
+ * fiscal ou o recibo, o comprovante do Pix/TED e a assinatura digital (gov.br) de Elves Lincoln Menezes de Lima;
+ * e o valor pago no comprovante precisa ser igual ao total do cupom/nota.
  *
- * Trabalha só com o texto já extraído (PDF ou OCR) e os nomes dos certificados das assinaturas. O texto é
- * normalizado (sem acentos, maiúsculas, só letras e números) e os termos são procurados palavra por palavra,
- * tolerando poucos erros de letra em palavras longas — o OCR de foto de cupom troca letras com frequência
- * ("Nata Fecal" para "Nota Fiscal").
+ * Trabalha só com o que já foi lido do PDF: texto (PDF ou OCR), palavras com a posição na página e os nomes
+ * dos certificados das assinaturas. O texto é normalizado (sem acentos, maiúsculas, só letras e números) e os
+ * termos são procurados palavra por palavra, tolerando poucos erros de letra em palavras longas — o OCR de foto
+ * de cupom troca letras com frequência ("Nata Fecal" para "Nota Fiscal").
  */
 object ExpenseDocumentRules {
     const val CATEGORY_ID = "manutencao.despesas"
@@ -33,6 +31,9 @@ object ExpenseDocumentRules {
         "KWH", "LEITURA ATUAL", "LEITURA ANTERIOR", "ILUMINACAO PUBLICA",
     ).map(::words)
 
+    private val receipt = words("RECIBO")
+    private val budget = words("ORCAMENTO")
+
     private val comprovante = words("COMPROVANTE")
     private val paymentWords = listOf("PIX", "TED", "TRANSFERENCIA").map(::words)
     private val paymentPhrases = listOf("ID DA TRANSACAO", "ID DA TRANSFERENCIA").map(::words)
@@ -44,106 +45,191 @@ object ExpenseDocumentRules {
     /** Quantas palavras depois de "assinado digitalmente" o nome pode aparecer no selo. */
     private const val STAMP_WINDOW = 12
 
+    /**
+     * Confiança mínima do OCR (0 a 100) para um total lido na foto valer. Para **bater** com o comprovante basta
+     * uma confiança média: um erro de leitura que dê exatamente o valor do Pix é quase impossível. Para **afirmar**
+     * um valor diferente na pendência, a leitura precisa ser boa.
+     */
+    private const val MIN_MATCH_CONFIDENCE = 40f
+    private const val MIN_CLAIM_CONFIDENCE = 70f
+
     fun check(content: DocumentContent): ExpenseCheck {
         val pages = content.pageTexts.map(::words)
+        val paymentPages = pages.indices.filter { hasPaymentProof(pages[it]) }.toSet()
+        val fiscalPages = pages.indices.filter { hasFiscalDocument(pages[it], isPaymentProof = it in paymentPages) }
         val missing = buildSet {
-            if (pages.none(::hasFiscalDocument)) add(ExpenseRequirement.FISCAL_DOCUMENT)
-            if (pages.none(::hasPaymentProof)) add(ExpenseRequirement.PAYMENT_PROOF)
+            if (fiscalPages.isEmpty()) add(ExpenseRequirement.FISCAL_DOCUMENT)
+            if (paymentPages.isEmpty()) add(ExpenseRequirement.PAYMENT_PROOF)
             if (!isSigned(content.signers, pages)) add(ExpenseRequirement.SIGNATURE)
         }
-        return ExpenseCheck(missing, amountMismatch = amountMismatch(content, pages))
+        val amount = amountCheck(content, paymentPages, fiscalPages)
+        return ExpenseCheck(missing, amountProblem = amount.problem, amountEvidence = amount.evidence)
     }
 
     /**
-     * Valor pago × cupom/nota. O valor pago é o "Valor:" de cada página de comprovante (somado, se houver mais
-     * de um). Ele bate se for um valor do cupom/nota ou a soma de valores de cupons/notas diferentes (várias
-     * compras pagas num Pix só) — procurar em todos os valores da página, e não só no total, protege contra o
-     * OCR que erra o total mas acerta a mesma quantia em outra linha ("Valor bruto").
-     *
-     * Numa foto (OCR) só aponta diferença quando conseguiu ler a linha do total, e diferença de um único dígito
-     * é tratada como erro do OCR. Na dúvida, nada é afirmado (`null`). Conferido nas 95 despesas reais de
-     * 2025-2026: nenhuma pendência falsa.
+     * Já dá para dar a resposta? Cupom/nota e comprovante achados e o valor resolvido (bateu, ou é diferente
+     * num PDF de texto). Enquanto não, o leitor continua: faz OCR das outras páginas com imagem e novas leituras
+     * das fotos.
      */
-    private fun amountMismatch(content: DocumentContent, pages: List<List<String>>): AmountMismatch? {
+    fun hasEnoughText(content: DocumentContent): Boolean {
+        val result = check(content)
+        return ExpenseRequirement.FISCAL_DOCUMENT !in result.missing &&
+                ExpenseRequirement.PAYMENT_PROOF !in result.missing &&
+                (result.amountProblem == null || result.amountProblem.kind == AmountProblemKind.MISMATCH)
+    }
+
+    private class AmountCheck(val problem: AmountProblem? = null, val evidence: String? = null)
+
+    /**
+     * Valor pago × total do cupom/nota. O valor pago é o "Valor:" de cada página de comprovante (somado, se
+     * houver mais de um). Ele precisa ser igual a um total do cupom/nota ou à soma dos totais de cupons/notas
+     * diferentes (várias compras pagas num Pix só). Totais vêm de dois jeitos:
+     * - no texto: o valor logo depois de "Total", "Valor total", "Valor a pagar"…;
+     * - pela posição ([TableTotalFinder]): o valor à direita do título ou embaixo dele, na tabela.
+     * Outros valores da página (preço de item, "Valor bruto", "SubTotal") não contam.
+     *
+     * Segurança: um total de foto só vale com a confiança do OCR ([MIN_MATCH_CONFIDENCE]) ou com a conta da
+     * tabela fechando; uma diferença só é afirmada com leitura boa ([MIN_CLAIM_CONFIDENCE]) e, em foto, a
+     * pendência pede para conferir à mão. Valor não lido = pendência para conferir à mão.
+     * Sem comprovante ou sem cupom/nota não há o que comparar: a pendência "Falta …" já diz isso.
+     */
+    private fun amountCheck(content: DocumentContent, paymentPages: Set<Int>, fiscalPages: List<Int>): AmountCheck {
+        if (paymentPages.isEmpty() || fiscalPages.isEmpty()) return AmountCheck()
         val raw = content.pageTexts.map(::plain)
-        val paymentPages = pages.indices.filter { hasPaymentProof(pages[it]) }
-        val fiscalPages = pages.indices.filter { hasFiscalDocument(pages[it]) && it !in paymentPages }
-        val payments = paymentPages.mapNotNull { paidAmount(raw[it]) }
-        if (payments.isEmpty() || fiscalPages.isEmpty()) return null
+        // Nova leitura só para comprovante sozinho na página: num cupom que cita o Pix, o "Valor" seria do cupom.
+        val payments = paymentPages.sorted().mapNotNull { page ->
+            paidAmount(raw[page]) ?: paidInLayouts(content, page).takeIf { page !in fiscalPages }
+        }
+        if (payments.isEmpty()) return AmountCheck(AmountProblem(AmountProblemKind.PAYMENT_UNREADABLE))
         val paid = payments.reduce(BigDecimal::add)
 
-        val pageAmounts = fiscalPages.map { amountsIn(raw[it]) + labeledTotals(raw[it]) }
-        // Nenhum valor legível no cupom/nota: não dá para comparar.
-        if (pageAmounts.all { it.isEmpty() }) return null
-        val reachable = reachableSums(pageAmounts) ?: return null
-        if (cents(paid) in reachable || payments.all { cents(it) in reachable }) return null
+        val candidates = fiscalPages.map { page -> totalCandidates(content, page, raw[page], page in paymentPages) }
+        val search = CombinationSearch(candidates.map { page -> page.filter(::canMatch) })
+        // A soma dos comprovantes bate, ou cada comprovante bate com um cupom/nota.
+        val match = search.find(Money.cents(paid))
+            ?: payments.takeIf { it.size > 1 }?.map { search.find(Money.cents(it)) }
+                ?.takeIf { each -> each.all { it != null } }?.flatMap { it.orEmpty() }
+        if (match != null) return AmountCheck(evidence = describeTotals(match))
+        if (search.gaveUp) return AmountCheck(AmountProblem(AmountProblemKind.TOTAL_UNREADABLE, paid))
 
-        val totals = fiscalPages.associateWith { mainTotal(raw[it]) }.filterValues { it != null }
-        // Sem linha de total: só afirma se o cupom/nota é texto de verdade (DANFE, conta digital) — foto pode ter
-        // o valor ilegível.
-        if (totals.isEmpty()) {
-            return if (fiscalPages.none { it in content.ocrPages }) AmountMismatch(paid, null) else null
-        }
-        val fiscal = totals.values.filterNotNull().reduce(BigDecimal::add)
-        val fromPhoto = totals.keys.any { it in content.ocrPages }
-        if (fromPhoto && differsInOneDigit(paid, fiscal)) return null
-        return AmountMismatch(paid, fiscal)
+        val reliable = candidates.map { page -> page.filter(::canClaim) }
+        if (reliable.all { it.isEmpty() }) return AmountCheck(AmountProblem(AmountProblemKind.TOTAL_UNREADABLE, paid))
+        val fiscal = reliable.mapNotNull(::mainTotal).map { it.value }.reduce(BigDecimal::add)
+        val fromPhoto = (fiscalPages + paymentPages).any { it in content.ocrPages }
+        val kind = if (fromPhoto) AmountProblemKind.UNCERTAIN_READING else AmountProblemKind.MISMATCH
+        return AmountCheck(AmountProblem(kind, paid, fiscal))
     }
 
     /**
-     * Somas possíveis (em centavos) pegando no máximo um valor de cada página de cupom/nota. `null` se as
-     * combinações passarem do limite (página cheia de números): aí não dá para afirmar nada.
+     * Totais de uma página de cupom/nota: os do texto e os achados pela posição em cada leitura da página.
+     * Cupom e comprovante na mesma página: o "Valor:" do Pix é tirado do texto antes, e a posição não é usada
+     * (o "Valor total" do comprovante seria confundido com o do cupom).
      */
-    private fun reachableSums(pageAmounts: List<List<BigDecimal>>): Set<Long>? {
-        var sums = setOf(0L)
-        for (amounts in pageAmounts) {
-            val values = amounts.map(::cents).toSet()
-            sums = sums + sums.flatMap { sum -> values.map { sum + it } }
-            if (sums.size > MAX_SUMS) return null
+    private fun totalCandidates(
+        content: DocumentContent,
+        page: Int,
+        text: String,
+        isPaymentPage: Boolean
+    ): List<TotalCandidate> {
+        val fromOcr = page in content.ocrPages
+        val inText = totalMatches(if (isPaymentPage) text.replace(paidLabel, " ") else text).map { (label, value) ->
+            TotalCandidate(
+                value, page, label, TotalPlace.TEXT, fromOcr, isPayable = Regex(payableLabel).matches(label),
+            )
+        }.toList()
+        if (isPaymentPage) return inText
+        return inText + content.layouts.filter { it.page == page }.flatMap(TableTotalFinder::find)
+    }
+
+    private fun canMatch(candidate: TotalCandidate): Boolean =
+        !candidate.fromOcr || candidate.confirmedBySum || candidate.confidence >= MIN_MATCH_CONFIDENCE
+
+    private fun canClaim(candidate: TotalCandidate): Boolean =
+        !candidate.fromOcr || candidate.confirmedBySum || candidate.confidence >= MIN_CLAIM_CONFIDENCE
+
+    /** Melhor total de uma página: conta da tabela conferida, "valor a pagar", mais confiável; empate = o último. */
+    private val preference = compareBy<IndexedValue<TotalCandidate>>(
+        { it.value.confirmedBySum },
+        { it.value.isPayable },
+        { !it.value.fromOcr },
+        { it.value.confidence },
+        { it.index },
+    )
+
+    private fun mainTotal(candidates: List<TotalCandidate>): TotalCandidate? =
+        candidates.withIndex().maxWithOrNull(preference)?.value
+
+    /**
+     * Procura uma combinação de no máximo um total por página que some o valor pago. Desiste (e não afirma
+     * nada) se as combinações passarem do limite.
+     */
+    private class CombinationSearch(pages: List<List<TotalCandidate>>) {
+        // Um candidato por valor em cada página, o melhor primeiro (é ele que aparece em "de onde veio").
+        private val pages = pages.map { page ->
+            page.withIndex().sortedWith(preference.reversed()).map { it.value }.distinctBy { Money.cents(it.value) }
         }
-        return sums - 0L
+        var gaveUp = false
+            private set
+        private var steps = 0
+
+        fun find(target: Long): List<TotalCandidate>? {
+            steps = 0
+            return search(0, target)
+        }
+
+        private fun search(index: Int, remaining: Long): List<TotalCandidate>? {
+            if (remaining == 0L) return emptyList()
+            if (index == pages.size || remaining < 0) return null
+            if (++steps > MAX_STEPS) {
+                gaveUp = true
+                return null
+            }
+            for (candidate in pages[index]) {
+                search(index + 1, remaining - Money.cents(candidate.value))?.let { return listOf(candidate) + it }
+            }
+            return search(index + 1, remaining)
+        }
+
+        private companion object {
+            const val MAX_STEPS = 200_000
+        }
     }
 
-    private const val MAX_SUMS = 50_000
-
-    private fun cents(value: BigDecimal): Long = value.movePointRight(2).toLong()
-
-    /** "781,57" lido como "761,57": mesmo tamanho e só um dígito diferente. */
-    private fun differsInOneDigit(a: BigDecimal, b: BigDecimal): Boolean {
-        val x = cents(a).toString()
-        val y = cents(b).toString()
-        return x.length == y.length && x.indices.count { x[it] != y[it] } == 1
+    /** "R$ 50,00 abaixo de "TOTAL (R$)", página 1 (foto, conta da tabela confere)". */
+    private fun describeTotals(totals: List<TotalCandidate>): String {
+        val each = totals.map { total ->
+            val where = if (total.place == TotalPlace.BELOW) "abaixo de" else "em"
+            val source = buildList {
+                add(if (total.fromOcr) "foto" else "texto do PDF")
+                if (total.confirmedBySum) add("conta da tabela confere")
+            }.joinToString(", ")
+            "R$ ${Money.format(total.value)} $where \"${total.label}\", página ${total.page + 1} ($source)"
+        }
+        return if (each.size == 1) each.single() else "Soma de ${each.size} totais: " + each.joinToString("; ")
     }
 
-    /** Valor de dinheiro: "125,00", "1.234,56" ou "125.00" (como o banco escreve no comprovante). */
-    private const val MONEY = """(\d{1,3}(?:\.\d{3})+|\d+)[.,](\d{2})(?!\d)"""
-    private val money = Regex("""(?<![\d.,/])$MONEY""")
     private val paidLabel =
-        Regex("""(?:VALOR(?: DO PAGAMENTO| PAGO| DA TRANSFERENCIA| TRANSFERIDO| TOTAL)?|PIX ENVIADO)\s*:?\s*(?:R\$)?\s*$MONEY""")
-    private val payableLabel = """VALOR A PAGAR|TOTAL A PAGAR|VALOR PAGO"""
-    private val totalLabel =
-        Regex("""($payableLabel|VALOR TOTAL(?: DA NOTA)?|VALOR LIQUIDO|TOTAL)\D{0,25}?$MONEY""")
+        Regex("""(?:VALOR(?: DO PAGAMENTO| PAGO| DA TRANSFERENCIA| TRANSFERIDO| TOTAL)?|PIX ENVIADO)\s*:?\s*(?:R\$)?\s*${Money.PATTERN}""")
+
+    /** "Valor a pagar", também com a letra trocada ou cortada pelo OCR ("VALOR & PAGAR", "Valor a Pag"). */
+    private const val payableLabel = """VALOR \S PAG\w*|TOTAL A PAGAR|VALOR PAGO"""
+    private val totalLabel = Regex(
+        """($payableLabel|VALOR TOTAL(?: DA NOTA)?|VALOR LIQUIDO|VALOR (?:DO |DA )?(?:PEDIDO|VENDA|DOCUMENTO|COBRADO)|TOTAL)""" +
+                """\D{0,25}?${Money.PATTERN}""",
+    )
 
     private fun paidAmount(page: String): BigDecimal? =
-        paidLabel.findAll(page).map { amount(it.groupValues[1], it.groupValues[2]) }.firstOrNull { it.signum() > 0 }
+        paidLabel.findAll(page).map { Money.amount(it.groupValues[1], it.groupValues[2]) }
+            .firstOrNull { it.signum() > 0 }
 
-    private fun amountsIn(page: String): List<BigDecimal> =
-        money.findAll(page).map { amount(it.groupValues[1], it.groupValues[2]) }.filter { it.signum() > 0 }.toList()
-
-    private fun labeledTotals(page: String): List<BigDecimal> =
-        totalMatches(page).map { it.second }.toList()
-
-    /** Total da página: o "valor a pagar" (já com desconto), senão o último total lido. */
-    private fun mainTotal(page: String): BigDecimal? {
-        val matches = totalMatches(page).toList()
-        return matches.lastOrNull { Regex(payableLabel).matches(it.first) }?.second ?: matches.lastOrNull()?.second
-    }
+    /** Comprovante fotografado cujo valor o primeiro OCR embaralhou: tenta nas novas leituras da página. */
+    private fun paidInLayouts(content: DocumentContent, page: Int): BigDecimal? =
+        content.layouts.filter { it.page == page }
+            .firstNotNullOfOrNull { paidAmount(plain(TableTotalFinder.lineTexts(it).joinToString(" "))) }
 
     private fun totalMatches(page: String): Sequence<Pair<String, BigDecimal>> =
-        totalLabel.findAll(page).map { it.groupValues[1] to amount(it.groupValues[2], it.groupValues[3]) }
+        totalLabel.findAll(page).map { it.groupValues[1] to Money.amount(it.groupValues[2], it.groupValues[3]) }
             .filter { it.second.signum() > 0 }
-
-    private fun amount(integer: String, cents: String): BigDecimal = BigDecimal("${integer.replace(".", "")}.$cents")
 
     /**
      * Texto sem acentos e em maiúsculas, mas com a pontuação (precisa dela para ler valores). Logo depois de
@@ -156,13 +242,13 @@ object ExpenseDocumentRules {
 
     private val lostComma = Regex("""\b(R\$|RS) ?(\d{1,6}) (\d{2})(?![\d.,])""")
 
-    /** Já tem cupom/nota e comprovante? Usado para parar o OCR assim que o PDF estiver completo. */
-    fun hasEnoughText(content: DocumentContent): Boolean {
-        val result = check(content)
-        return ExpenseRequirement.FISCAL_DOCUMENT !in result.missing && ExpenseRequirement.PAYMENT_PROOF !in result.missing
-    }
-
-    private fun hasFiscalDocument(page: List<String>): Boolean = fiscalTerms.any { page.findPhrase(it).any() }
+    /**
+     * Cupom, nota fiscal ou recibo. "Recibo" não vale numa página de orçamento nem no próprio comprovante do
+     * Pix/TED (alguns bancos chamam o comprovante de recibo).
+     */
+    private fun hasFiscalDocument(page: List<String>, isPaymentProof: Boolean): Boolean =
+        fiscalTerms.any { page.findPhrase(it).any() } ||
+                (!isPaymentProof && page.findPhrase(receipt).any() && page.findPhrase(budget).none())
 
     /**
      * Comprovante Pix/TED: "comprovante" junto de Pix, TED ou transferência na mesma página, ou o
@@ -192,7 +278,7 @@ object ExpenseDocumentRules {
     /** Pendência gravada para o arquivo, em poucas palavras; `null` se a despesa está completa. */
     fun issueNote(check: ExpenseCheck): String? {
         if (check.unreadable) return UNREADABLE_NOTE
-        val parts = listOfNotNull(missingNote(check.missing), check.amountMismatch?.let(::mismatchNote))
+        val parts = listOfNotNull(missingNote(check.missing), check.amountProblem?.let(::amountNote))
         return parts.takeIf { it.isNotEmpty() }?.joinToString(NOTE_SEPARATOR)
     }
 
@@ -203,98 +289,69 @@ object ExpenseDocumentRules {
         return "Falta $list"
     }
 
-    /** Diz os dois valores e o que fazer: o usuário confere qual documento está errado e troca. */
-    private fun mismatchNote(mismatch: AmountMismatch): String {
-        val paid = "Valor do comprovante (R$ ${formatMoney(mismatch.paid)})"
-        val fiscal =
-            mismatch.fiscal?.let { "diferente do cupom/nota (R$ ${formatMoney(it)})" } ?: "não aparece no cupom/nota"
-        return "$paid $fiscal: confira e troque o documento errado"
+    /** Diz os valores lidos e o que fazer: trocar o documento errado ou conferir à mão. */
+    private fun amountNote(problem: AmountProblem): String {
+        val values = listOfNotNull(problem.paid, problem.fiscal)
+        val parts = amountNotes.getValue(problem.kind).split(MONEY_SLOT)
+        return parts.first() + parts.drop(1).zip(values)
+            .joinToString("") { (text, value) -> Money.format(value) + text }
     }
+
+    /** `%s` = um valor em reais ("1.234,56"), na ordem: comprovante, cupom/nota. */
+    private const val MONEY_SLOT = "%s"
+    private val amountNotes = mapOf(
+        AmountProblemKind.MISMATCH to
+                "Valor do comprovante (R$ %s) diferente do cupom/nota (R$ %s): confira e troque o documento errado",
+        AmountProblemKind.PAYMENT_UNREADABLE to
+                "Valor do comprovante Pix/TED não foi lido: confira à mão se é igual ao total do cupom/nota",
+        AmountProblemKind.TOTAL_UNREADABLE to
+                "Total do cupom/nota não foi lido: confira à mão se é igual ao comprovante (R$ %s)",
+        AmountProblemKind.UNCERTAIN_READING to
+                "Valor do comprovante (R$ %s) diferente do lido na foto do cupom/nota (R$ %s), que pode ter sido " +
+                "mal lida: confira à mão",
+    )
 
     /**
      * A pendência foi escrita pela conferência automática? Só essas são trocadas ou removidas sozinhas;
-     * as que o usuário escreveu nunca são mexidas.
+     * as que o usuário escreveu nunca são mexidas. Reconhece também os textos de versões anteriores, para que
+     * sejam atualizados quando as regras mudam.
      */
     fun isAutomaticNote(note: String): Boolean =
         note == UNREADABLE_NOTE ||
-                note.split(NOTE_SEPARATOR).all { it in missingNotes || automaticMismatchNote.matches(it) }
+                note.split(NOTE_SEPARATOR)
+                    .all { part -> part in missingNotes || automaticAmountNotes.any { it.matches(part) } }
 
     private val missingNotes: Set<String> by lazy {
         val all = ExpenseRequirement.entries
         val subsets =
             (1 until (1 shl all.size)).map { mask -> all.filterIndexed { i, _ -> mask and (1 shl i) != 0 }.toSet() }
-        subsets.mapNotNull(::missingNote).toSet()
+        subsets.mapNotNull(::missingNote)
+            .flatMap { listOf(it, it.replace(FISCAL_DESCRIPTION, LEGACY_FISCAL_DESCRIPTION)) }
+            .toSet()
     }
 
-    private val automaticMismatchNote = Regex(
-        """Valor do comprovante \(R\$ [\d.,]+\) (diferente do cupom/nota \(R\$ [\d.,]+\)|não aparece no cupom/nota): """ +
-                """confira e troque o documento errado""",
-    )
+    private val automaticAmountNotes: List<Regex> by lazy {
+        (amountNotes.values + LEGACY_NOT_FOUND_NOTE).map { template ->
+            Regex(template.split(MONEY_SLOT).joinToString("""[\d.,]+""") { Regex.escape(it) })
+        }
+    }
+
+    /** Versão 2: Pix sem nenhum valor igual no cupom/nota sem linha de total. */
+    private const val LEGACY_NOT_FOUND_NOTE =
+        "Valor do comprovante (R$ %s) não aparece no cupom/nota: confira e troque o documento errado"
+
+    private const val FISCAL_DESCRIPTION = "cupom, nota fiscal ou recibo"
+
+    /** Até a versão 2 o recibo não valia. */
+    private const val LEGACY_FISCAL_DESCRIPTION = "cupom ou nota fiscal"
 
     private const val NOTE_SEPARATOR = "; "
 
-    /** "1.234,56", como o usuário escreve. */
-    private fun formatMoney(value: BigDecimal): String =
-        DecimalFormat("#,##0.00", DecimalFormatSymbols(Locale.forLanguageTag("pt-BR"))).format(value)
-
     private fun describe(requirement: ExpenseRequirement): String = when (requirement) {
-        ExpenseRequirement.FISCAL_DOCUMENT -> "cupom ou nota fiscal"
+        ExpenseRequirement.FISCAL_DOCUMENT -> FISCAL_DESCRIPTION
         ExpenseRequirement.PAYMENT_PROOF -> "comprovante Pix/TED"
         ExpenseRequirement.SIGNATURE -> "assinatura de Elves Lincoln"
     }
 
     private const val UNREADABLE_NOTE = "Não foi possível ler o PDF"
-
-    /** Sem acentos, em maiúsculas, separado em palavras de letras e números ("NF-e" vira "NF", "E"). */
-    private fun words(text: String): List<String> =
-        Normalizer.normalize(text, Normalizer.Form.NFD)
-            .replace(Regex("""\p{M}"""), "")
-            .uppercase()
-            .split(Regex("""[^A-Z0-9]+"""))
-            .filter { it.isNotEmpty() }
-
-    /** Posições onde as palavras de [phrase] aparecem em sequência, tolerando erros de OCR. */
-    private fun List<String>.findPhrase(phrase: List<String>): Sequence<Int> {
-        val isPhrase = phrase.size > 1
-        return (0..size - phrase.size).asSequence().filter { start ->
-            phrase.indices.all { i -> similar(this[start + i], phrase[i], isPhrase) }
-        }
-    }
-
-    /**
-     * Palavra lida igual à esperada, com poucos erros: nenhum até 3 letras, 1 até 5 letras, 2 a partir de 8
-     * (ou de 6, dentro de uma expressão de várias palavras — o resto da expressão confirma).
-     */
-    private fun similar(found: String, expected: String, inPhrase: Boolean): Boolean {
-        val allowed = when {
-            expected.length <= 3 -> 0
-            expected.length <= 5 -> 1
-            expected.length >= 8 || inPhrase -> 2
-            else -> 1
-        }
-        if (allowed == 0) return found == expected
-        return kotlin.math.abs(found.length - expected.length) <= allowed && distance(
-            found,
-            expected,
-            allowed
-        ) <= allowed
-    }
-
-    /** Distância de edição (Levenshtein), parando cedo quando passa de [limit]. */
-    private fun distance(a: String, b: String, limit: Int): Int {
-        var previous = IntArray(b.length + 1) { it }
-        for (i in 1..a.length) {
-            val current = IntArray(b.length + 1)
-            current[0] = i
-            var rowMin = current[0]
-            for (j in 1..b.length) {
-                val cost = if (a[i - 1] == b[j - 1]) 0 else 1
-                current[j] = minOf(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + cost)
-                rowMin = minOf(rowMin, current[j])
-            }
-            if (rowMin > limit) return rowMin
-            previous = current
-        }
-        return previous[b.length]
-    }
 }

@@ -1,10 +1,12 @@
 package com.bragadev.fiscal.data.pdf
 
 import com.bragadev.fiscal.data.ocr.OcrEngine
+import com.bragadev.fiscal.data.ocr.OcrMode
 import com.bragadev.fiscal.data.ocr.TesseractOcrEngine
 import com.bragadev.fiscal.domain.model.ExpenseRequirement
 import com.bragadev.fiscal.domain.model.FileOperationError
 import com.bragadev.fiscal.domain.model.Outcome
+import com.bragadev.fiscal.domain.model.PageWord
 import com.bragadev.fiscal.domain.rules.ExpenseDocumentRules
 import kotlinx.coroutines.test.runTest
 import org.apache.pdfbox.pdmodel.PDDocument
@@ -47,21 +49,74 @@ class PdfContentReaderImplTest {
     }
 
     @Test
+    fun `NFC-e fotografada com o total numa tabela e lida pela posicao com o OCR de verdade`() = runTest {
+        // Como na NFC-e real: título "TOTAL (R$)" em cima, valor embaixo, com o "1" da coluna Itens no caminho.
+        val pdf = expensePdf(
+            textPage = "Comprovante de transacao Pix Valor: 125.00",
+            photoLines = listOf(
+                "DOCUMENTO AUXILIAR DA NOTA FISCAL",
+                "ITENS SUBTOTAL  TOTAL (R$)",
+                "1     125,00    125,00"
+            ),
+        )
+
+        val content = (PdfContentReaderImpl(TesseractOcrEngine()).read(pdf, ExpenseDocumentRules::hasEnoughText)
+                as Outcome.Success).value
+        val result = ExpenseDocumentRules.check(content)
+
+        assertEquals(null, result.amountProblem, "OCR leu: ${content.pageTexts[1]}")
+        assertTrue(result.amountEvidence!!.startsWith("R$ 125,00 abaixo de"), result.amountEvidence)
+    }
+
+    @Test
     fun `pagina com texto so passa pelo OCR enquanto faltar algo`() = runTest {
         // Página 1: comprovante em texto com uma imagem ao lado; página 2: só a foto do cupom.
         val pdf = expensePdf(
-            textPage = "Comprovante de transacao Pix",
+            textPage = "Comprovante de transacao Pix Valor: 125.00",
             photoLines = listOf("CUPOM FISCAL"),
             imageOnTextPage = true
         )
-        val ocr = CountingOcr("CUPOM FISCAL")
+        val ocr = CountingOcr("CUPOM FISCAL TOTAL R$ 125,00")
 
         val content =
             (PdfContentReaderImpl(ocr).read(pdf, ExpenseDocumentRules::hasEnoughText) as Outcome.Success).value
 
-        // Só a página sem texto: com ela o PDF já tem cupom e comprovante.
+        // Só a página sem texto: com ela o PDF já tem cupom, comprovante e o valor bate.
         assertEquals(1, ocr.calls)
+        assertEquals(0, ocr.wordCalls)
         assertTrue(ExpenseDocumentRules.hasEnoughText(content))
+    }
+
+    @Test
+    fun `total que o texto nao achou e procurado em novas leituras, parando na primeira que resolve`() = runTest {
+        val pdf = expensePdf(textPage = "Comprovante de transacao Pix Valor: 125.00", photoLines = listOf("foto"))
+        val table = listOf(
+            PageWord("TOTAL", 600f, 500f, 100f, 30f, 95f), PageWord("(R$)", 705f, 500f, 60f, 30f, 95f),
+            PageWord("1", 100f, 545f, 15f, 30f, 95f), PageWord("125,00", 620f, 545f, 120f, 30f, 93f),
+        )
+        val ocr = CountingOcr("Documento Auxiliar da Nota Fiscal", words = table)
+
+        val content =
+            (PdfContentReaderImpl(ocr).read(pdf, ExpenseDocumentRules::hasEnoughText) as Outcome.Success).value
+
+        assertEquals(1, ocr.wordCalls)
+        assertEquals(listOf(OcrMode.AUTO), ocr.modes)
+        assertEquals(null, ExpenseDocumentRules.check(content).amountProblem)
+    }
+
+    @Test
+    fun `sem resolver, cada foto tem no maximo tres leituras extras`() = runTest {
+        val pdf = expensePdf(textPage = "Comprovante de transacao Pix Valor: 125.00", photoLines = listOf("foto"))
+        val ocr = CountingOcr("Documento Auxiliar da Nota Fiscal")
+
+        val content =
+            (PdfContentReaderImpl(ocr).read(pdf, ExpenseDocumentRules::hasEnoughText) as Outcome.Success).value
+
+        assertEquals(listOf(OcrMode.AUTO, OcrMode.SPARSE, OcrMode.SINGLE_COLUMN), ocr.modes)
+        assertEquals(listOf(200, 300, 300), ocr.dpis)
+        // Página de texto: palavras do próprio PDF, com posição; foto: uma leitura por tentativa.
+        assertTrue(content.layouts.any { layout -> !layout.fromOcr && layout.words.any { it.text == "Comprovante" } })
+        assertEquals(3, content.layouts.count { it.fromOcr })
     }
 
     @Test
@@ -93,12 +148,21 @@ class PdfContentReaderImplTest {
         assertIs<Outcome.Failure>(PdfContentReaderImpl(broken).read(pdf))
     }
 
-    private class CountingOcr(private val text: String) : OcrEngine {
+    private class CountingOcr(private val text: String, private val words: List<PageWord> = emptyList()) : OcrEngine {
         var calls = 0
+        val modes = mutableListOf<OcrMode>()
+        val dpis = mutableListOf<Int>()
+        val wordCalls get() = modes.size
 
         override fun read(image: BufferedImage): String {
             calls++
             return text
+        }
+
+        override fun readWords(image: BufferedImage, dpi: Int, mode: OcrMode): List<PageWord> {
+            modes += mode
+            dpis += dpi
+            return words
         }
     }
 

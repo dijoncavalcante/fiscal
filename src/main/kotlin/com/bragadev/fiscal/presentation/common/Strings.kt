@@ -186,7 +186,9 @@ object Strings {
     fun issueLabel(note: String) = "Pendência: $note"
 
     // Conferência das despesas da Conta da Manutenção (cupom/nota fiscal, comprovante e assinatura)
-    const val EXPENSE_VERIFIED = "Verificado: cupom ou nota fiscal, comprovante Pix/TED e assinatura de Elves Lincoln"
+    const val EXPENSE_VERIFIED =
+        "Verificado: cupom, nota fiscal ou recibo, comprovante Pix/TED com o mesmo valor e assinatura de Elves Lincoln"
+    const val EXPENSE_AMOUNT_FROM = "Valor conferido: "
     const val EXPENSE_CHECKING = "Conferindo cupom, comprovante e assinatura…"
 
     // Documentos: ordenação e busca

@@ -9,8 +9,8 @@ import com.bragadev.fiscal.domain.rules.ExpenseDocumentRules
 import java.nio.file.Path
 
 /**
- * Confere as despesas ("3. Despesas") da Conta da Manutenção: cupom ou nota fiscal, comprovante Pix/TED e
- * assinatura (regras em [ExpenseDocumentRules]). Só lê os PDFs; nada é alterado no disco.
+ * Confere as despesas ("3. Despesas") da Conta da Manutenção: cupom, nota fiscal ou recibo, comprovante Pix/TED
+ * com o mesmo valor do total e assinatura (regras em [ExpenseDocumentRules]). Só lê os PDFs; nada é alterado no disco.
  *
  * - Despesa incompleta recebe uma pendência dizendo o que falta; ao ser corrigida, a pendência sai sozinha.
  *   Pendências escritas pelo usuário nunca são trocadas nem removidas.
@@ -29,7 +29,7 @@ class CheckExpensesUseCase(
 
     /**
      * Confere cada despesa da pasta do mês, uma por vez, avisando cada resultado em [onResult]
-     * (nome do arquivo, situação).
+     * (nome do arquivo, situação, de onde veio o total quando o valor bateu).
      *
      * @return `true` se alguma pendência foi criada, trocada ou removida (a lista precisa ser relida).
      */
@@ -37,7 +37,7 @@ class CheckExpensesUseCase(
         monthFolder: Path,
         account: AccountType?,
         checklist: MonthChecklist,
-        onResult: (String, ExpenseStatus) -> Unit = { _, _ -> },
+        onResult: (String, ExpenseStatus, String?) -> Unit = { _, _, _ -> },
     ): Boolean {
         val names = expenseFiles(account, checklist)
         if (names.isEmpty()) return false
@@ -49,12 +49,12 @@ class CheckExpensesUseCase(
             val document = documents[name.lowercase()] ?: continue
             val previous = stored[name.lowercase()]
             if (previous != null && previous.matches(document)) {
-                onResult(name, statusOf(previous.check))
+                onResult(name, statusOf(previous.check), previous.check.amountEvidence)
                 continue
             }
             val check = checkDocument(document)
             if (check == null) {
-                onResult(name, ExpenseStatus.NOT_CHECKED)
+                onResult(name, ExpenseStatus.NOT_CHECKED, null)
                 continue
             }
             checkRepository.save(document.path, StoredExpenseCheck(document.sizeBytes, document.lastModified, check))
@@ -64,7 +64,7 @@ class CheckExpensesUseCase(
                     ExpenseDocumentRules.issueNote(check)
                 )
             ) flagsChanged = true
-            onResult(name, statusOf(check))
+            onResult(name, statusOf(check), check.amountEvidence)
         }
         return flagsChanged
     }

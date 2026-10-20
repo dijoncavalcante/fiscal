@@ -50,17 +50,27 @@ class ExpenseCheckDaoTest {
             val repository = ExpenseCheckRepositoryImpl(ExpenseCheckDao(database))
             val folder = temp.newFolder("1. Agosto").toPath()
             val modified = Instant.parse("2026-08-11T17:44:00Z")
-            val withTotal = ExpenseCheck(amountMismatch = AmountMismatch(BigDecimal("405.98"), BigDecimal("395.98")))
-            val withoutTotal = ExpenseCheck(amountMismatch = AmountMismatch(BigDecimal("60.00"), null))
+            val mismatch = ExpenseCheck(
+                amountProblem = AmountProblem(AmountProblemKind.MISMATCH, BigDecimal("405.98"), BigDecimal("395.98")),
+            )
+            val noTotal = ExpenseCheck(
+                amountProblem = AmountProblem(AmountProblemKind.TOTAL_UNREADABLE, BigDecimal("60.00")),
+            )
+            val noPayment = ExpenseCheck(amountProblem = AmountProblem(AmountProblemKind.PAYMENT_UNREADABLE))
 
-            repository.save(folder.resolve("a.pdf"), StoredExpenseCheck(1, modified, withTotal))
-            repository.save(folder.resolve("b.pdf"), StoredExpenseCheck(1, modified, withoutTotal, rulesVersion = 1))
+            repository.save(folder.resolve("a.pdf"), StoredExpenseCheck(1, modified, mismatch))
+            repository.save(folder.resolve("b.pdf"), StoredExpenseCheck(1, modified, noTotal, rulesVersion = 1))
+            repository.save(folder.resolve("c.pdf"), StoredExpenseCheck(1, modified, noPayment))
+            val verified = ExpenseCheck(amountEvidence = "R$ 50,00 abaixo de \"TOTAL (R$)\", página 1 (foto)")
+            repository.save(folder.resolve("d.pdf"), StoredExpenseCheck(1, modified, verified))
 
             val saved = repository.checksIn(folder)
-            assertEquals(withTotal, saved.getValue("a.pdf").check)
+            assertEquals(mismatch, saved.getValue("a.pdf").check)
             assertEquals(EXPENSE_RULES_VERSION, saved.getValue("a.pdf").rulesVersion)
-            assertEquals(withoutTotal, saved.getValue("b.pdf").check)
+            assertEquals(noTotal, saved.getValue("b.pdf").check)
             assertEquals(1, saved.getValue("b.pdf").rulesVersion)
+            assertEquals(noPayment, saved.getValue("c.pdf").check)
+            assertEquals(verified, saved.getValue("d.pdf").check)
         }
     }
 }

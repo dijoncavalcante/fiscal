@@ -146,8 +146,14 @@ class OrganizerViewModel(
         }
         if (info == null || checklist == null || names.isEmpty()) return
         expenseJob = scope.launch {
-            val flagsChanged = checkExpenses(info.path, info.account, checklist) { name, status ->
-                state.update { it.copy(expenseChecks = it.expenseChecks + (name.lowercase() to status)) }
+            val flagsChanged = checkExpenses(info.path, info.account, checklist) { name, status, evidence ->
+                val key = name.lowercase()
+                state.update {
+                    it.copy(
+                        expenseChecks = it.expenseChecks + (key to status),
+                        expenseEvidence = if (evidence == null) it.expenseEvidence - key else it.expenseEvidence + (key to evidence),
+                    )
+                }
             }
             if (flagsChanged && state.value.monthFolder?.path == info.path) {
                 val updated = getMonthChecklist(info.path, info.account)

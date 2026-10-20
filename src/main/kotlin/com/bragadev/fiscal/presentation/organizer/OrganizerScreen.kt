@@ -50,6 +50,8 @@ private class MonthContext(
     val selectedFile: Path?,
     /** Conferência automática das despesas (Conta da Manutenção); `null` para os demais arquivos. */
     val expenseStatus: (String) -> ExpenseStatus?,
+    /** De onde veio o total quando o valor da despesa bateu (mostrado no "certo" verde). */
+    val expenseEvidence: (String) -> String? = { null },
 ) {
     fun fileIn(name: String): Path? = monthFolder?.resolve(name)
 
@@ -88,6 +90,7 @@ fun OrganizerScreen(
         },
         selectedFile = selectedDocument,
         expenseStatus = state::expenseStatus,
+        expenseEvidence = state::expenseEvidence,
     )
 
     Panel(title = Strings.MONTH_PANEL, modifier = modifier, collapse = collapse) {
@@ -268,6 +271,7 @@ private fun CategoryRow(entry: TreeEntry, context: MonthContext) {
                 actions = context.fileActions,
                 modifier = Modifier.padding(start = 4.dp),
                 expenseStatus = context.expenseStatus(name),
+                expenseEvidence = context.expenseEvidence(name),
             )
         }
         if (showDropHighlight) {

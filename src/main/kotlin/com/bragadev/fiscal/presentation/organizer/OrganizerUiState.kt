@@ -18,8 +18,12 @@ data class OrganizerUiState(
     val message: UserMessage? = null,
     /** Conferência das despesas da Conta da Manutenção, por nome de arquivo em minúsculas. */
     val expenseChecks: Map<String, ExpenseStatus> = emptyMap(),
+    /** De onde veio o total quando o valor bateu (ex.: "R$ 50,00 abaixo de "TOTAL (R$)", página 1 (foto)"). */
+    val expenseEvidence: Map<String, String> = emptyMap(),
 ) {
     fun expenseStatus(fileName: String): ExpenseStatus? = expenseChecks[fileName.lowercase()]
+
+    fun expenseEvidence(fileName: String): String? = expenseEvidence[fileName.lowercase()]
 
     /** Só é possível organizar documentos com um mês identificado e liberado. */
     val canOrganize: Boolean get() = monthFolder?.isEditable == true

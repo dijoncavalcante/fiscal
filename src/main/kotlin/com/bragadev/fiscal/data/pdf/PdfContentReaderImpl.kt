@@ -3,10 +3,9 @@ package com.bragadev.fiscal.data.pdf
 import com.bragadev.fiscal.data.filesystem.FileErrorMapper
 import com.bragadev.fiscal.data.logging.AppLog
 import com.bragadev.fiscal.data.ocr.OcrEngine
+import com.bragadev.fiscal.data.ocr.OcrMode
 import com.bragadev.fiscal.data.ocr.TesseractOcrEngine
-import com.bragadev.fiscal.domain.model.DocumentContent
-import com.bragadev.fiscal.domain.model.FileOperationError
-import com.bragadev.fiscal.domain.model.Outcome
+import com.bragadev.fiscal.domain.model.*
 import com.bragadev.fiscal.domain.repository.DocumentContentReader
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +20,7 @@ import org.apache.pdfbox.pdmodel.interactive.digitalsignature.PDSignature
 import org.apache.pdfbox.rendering.ImageType
 import org.apache.pdfbox.rendering.PDFRenderer
 import org.apache.pdfbox.text.PDFTextStripper
+import org.apache.pdfbox.text.TextPosition
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.io.IOException
@@ -72,24 +72,59 @@ class PdfContentReaderImpl(
         }
     }
 
+    /**
+     * 1. Texto (e palavras com posição) de cada página do PDF.
+     * 2. OCR das páginas que são só foto.
+     * 3. Enquanto [isEnough] não estiver satisfeito (falta cupom, comprovante ou o valor não fechou): OCR das
+     *    páginas com texto e imagem e, depois, novas leituras das fotos com a posição das palavras
+     *    ([extraReadings]), da mais rápida para a mais demorada. Arquivo resolvido logo não paga pelas demais.
+     */
     private fun readContent(document: PDDocument, isEnough: (DocumentContent) -> Boolean): DocumentContent {
         val texts = (0 until document.numberOfPages).map { textOf(document, it) }.toMutableList()
+        val layouts = texts.indices.filter { texts[it].trim().length >= MIN_TEXT_CHARS }
+            .map { PageLayout(it, wordsOf(document, it), fromOcr = false, "texto do PDF") }.toMutableList()
         val signers = signersOf(document)
         val renderer = PDFRenderer(document)
         val ocrDone = BooleanArray(texts.size)
+        fun content() =
+            DocumentContent(texts.toList(), signers, texts.indices.filter { ocrDone[it] }.toSet(), layouts.toList())
         fun ocrPage(index: Int) {
-            texts[index] = texts[index] + "\n" + ocr.read(render(renderer, document.getPage(index), index))
+            texts[index] = texts[index] + "\n" + ocr.read(render(renderer, document.getPage(index), index, OCR_DPI))
             ocrDone[index] = true
         }
         // Página sem texto = foto ou digitalização (ex.: cupom fotografado).
         texts.indices.filter { texts[it].trim().length < MIN_TEXT_CHARS }.forEach(::ocrPage)
         // Páginas com texto e imagem (ex.: comprovante com a foto do cupom ao lado): só enquanto faltar algo.
         for (index in texts.indices) {
-            if (isEnough(DocumentContent(texts.toList(), signers))) break
+            if (isEnough(content())) break
             if (!ocrDone[index] && hasImages(document.getPage(index))) ocrPage(index)
         }
-        return DocumentContent(texts.toList(), signers, ocrPages = texts.indices.filter { ocrDone[it] }.toSet())
+        for (reading in extraReadings) {
+            if (isEnough(content())) break
+            for (index in texts.indices.filter { ocrDone[it] }) {
+                val image = render(renderer, document.getPage(index), index, reading.dpi)
+                val words = ocr.readWords(image, reading.dpi, reading.mode)
+                layouts += PageLayout(index, words, fromOcr = true, reading.description)
+            }
+        }
+        return content()
     }
+
+    /** Nova leitura de uma foto: resolução e modo do OCR. */
+    private class Reading(val dpi: Int, val mode: OcrMode) {
+        val description = "OCR $dpi DPI, ${mode.description}"
+    }
+
+    /**
+     * Leituras extras das fotos, com a posição das palavras, na ordem em que são tentadas. Testadas numa NFC-e
+     * fotografada ("3.5 Despesa - Compra de refil para bebedouro"): o total embaixo de "TOTAL (R$)" sai com
+     * 94-96% de confiança no modo automático e no de palavras soltas; 300 DPI ajuda nas letras pequenas.
+     */
+    private val extraReadings = listOf(
+        Reading(OCR_DPI, OcrMode.AUTO),
+        Reading(HIGH_DPI, OcrMode.SPARSE),
+        Reading(HIGH_DPI, OcrMode.SINGLE_COLUMN),
+    )
 
     private fun textOf(document: PDDocument, pageIndex: Int): String = try {
         PDFTextStripper().apply {
@@ -100,11 +135,49 @@ class PdfContentReaderImpl(
         ""
     }
 
-    private fun render(renderer: PDFRenderer, page: PDPage, pageIndex: Int): BufferedImage {
+    /** Palavras do texto do PDF com a posição (em pontos, y de cima para baixo). */
+    private fun wordsOf(document: PDDocument, pageIndex: Int): List<PageWord> = try {
+        WordCollector().apply {
+            startPage = pageIndex + 1
+            endPage = pageIndex + 1
+            getText(document)
+        }.words
+    } catch (_: IOException) {
+        emptyList()
+    }
+
+    /** Junta as letras de cada trecho de texto em palavras (separadas por espaço), guardando onde ficam. */
+    private class WordCollector : PDFTextStripper() {
+        val words = mutableListOf<PageWord>()
+
+        override fun writeString(text: String, textPositions: List<TextPosition>) {
+            var current = mutableListOf<TextPosition>()
+            fun flush() {
+                if (current.isEmpty()) return
+                val first = current.first()
+                val last = current.last()
+                val height = current.maxOf { it.heightDir }
+                words += PageWord(
+                    text = current.joinToString("") { it.unicode },
+                    x = first.xDirAdj,
+                    y = first.yDirAdj - height,
+                    width = last.xDirAdj + last.widthDirAdj - first.xDirAdj,
+                    height = height,
+                )
+                current = mutableListOf()
+            }
+            for (position in textPositions) {
+                if (position.unicode.isBlank()) flush() else current += position
+            }
+            flush()
+            super.writeString(text, textPositions)
+        }
+    }
+
+    private fun render(renderer: PDFRenderer, page: PDPage, pageIndex: Int, dpi: Int): BufferedImage {
         val box = page.cropBox
         // Páginas enormes (foto no tamanho original) são reduzidas: o OCR não precisa de mais que isso.
-        val scale =
-            minOf(TesseractOcrEngine.OCR_DPI / POINTS_PER_INCH, MAX_RENDER_PIXELS / maxOf(box.width, box.height))
+        val scale = minOf(dpi / POINTS_PER_INCH, MAX_RENDER_PIXELS / maxOf(box.width, box.height))
         return renderer.renderImage(pageIndex, scale, ImageType.GRAY)
     }
 
@@ -150,6 +223,8 @@ class PdfContentReaderImpl(
         const val MIN_TEXT_CHARS = 20
         const val POINTS_PER_INCH = 72f
         const val MAX_RENDER_PIXELS = 3500f
+        const val OCR_DPI = TesseractOcrEngine.OCR_DPI
+        const val HIGH_DPI = 300
         const val INDEFINITE_LENGTH = 0x80
     }
 }

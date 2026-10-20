@@ -32,7 +32,7 @@ class CheckExpensesUseCaseTest {
     private val complete = DocumentContent(
         listOf(
             "COMPROVANTE DE VENDA CNPJ TOTAL R$ 125,00",
-            "Comprovante de transação Pix Id da transação: E60746948202609191355M3943eq0hGo"
+            "Comprovante de transação Pix Valor: 125.00 Id da transação: E60746948202609191355M3943eq0hGo"
         ),
         signers = listOf("CN=ELVES LINCOLN MENEZES DE LIMA"),
     )
@@ -45,12 +45,17 @@ class CheckExpensesUseCaseTest {
     private val checkExpenses = CheckExpensesUseCase(fileRepository, reader, checks, flags)
     private val checklist = GetMonthChecklistUseCase(fileRepository, FakeCategoryRepository(), flags)
 
+    private val evidences = mutableMapOf<String, String?>()
+
     private suspend fun run(
         folder: Path = september,
         account: AccountType = AccountType.MANUTENCAO
     ): Map<String, ExpenseStatus> {
         val results = mutableMapOf<String, ExpenseStatus>()
-        checkExpenses(folder, account, checklist(folder, account)) { name, status -> results[name] = status }
+        checkExpenses(folder, account, checklist(folder, account)) { name, status, evidence ->
+            results[name] = status
+            evidences[name] = evidence
+        }
         return results
     }
 
@@ -128,6 +133,21 @@ class CheckExpensesUseCaseTest {
     }
 
     @Test
+    fun `despesa verificada diz de onde veio o total, tambem quando vem do resultado guardado`() = runTest {
+        val file = september.createFakePdf("3. Despesa - Dreno encapado.pdf")
+        reader.contents[file.fileName.toString()] = complete
+        val expected = "R$ 125,00 em \"TOTAL\", página 1 (texto do PDF)"
+
+        run()
+        assertEquals(expected, evidences[file.fileName.toString()])
+
+        evidences.clear()
+        run()
+        assertEquals(1, reader.reads)
+        assertEquals(expected, evidences[file.fileName.toString()])
+    }
+
+    @Test
     fun `valor do Pix diferente do cupom vira pendencia que diz como corrigir`() = runTest {
         val file = september.createFakePdf("3. Despesa - Material de limpeza.pdf")
         reader.contents[file.fileName.toString()] = complete.copy(
@@ -153,6 +173,26 @@ class CheckExpensesUseCaseTest {
         run()
 
         assertEquals(1, reader.reads)
+    }
+
+    @Test
+    fun `pendencia automatica da versao anterior e trocada pela nova`() = runTest {
+        // Até a versão 2 o recibo não valia: a pendência antiga dizia "cupom ou nota fiscal".
+        val file = september.createFakePdf("3. Despesa - Conserto do portão.pdf")
+        flags.set(file, "Falta cupom ou nota fiscal")
+        checks.save(
+            file,
+            StoredExpenseCheck(
+                Files.size(file), Files.getLastModifiedTime(file).toInstant(),
+                ExpenseCheck(setOf(ExpenseRequirement.FISCAL_DOCUMENT)), rulesVersion = 2,
+            ),
+        )
+        reader.contents[file.fileName.toString()] = complete.copy(
+            pageTexts = listOf("RECIBO Recebi a importância de R$ 125,00 Total R$ 125,00", complete.pageTexts[1]),
+        )
+
+        assertEquals(ExpenseStatus.VERIFIED, run()[file.fileName.toString()])
+        assertNull(flags.flags[file])
     }
 
     @Test

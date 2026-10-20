@@ -204,23 +204,44 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
 
 ## Conferência das despesas (Conta da Manutenção)
 
-- Só `manutencao.despesas` ("3. Despesas" da Manutenção). Cada PDF precisa ter **cupom ou nota fiscal**, **comprovante
-  Pix/TED** e **assinatura de Elves Lincoln Menezes de Lima** (regras puras em `ExpenseDocumentRules`).
+- Só `manutencao.despesas` ("3. Despesas" da Manutenção). Cada PDF precisa ter **cupom, nota fiscal (DANFE) ou
+  recibo**, **comprovante Pix/TED** com o **mesmo valor do total** e **assinatura de Elves Lincoln Menezes de Lima**
+  (regras puras em `ExpenseDocumentRules`; pedidas pelo usuário em 20/10/2026).
 - Leitura (`PdfContentReaderImpl`): texto do PDFBox por página; página sem texto (cupom fotografado) passa pelo **OCR
   local** (`TesseractOcrEngine`, tess4j com o modelo `eng` que vem no jar — nada é baixado; carrega antes
   `msvcp140`/`vcruntime140` do Java embutido). Páginas com texto + imagem só vão ao OCR enquanto faltar algo
-  (`hasEnoughText`). Exceção combinada com o usuário à regra "sem IA": OCR offline.
+  (`hasEnoughText` = cupom + comprovante achados **e valor resolvido**). Exceção combinada com o usuário à regra
+  "sem IA": OCR offline. O texto normal do OCR usa o modo 6 (bloco único, padrão do tess4j): as regras foram
+  calibradas com ele — não trocar (trocar para o 3 fez sumir cupons e assinaturas nas despesas reais).
+- **Palavras com posição** (`DocumentContent.layouts`, `PageLayout`/`PageWord`): páginas de texto trazem as palavras
+  do PDFBox (`WordCollector`); fotos ganham **novas leituras** do OCR só enquanto o valor não fechou, nesta ordem:
+  200 DPI modo 3, 300 DPI modo 11 (palavras soltas), 300 DPI modo 4 (no máximo 3 por foto; `readWords` devolve
+  posição + confiança). Uma despesa difícil leva ~5–10 s na primeira vez (resultado fica guardado).
+- **Total na tabela (`TableTotalFinder`):** título (TOTAL, VALOR TOTAL, VALOR TOTAL DA NOTA, VALOR A PAGAR) com o valor
+  à direita na linha ou **embaixo, na mesma coluna** (NFC-e: "TOTAL (R$)" em cima, "50,00" embaixo, com o "1" de Itens
+  no caminho). Não valem: SubTotal, "Total dos produtos/de itens/tributos" e a coluna TOTAL da lista de itens
+  (linha com Código/Unitário/Qtd, ou logo abaixo dela). `confirmedBySum`: SubTotal − Desconto + Frete + Acréscimo
+  = Total na mesma linha. Caso real: "3.5 Despesa - Compra de refil para bebedouro" (`TableTotalFinderTest`).
 - Assinatura = nome no **certificado** da assinatura digital (`CertificateFactory` lê o PKCS#7; gov.br usa tamanho
   indefinido `30 80`, não cortar) ou o selo "Documento assinado digitalmente" + nome no texto/OCR (data ignorada).
   O nome solto **não** vale: ele aparece como recebedor do Pix. A integridade criptográfica não é verificada.
-- Termos procurados palavra a palavra com tolerância a erros do OCR (Levenshtein). Orçamento e recibo à mão não
-  contam como cupom.
-- **Valor:** o "Valor:" do comprovante (soma, se vários) precisa ser um valor do cupom/nota ou a soma de valores de
-  cupons/notas diferentes (um Pix para várias compras). Senão: pendência "Valor do comprovante (R$ X) diferente do
-  cupom/nota (R$ Y): confira e troque o documento errado" (Y = "valor a pagar", senão o último total; somado entre
-  cupons). Para não acusar erro do OCR: em foto só aponta se leu a linha do total e ignora diferença de um dígito;
-  "R$ 166 92" (vírgula perdida) vira 166,92. Sem valor legível de um dos lados, não afirma nada. Testado nas 95
-  despesas reais: nenhuma pendência falsa. `DocumentContent.ocrPages` diz quais páginas vieram do OCR.
+- Termos procurados palavra a palavra com tolerância a erros do OCR (Levenshtein). Recibo vale, exceto em página de
+  orçamento ou no próprio comprovante do banco ("Recibo de transferência"). Orçamento não conta como cupom.
+- **Valor (`AmountProblem`):** o "Valor:" do comprovante (soma, se vários; aceita `1.234,56`, `125.00` e `1,051.49`)
+  precisa ser igual a um **total** do cupom/nota (Total, Valor total, Valor a pagar — tolerante a OCR: "VALOR & PAGAR",
+  "Valor a Pag" —, Valor do pedido/da venda/do documento) ou à soma dos totais de cupons diferentes. Preço de item
+  e "Valor bruto" não contam. Resultados: `MISMATCH` (texto: "diferente do cupom/nota … troque o documento errado");
+  `UNCERTAIN_READING` (não bate, mas veio de foto: o OCR troca dígitos e perde totais de tabela — "confira à mão");
+  `PAYMENT_UNREADABLE` / `TOTAL_UNREADABLE` (valor não lido — "confira à mão"). Todos viram pendência. Cupom e Pix
+  na mesma página: o "Valor:" do Pix é tirado antes de procurar o total (e a posição não é usada). "R$ 166 92"
+  (vírgula perdida) vira 166,92. `DocumentContent.ocrPages` diz quais páginas vieram do OCR.
+- **Segurança:** total de foto vale para **bater** com confiança do OCR ≥ 40 (ou conta da tabela fechando) e para
+  **afirmar** diferença só ≥ 70; abaixo disso = "Total não foi lido". Valor do Pix ilegível no texto é procurado nas
+  novas leituras só se a página for só comprovante. Quando bate, `ExpenseCheck.amountEvidence` diz de onde veio
+  ("R$ 50,00 abaixo de "TOTAL (R$)", página 1 (foto, conta da tabela confere)"): gravado em `amount_evidence` e
+  mostrado no "certo" verde. Teste nas despesas reais: trocar o "Valor:" do Pix por +7,13 nunca pode dar OK.
+- Textos de pendência de versões anteriores continuam reconhecidos por `isAutomaticNote` (ex.: "Falta cupom ou nota
+  fiscal"), para serem trocados quando as regras mudam.
 - Mudou a regra? Aumente `EXPENSE_RULES_VERSION`: resultados antigos em `expense_checks` (`rules_version`) são
   conferidos de novo.
 - `CheckExpensesUseCase` (no `OrganizerViewModel`, em segundo plano): incompleta → pendência "Falta …" (texto de
