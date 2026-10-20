@@ -215,6 +215,14 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   O nome solto **não** vale: ele aparece como recebedor do Pix. A integridade criptográfica não é verificada.
 - Termos procurados palavra a palavra com tolerância a erros do OCR (Levenshtein). Orçamento e recibo à mão não
   contam como cupom.
+- **Valor:** o "Valor:" do comprovante (soma, se vários) precisa ser um valor do cupom/nota ou a soma de valores de
+  cupons/notas diferentes (um Pix para várias compras). Senão: pendência "Valor do comprovante (R$ X) diferente do
+  cupom/nota (R$ Y): confira e troque o documento errado" (Y = "valor a pagar", senão o último total; somado entre
+  cupons). Para não acusar erro do OCR: em foto só aponta se leu a linha do total e ignora diferença de um dígito;
+  "R$ 166 92" (vírgula perdida) vira 166,92. Sem valor legível de um dos lados, não afirma nada. Testado nas 95
+  despesas reais: nenhuma pendência falsa. `DocumentContent.ocrPages` diz quais páginas vieram do OCR.
+- Mudou a regra? Aumente `EXPENSE_RULES_VERSION`: resultados antigos em `expense_checks` (`rules_version`) são
+  conferidos de novo.
 - `CheckExpensesUseCase` (no `OrganizerViewModel`, em segundo plano): incompleta → pendência "Falta …" (texto de
   `issueNote`); corrigida → a pendência automática sai (`isAutomaticNote`). Pendência escrita pelo usuário nunca é
   mexida. Resultado guardado em `expense_checks` por tamanho + data: não repete OCR, e pendência automática removida

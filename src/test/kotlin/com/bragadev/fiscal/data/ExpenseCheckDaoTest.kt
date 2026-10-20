@@ -3,13 +3,12 @@ package com.bragadev.fiscal.data
 import com.bragadev.fiscal.data.database.Database
 import com.bragadev.fiscal.data.database.ExpenseCheckDao
 import com.bragadev.fiscal.data.repository.ExpenseCheckRepositoryImpl
-import com.bragadev.fiscal.domain.model.ExpenseCheck
-import com.bragadev.fiscal.domain.model.ExpenseRequirement
-import com.bragadev.fiscal.domain.model.StoredExpenseCheck
+import com.bragadev.fiscal.domain.model.*
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.math.BigDecimal
 import java.time.Instant
 import kotlin.test.assertEquals
 
@@ -42,6 +41,26 @@ class ExpenseCheckDaoTest {
             assertEquals(21, saved.getValue("3.1 despesa - cabo.pdf").sizeBytes)
             assertEquals(true, saved.getValue("3.1 despesa - cabo.pdf").check.unreadable)
             assertEquals(2, saved.size)
+        }
+    }
+
+    @Test
+    fun `grava a diferenca de valor e a versao das regras`() = runTest {
+        Database(temp.root.toPath().resolve("fiscal.db")).use { database ->
+            val repository = ExpenseCheckRepositoryImpl(ExpenseCheckDao(database))
+            val folder = temp.newFolder("1. Agosto").toPath()
+            val modified = Instant.parse("2026-08-11T17:44:00Z")
+            val withTotal = ExpenseCheck(amountMismatch = AmountMismatch(BigDecimal("405.98"), BigDecimal("395.98")))
+            val withoutTotal = ExpenseCheck(amountMismatch = AmountMismatch(BigDecimal("60.00"), null))
+
+            repository.save(folder.resolve("a.pdf"), StoredExpenseCheck(1, modified, withTotal))
+            repository.save(folder.resolve("b.pdf"), StoredExpenseCheck(1, modified, withoutTotal, rulesVersion = 1))
+
+            val saved = repository.checksIn(folder)
+            assertEquals(withTotal, saved.getValue("a.pdf").check)
+            assertEquals(EXPENSE_RULES_VERSION, saved.getValue("a.pdf").rulesVersion)
+            assertEquals(withoutTotal, saved.getValue("b.pdf").check)
+            assertEquals(1, saved.getValue("b.pdf").rulesVersion)
         }
     }
 }

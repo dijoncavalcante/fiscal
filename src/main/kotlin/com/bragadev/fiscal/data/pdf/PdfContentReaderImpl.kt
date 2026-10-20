@@ -88,7 +88,7 @@ class PdfContentReaderImpl(
             if (isEnough(DocumentContent(texts.toList(), signers))) break
             if (!ocrDone[index] && hasImages(document.getPage(index))) ocrPage(index)
         }
-        return DocumentContent(texts.toList(), signers)
+        return DocumentContent(texts.toList(), signers, ocrPages = texts.indices.filter { ocrDone[it] }.toSet())
     }
 
     private fun textOf(document: PDDocument, pageIndex: Int): String = try {

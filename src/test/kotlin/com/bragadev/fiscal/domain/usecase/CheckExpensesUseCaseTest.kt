@@ -128,6 +128,34 @@ class CheckExpensesUseCaseTest {
     }
 
     @Test
+    fun `valor do Pix diferente do cupom vira pendencia que diz como corrigir`() = runTest {
+        val file = september.createFakePdf("3. Despesa - Material de limpeza.pdf")
+        reader.contents[file.fileName.toString()] = complete.copy(
+            pageTexts = listOf("NOTA FISCAL Total R$ 395,98", "Comprovante de transação Pix Valor: 405.98"),
+        )
+
+        assertEquals(ExpenseStatus.HAS_ISSUES, run()[file.fileName.toString()])
+        assertEquals(
+            "Valor do comprovante (R$ 405,98) diferente do cupom/nota (R$ 395,98): confira e troque o documento errado",
+            flags.flags[file],
+        )
+    }
+
+    @Test
+    fun `resultado guardado por regras antigas e conferido de novo`() = runTest {
+        val file = september.createFakePdf("3. Despesa - Dreno encapado.pdf")
+        reader.contents[file.fileName.toString()] = complete
+        val old = StoredExpenseCheck(
+            Files.size(file), Files.getLastModifiedTime(file).toInstant(), ExpenseCheck(), rulesVersion = 1,
+        )
+        checks.save(file, old)
+
+        run()
+
+        assertEquals(1, reader.reads)
+    }
+
+    @Test
     fun `falha passageira nao marca pendencia e tenta de novo depois`() = runTest {
         val file = september.createFakePdf("3. Despesa - Dreno encapado.pdf")
         reader.failure = FileOperationError.FileLocked

@@ -49,6 +49,9 @@ private object Schema {
     val addedColumns = listOf(
         "categories" to "file_base_name TEXT",
         "categories" to "optional INTEGER NOT NULL DEFAULT 0",
+        "expense_checks" to "paid_amount TEXT",
+        "expense_checks" to "fiscal_amount TEXT",
+        "expense_checks" to "rules_version INTEGER NOT NULL DEFAULT 1",
     )
 
     val statements = listOf(
@@ -114,6 +117,9 @@ private object Schema {
             modified_millis INTEGER NOT NULL,
             missing TEXT NOT NULL,
             unreadable INTEGER NOT NULL DEFAULT 0,
+            paid_amount TEXT,
+            fiscal_amount TEXT,
+            rules_version INTEGER NOT NULL DEFAULT 1,
             checked_at TEXT NOT NULL,
             PRIMARY KEY (folder, file_name)
         )

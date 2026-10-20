@@ -1,9 +1,11 @@
 package com.bragadev.fiscal.domain.rules
 
+import com.bragadev.fiscal.domain.model.AmountMismatch
 import com.bragadev.fiscal.domain.model.DocumentContent
 import com.bragadev.fiscal.domain.model.ExpenseCheck
 import com.bragadev.fiscal.domain.model.ExpenseRequirement.*
 import org.junit.Test
+import java.math.BigDecimal
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
@@ -12,7 +14,8 @@ import kotlin.test.assertTrue
 /** Textos tirados das despesas reais da Conta da Manutenção (PDF e OCR de fotos). */
 class ExpenseDocumentRulesTest {
     private val cupomOcr = "COMPROVANTE DE VENDA 46.182.254 ANDRESSA DOS SANTOS FERREIRA CNPU: AG 182.254/0001-79 " +
-            "VENDA 36791 | 76 DRENO 5x R$ 25,00 LIQUIDO TOTAL OO. R$ 425,00"
+            "VENDA 36791 | 76 DRENO 5x R$ 25,00 RS 425,00 Valor bruto R$ 125,00 Desconto na venda R$ 0,00 " +
+            "LIQUIDO TOTAL OO. R$ 425,00"
     private val pixToStore = "Comprovante de transação Pix Pagamento Data da operação: 19/09/2026 10:55:34 " +
             "Dados do recebedor Nome: 46.182.254 ANDRESSA DOS SANTOS FERREIRA Valor: 125.00 " +
             "Id da transação: E60746948202609191355M3943eq0hGo"
@@ -86,7 +89,7 @@ class ExpenseDocumentRulesTest {
 
     @Test
     fun `comprovante de TED e identificador do Pix contam como pagamento`() {
-        assertTrue(check(cupomOcr, "COMPROVANTE DE TRANSFERÊNCIA TED Valor R$ 300,00").isValid)
+        assertTrue(check(cupomOcr, "COMPROVANTE DE TRANSFERÊNCIA TED Valor R$ 125,00").isValid)
         assertTrue(check(cupomOcr, "Pagamento efetuado E60746948202607151342M3943amS3S8").isValid)
     }
 
@@ -119,5 +122,131 @@ class ExpenseDocumentRulesTest {
         assertTrue(ExpenseDocumentRules.isAutomaticNote("Não foi possível ler o PDF"))
         assertFalse(ExpenseDocumentRules.isAutomaticNote("Arquivo errado — trocar"))
         assertFalse(ExpenseDocumentRules.isAutomaticNote("Falta comprovante Pix/TED e o recibo"))
+    }
+
+    // ---- Valor do comprovante × cupom/nota ----
+
+    /** Orçamento/recibo real: "Total R$ 395,98" e o Pix com "Valor: 395.98" (ponto, como o banco escreve). */
+    private val receipt =
+        "NOTA FISCAL Império Distribuidora Saco de lixo R$ 15,90 5 R$ 79,50 Bom ar R$ 16,00 1 R$ 16,00 " +
+                "Total R$ 395,98 15/06/2026"
+
+    private fun pix(value: String) =
+        "Comprovante de transação Pix Transferência Valor: $value Descrição: Pix para MKL SERVICOS Multa: R$ 0,00"
+
+    @Test
+    fun `valor do Pix igual ao total do cupom passa`() {
+        assertNull(check(receipt, pix("395.98")).amountMismatch)
+        assertTrue(check(receipt, pix("395.98")).isValid)
+    }
+
+    @Test
+    fun `valor do Pix diferente do cupom vira pendencia com os dois valores`() {
+        val result = check(receipt, pix("405.98"))
+
+        assertEquals(AmountMismatch(BigDecimal("405.98"), BigDecimal("395.98")), result.amountMismatch)
+        assertEquals(
+            "Valor do comprovante (R$ 405,98) diferente do cupom/nota (R$ 395,98): confira e troque o documento errado",
+            ExpenseDocumentRules.issueNote(result),
+        )
+    }
+
+    @Test
+    fun `OCR que erra o total mas acerta o valor em outra linha nao gera pendencia falsa`() {
+        // Cupom real: o OCR leu o total como 425,00, mas "Valor bruto R$ 125,00" está certo.
+        assertNull(check(cupomOcr, pixToStore).amountMismatch)
+    }
+
+    @Test
+    fun `valores em milhar e boleto pago com Valor do pagamento`() {
+        val bill = "DANFE NOTA FISCAL VALOR TOTAL DA NOTA 1.234,56"
+        val boleto = "Comprovante de pagamento Pix Valor do pagamento: R$ 1.234,56 Desconto: R$ 0,00"
+
+        assertNull(check(bill, boleto).amountMismatch)
+        assertEquals(
+            AmountMismatch(BigDecimal("1243.56"), BigDecimal("1234.56")),
+            check(bill, boleto.replace("1.234,56", "1.243,56")).amountMismatch,
+        )
+    }
+
+    @Test
+    fun `dois comprovantes que somam o total do cupom passam`() {
+        assertNull(check(receipt, pix("200.00"), pix("195.98")).amountMismatch)
+    }
+
+    @Test
+    fun `sem valor legivel de um dos lados nada e afirmado`() {
+        // Pix lido pelo OCR com o valor embaralhado ("48055") e cupom sem nenhum valor.
+        assertNull(check(receipt, "Comprovante de transacao Pix Valor: 48055").amountMismatch)
+        assertNull(check("CUPOM FISCAL foto ilegível", pix("10.00")).amountMismatch)
+    }
+
+    @Test
+    fun `cupom sem linha de total ainda aponta a diferenca`() {
+        val result = check("CUPOM FISCAL Item 1 R$ 20,00 Item 2 R$ 30,00", pix("60.00"))
+
+        assertEquals(AmountMismatch(BigDecimal("60.00"), null), result.amountMismatch)
+        assertEquals(
+            "Valor do comprovante (R$ 60,00) não aparece no cupom/nota: confira e troque o documento errado",
+            ExpenseDocumentRules.issueNote(result),
+        )
+    }
+
+    @Test
+    fun `dois cupons fotografados que somam o Pix passam, mesmo com a virgula perdida pelo OCR`() {
+        // "3.2 COMPRA DE VASSOURAS": cupons de R$ 59,97 e R$ 44,97 ("R$ 44 97" no OCR), um Pix de 104,94.
+        val first = "Documento Auxiliar da Nota Fiscal de Consumidor VALOR A PAGAR RS 59,97 Outros R} 99,9"
+        val second = "Nata Faseal de Consumidar Qtde total de rtens 3 Valor total R$ 44 97 PI> 44 97"
+        val content =
+            DocumentContent(listOf(first, second, pix("104.94")), listOf(elvesCertificate), ocrPages = setOf(0, 1))
+
+        assertNull(ExpenseDocumentRules.check(content).amountMismatch)
+    }
+
+    @Test
+    fun `desconto no cupom - vale o valor a pagar`() {
+        // "3.12 Compras de Mop": Valor Total 175,70, desconto 8,78, a pagar "R$ 166 92" (vírgula perdida).
+        val cupom =
+            "DOCUMENTO AUXILIAR DA NOTA FISCAL Valor Total RS 175,70 Acrescimo / Desconto R$ 8.78 Valor a pagar R$ 166 92"
+
+        assertNull(check(cupom, pix("166.92")).amountMismatch)
+        assertEquals(BigDecimal("166.92"), check(cupom, pix("180.00")).amountMismatch?.fiscal)
+    }
+
+    @Test
+    fun `um digito diferente em foto e erro do OCR, mas em texto e pendencia`() {
+        // Conta de luz fotografada: o OCR leu 781,57 como 761,57.
+        val bill = "Documento Auxiliar da Nota Fiscal de Energia TOTAL A PAGAR R$ 761,57"
+        val photo = DocumentContent(listOf(bill, pix("781.57")), listOf(elvesCertificate), ocrPages = setOf(0))
+
+        assertNull(ExpenseDocumentRules.check(photo).amountMismatch)
+        assertEquals(
+            AmountMismatch(BigDecimal("781.57"), BigDecimal("761.57")),
+            ExpenseDocumentRules.check(photo.copy(ocrPages = emptySet())).amountMismatch,
+        )
+    }
+
+    @Test
+    fun `foto sem linha de total legivel nao gera pendencia de valor`() {
+        val photo = DocumentContent(
+            listOf("FATURA DE SANEAMENTO VALOR FATBRADO (RS): alone a7 25", pix("64.16")),
+            listOf(elvesCertificate),
+            ocrPages = setOf(0),
+        )
+
+        assertNull(ExpenseDocumentRules.check(photo).amountMismatch)
+    }
+
+    @Test
+    fun `pendencia junta o que falta e a diferenca de valor e continua automatica`() {
+        val note = ExpenseDocumentRules.issueNote(check(receipt, pix("405.98"), signers = emptyList()))!!
+
+        assertEquals(
+            "Falta assinatura de Elves Lincoln; Valor do comprovante (R$ 405,98) diferente do cupom/nota " +
+                    "(R$ 395,98): confira e troque o documento errado",
+            note,
+        )
+        assertTrue(ExpenseDocumentRules.isAutomaticNote(note))
+        assertFalse(ExpenseDocumentRules.isAutomaticNote("$note; e o recibo está rasgado"))
     }
 }
