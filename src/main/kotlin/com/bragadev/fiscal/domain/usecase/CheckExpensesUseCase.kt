@@ -1,31 +1,40 @@
 package com.bragadev.fiscal.domain.usecase
 
 import com.bragadev.fiscal.domain.model.*
-import com.bragadev.fiscal.domain.repository.DocumentContentReader
-import com.bragadev.fiscal.domain.repository.ExpenseCheckRepository
-import com.bragadev.fiscal.domain.repository.FileFlagRepository
-import com.bragadev.fiscal.domain.repository.FileRepository
+import com.bragadev.fiscal.domain.repository.*
 import com.bragadev.fiscal.domain.rules.ExpenseDocumentRules
+import com.bragadev.fiscal.domain.rules.ExpenseExemptionRules
 import java.nio.file.Path
 
 /**
- * Confere as despesas ("3. Despesas") da Conta da Manutenção: cupom, nota fiscal ou recibo, comprovante Pix/TED
- * com o mesmo valor do total e assinatura (regras em [ExpenseDocumentRules]). Só lê os PDFs; nada é alterado no disco.
+ * Confere as despesas ("3. Despesas") das contas da Congregação e da Manutenção: assinatura do responsável
+ * configurado, comprovante Pix/TED e, quando exigido, cupom/nota com o mesmo valor (regras em
+ * [ExpenseDocumentRules]). Só lê os PDFs; nada é alterado no disco.
  *
  * - Despesa incompleta recebe uma pendência dizendo o que falta; ao ser corrigida, a pendência sai sozinha.
  *   Pendências escritas pelo usuário nunca são trocadas nem removidas.
- * - O resultado fica guardado enquanto o arquivo não mudar (tamanho e data): o OCR não se repete, e uma
- *   pendência automática que o usuário removeu não volta.
+ * - O resultado fica guardado enquanto o arquivo e as exigências não mudarem (tamanho, data, responsável e
+ *   isenção): o OCR não se repete, e uma pendência automática que o usuário removeu não volta.
  */
 class CheckExpensesUseCase(
     private val fileRepository: FileRepository,
     private val reader: DocumentContentReader,
     private val checkRepository: ExpenseCheckRepository,
     private val flagRepository: FileFlagRepository,
+    private val settingsRepository: SettingsRepository,
 ) {
-    /** Nomes dos arquivos conferidos neste mês (vazio se o mês não é da Conta da Manutenção). */
+    /** Nomes dos arquivos conferidos neste mês (vazio se a conta não tem despesas conferidas). */
     fun expenseFiles(account: AccountType?, checklist: MonthChecklist): List<String> =
-        if (account == AccountType.MANUTENCAO) checklist.filesFor(ExpenseDocumentRules.CATEGORY_ID) else emptyList()
+        ExpenseDocumentRules.categoryFor(account)?.let(checklist::filesFor).orEmpty()
+
+    /** O que é exigido deste arquivo: o responsável da conta e, na Congregação, a isenção pelo nome. */
+    fun requirementsFor(account: AccountType?, fileName: String): ExpenseRequirements {
+        val settings = settingsRepository.settings.value
+        val exemptBy = if (ExpenseDocumentRules.hasExemptions(account)) {
+            ExpenseExemptionRules.exemptBy(fileName, settings.expenseExemptTerms)
+        } else null
+        return ExpenseRequirements(settings.expenseSigners[account], exemptBy)
+    }
 
     /**
      * Confere cada despesa da pasta do mês, uma por vez, avisando cada resultado em [onResult]
@@ -48,16 +57,25 @@ class CheckExpensesUseCase(
         for (name in names) {
             val document = documents[name.lowercase()] ?: continue
             val previous = stored[name.lowercase()]
-            if (previous != null && previous.matches(document)) {
+            val requirements = requirementsFor(account, document.name)
+            if (previous != null && previous.matches(document, requirements)) {
                 onResult(name, statusOf(previous.check), previous.check.amountEvidence)
                 continue
             }
-            val check = checkDocument(document)
+            val check = checkDocument(document, requirements)
             if (check == null) {
                 onResult(name, ExpenseStatus.NOT_CHECKED, null)
                 continue
             }
-            checkRepository.save(document.path, StoredExpenseCheck(document.sizeBytes, document.lastModified, check))
+            checkRepository.save(
+                document.path,
+                StoredExpenseCheck(
+                    document.sizeBytes,
+                    document.lastModified,
+                    check,
+                    requirementsKey = requirements.key
+                ),
+            )
             if (updateFlag(
                     document.path,
                     checklist.flagFor(name),
@@ -70,9 +88,9 @@ class CheckExpensesUseCase(
     }
 
     /** `null` quando não deu para ler agora (arquivo em uso, OCR indisponível): tenta de novo depois. */
-    private suspend fun checkDocument(document: Document): ExpenseCheck? =
-        when (val content = reader.read(document.path, ExpenseDocumentRules::hasEnoughText)) {
-            is Outcome.Success -> ExpenseDocumentRules.check(content.value)
+    private suspend fun checkDocument(document: Document, requirements: ExpenseRequirements): ExpenseCheck? =
+        when (val content = reader.read(document.path) { ExpenseDocumentRules.hasEnoughText(it, requirements) }) {
+            is Outcome.Success -> ExpenseDocumentRules.check(content.value, requirements)
             is Outcome.Failure -> if (content.error == FileOperationError.InvalidPdf) ExpenseCheck(unreadable = true) else null
         }
 

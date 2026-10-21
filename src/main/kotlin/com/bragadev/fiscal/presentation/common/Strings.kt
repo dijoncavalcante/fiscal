@@ -185,10 +185,58 @@ object Strings {
 
     fun issueLabel(note: String) = "Pendência: $note"
 
-    // Conferência das despesas da Conta da Manutenção (cupom/nota fiscal, comprovante e assinatura)
+    // Conferência das despesas (assinatura do responsável, comprovante e, quando exigido, cupom/nota)
     const val EXPENSE_VERIFIED =
-        "Verificado: cupom, nota fiscal ou recibo, comprovante Pix/TED com o mesmo valor e assinatura de Elves Lincoln"
-    const val EXPENSE_AMOUNT_FROM = "Valor conferido: "
+        "Verificado: assinatura do responsável, comprovante Pix/TED e cupom/nota com o mesmo valor (quando exigido)"
+
+    // Configurações → Assinaturas das despesas
+    const val SIGNATURES_SECTION = "Assinaturas das despesas"
+    const val SIGNATURES_EXPLANATION =
+        "Quem precisa assinar (assinatura digital gov.br) os PDFs de \"3. Despesas\" de cada conta. A conferência " +
+                "usa o nome completo, igual ao do certificado digital; a data da assinatura não importa. Tudo fica " +
+                "só neste computador. Se o responsável mudar, troque aqui."
+    const val SIGNER_NAME_LABEL = "Nome completo de quem assina"
+    const val SIGNER_NOT_CONFIGURED =
+        "Ninguém configurado: as despesas desta conta ficam com pendência até você salvar um nome."
+    const val SAVE = "Salvar"
+    const val ADD = "Adicionar"
+    const val SIGNER_READ_FROM_PDF = "Ler de um PDF assinado…"
+    const val SIGNER_PDF_PICKER_TITLE = "Escolha uma despesa já assinada pelo responsável"
+    const val PDF_FILTER = "Arquivos PDF"
+    const val IMAGE_FILTER = "Imagens (PNG, JPEG)"
+    const val SIGNER_PDF_WITHOUT_SIGNATURE =
+        "Este PDF não tem assinatura digital. Escolha uma despesa assinada pelo gov.br."
+
+    fun signerReadFromPdf(name: String) = "Nome lido do certificado: $name. Confira e clique em Salvar."
+    fun signerSaved(name: String) = "Responsável salvo: $name. As despesas serão conferidas de novo."
+    fun signerCleared(account: String) = "Responsável da $account removido."
+    const val SIGNATURE_IMAGE_CHOOSE = "Escolher imagem da assinatura…"
+    const val SIGNATURE_IMAGE_REPLACE = "Trocar imagem…"
+    const val SIGNATURE_IMAGE_REMOVE = "Remover imagem"
+    const val SIGNATURE_IMAGE_PICKER_TITLE = "Escolha a imagem do selo de assinatura"
+    const val SIGNATURE_IMAGE_SAVED = "Imagem guardada neste computador."
+    const val SIGNATURE_IMAGE_DESCRIPTION = "Imagem de referência do selo de assinatura"
+    const val SIGNATURE_IMAGE_NOTE = "Só para referência: a conferência usa o nome, não a imagem."
+    const val SIGNER_CHANGE_TITLE = "Trocar quem assina as despesas?"
+    const val SIGNER_CHANGE_CONFIRM = "Trocar"
+    fun signerChangeBody(account: String, from: String, to: String) =
+        "As despesas da $account passam a exigir a assinatura de \"$to\" em vez de \"$from\". Todas as despesas " +
+                "dessa conta serão conferidas de novo e as pendências automáticas serão atualizadas (as que você " +
+                "escreveu não mudam)."
+
+    const val SIGNER_CHOICE_TITLE = "Qual é o responsável?"
+    fun signerChoiceBody(account: String) =
+        "O PDF tem mais de uma assinatura. Escolha quem assina as despesas da $account:"
+
+    const val EXEMPT_TERMS_TITLE = "Despesas sem cupom (Conta da Congregação)"
+    const val EXEMPT_TERMS_EXPLANATION =
+        "Se o nome do arquivo tiver um destes termos, o cupom/nota fiscal não é exigido e o valor não é comparado " +
+                "(a assinatura e o comprovante Pix/TED continuam obrigatórios). Vale em qualquer ordem, sem acento " +
+                "e no plural: \"Pagamento ônibus Assembleia\" vale por \"Ônibus para a assembleia\"."
+    const val EXEMPT_TERM_NEW = "Novo termo"
+    const val EXEMPT_TERMS_EMPTY = "Nenhum termo: todas as despesas da Congregação exigem cupom."
+    const val EXEMPT_TERMS_RESTORE = "Restaurar a lista padrão"
+    fun removeTerm(term: String) = "Remover \"$term\""
     const val EXPENSE_CHECKING = "Conferindo cupom, comprovante e assinatura…"
 
     // Documentos: ordenação e busca

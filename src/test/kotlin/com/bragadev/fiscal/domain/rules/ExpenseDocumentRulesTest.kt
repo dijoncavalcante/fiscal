@@ -21,12 +21,15 @@ class ExpenseDocumentRulesTest {
             "Dados do recebedor Nome: Elves Lincoln Menezes de Lima CPF/CNPJ: ***.451.352-** " +
             "Descrição: Pix para Elves Lima - lâmpadas"
     private val elvesCertificate = "CN=ELVES LINCOLN MENEZES DE LIMA"
+    private val elves = ExpenseRequirements("Elves Lincoln Menezes de Lima")
+
+    private fun enough(content: DocumentContent) = ExpenseDocumentRules.hasEnoughText(content, elves)
 
     private fun check(vararg pages: String, signers: List<String> = listOf(elvesCertificate)) =
-        ExpenseDocumentRules.check(DocumentContent(pages.toList(), signers))
+        ExpenseDocumentRules.check(DocumentContent(pages.toList(), signers), elves)
 
     private fun photo(vararg pages: String, ocrPages: Set<Int>) =
-        ExpenseDocumentRules.check(DocumentContent(pages.toList(), listOf(elvesCertificate), ocrPages))
+        ExpenseDocumentRules.check(DocumentContent(pages.toList(), listOf(elvesCertificate), ocrPages), elves)
 
     @Test
     fun `cupom, comprovante Pix com o mesmo valor e assinatura no certificado = despesa verificada`() {
@@ -125,15 +128,25 @@ class ExpenseDocumentRulesTest {
         assertNull(ExpenseDocumentRules.issueNote(ExpenseCheck()))
         assertEquals(
             "Falta assinatura de Elves Lincoln",
-            ExpenseDocumentRules.issueNote(ExpenseCheck(setOf(SIGNATURE)))
+            ExpenseDocumentRules.issueNote(ExpenseCheck(setOf(SIGNATURE), signerName = "Elves Lincoln"))
         )
         assertEquals(
             "Falta cupom, nota fiscal ou recibo e assinatura de Elves Lincoln",
-            ExpenseDocumentRules.issueNote(ExpenseCheck(setOf(SIGNATURE, FISCAL_DOCUMENT))),
+            ExpenseDocumentRules.issueNote(
+                ExpenseCheck(
+                    setOf(SIGNATURE, FISCAL_DOCUMENT),
+                    signerName = "Elves Lincoln"
+                )
+            ),
         )
         assertEquals(
             "Falta cupom, nota fiscal ou recibo, comprovante Pix/TED e assinatura de Elves Lincoln",
-            ExpenseDocumentRules.issueNote(ExpenseCheck(setOf(FISCAL_DOCUMENT, PAYMENT_PROOF, SIGNATURE))),
+            ExpenseDocumentRules.issueNote(
+                ExpenseCheck(
+                    setOf(FISCAL_DOCUMENT, PAYMENT_PROOF, SIGNATURE),
+                    signerName = "Elves Lincoln"
+                )
+            ),
         )
         assertEquals("Não foi possível ler o PDF", ExpenseDocumentRules.issueNote(ExpenseCheck(unreadable = true)))
     }
@@ -170,7 +183,10 @@ class ExpenseDocumentRulesTest {
     fun `valor do Pix igual ao total do cupom passa`() {
         assertNull(check(receipt, pix("395.98")).amountProblem)
         assertTrue(check(receipt, pix("395.98")).isValid)
-        assertEquals("R$ 395,98 em \"TOTAL\", página 1 (texto do PDF)", check(receipt, pix("395.98")).amountEvidence)
+        assertEquals(
+            "Valor conferido: R$ 395,98 em \"TOTAL\", página 1 (texto do PDF)",
+            check(receipt, pix("395.98")).amountEvidence
+        )
     }
 
     @Test
@@ -322,7 +338,7 @@ class ExpenseDocumentRulesTest {
         val note = ExpenseDocumentRules.issueNote(check(receipt, pix("405.98"), signers = emptyList()))!!
 
         assertEquals(
-            "Falta assinatura de Elves Lincoln; Valor do comprovante (R$ 405,98) diferente do cupom/nota " +
+            "Falta assinatura de Elves Lincoln Menezes de Lima; Valor do comprovante (R$ 405,98) diferente do cupom/nota " +
                     "(R$ 395,98): confira e troque o documento errado",
             note,
         )
@@ -358,6 +374,7 @@ class ExpenseDocumentRulesTest {
                 listOf(refillOcr, pix), listOf(elvesCertificate), ocrPages = setOf(0),
                 layouts = listOf(PageLayout(0, words, fromOcr = true)),
             ),
+            elves,
         )
 
     @Test
@@ -369,7 +386,7 @@ class ExpenseDocumentRulesTest {
 
         assertTrue(result.isValid, "valor: ${result.amountProblem}")
         assertEquals(
-            "R$ 50,00 abaixo de \"TOTAL (R$)\", página 1 (foto, conta da tabela confere)",
+            "Valor conferido: R$ 50,00 abaixo de \"TOTAL (R$)\", página 1 (foto, conta da tabela confere)",
             result.amountEvidence,
         )
     }
@@ -426,16 +443,16 @@ class ExpenseDocumentRulesTest {
 
         assertEquals(
             PAYMENT_UNREADABLE,
-            ExpenseDocumentRules.check(content.copy(layouts = emptyList())).amountProblem?.kind
+            ExpenseDocumentRules.check(content.copy(layouts = emptyList()), elves).amountProblem?.kind
         )
-        assertTrue(ExpenseDocumentRules.check(content).isValid)
+        assertTrue(ExpenseDocumentRules.check(content, elves).isValid)
     }
 
     @Test
     fun `leitura so termina quando o valor esta resolvido`() {
         // Cupom e comprovante achados, mas o total não: o leitor precisa continuar.
         assertFalse(
-            ExpenseDocumentRules.hasEnoughText(
+            enough(
                 DocumentContent(
                     listOf(refillOcr, refillPix),
                     ocrPages = setOf(0)
@@ -443,7 +460,7 @@ class ExpenseDocumentRulesTest {
             )
         )
         assertTrue(
-            ExpenseDocumentRules.hasEnoughText(
+            enough(
                 DocumentContent(
                     listOf(refillOcr, refillPix), ocrPages = setOf(0),
                     layouts = listOf(PageLayout(0, refillWords(), fromOcr = true)),
@@ -451,7 +468,7 @@ class ExpenseDocumentRulesTest {
             ),
         )
         // Diferença num PDF de texto é resposta definitiva: não adianta ler de novo.
-        assertTrue(ExpenseDocumentRules.hasEnoughText(DocumentContent(listOf(receipt, pix("405.98")))))
+        assertTrue(enough(DocumentContent(listOf(receipt, pix("405.98")))))
     }
 
     @Test

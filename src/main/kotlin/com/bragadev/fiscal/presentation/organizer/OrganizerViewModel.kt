@@ -45,6 +45,11 @@ class OrganizerViewModel(
             }
         }
         scope.launch {
+            // Trocar o responsável pela assinatura ou os termos de isenção em Configurações confere tudo de novo.
+            observeSettings().map { it.expenseSigners to it.expenseExemptTerms }.distinctUntilChanged().drop(1)
+                .collect { refreshChecklist() }
+        }
+        scope.launch {
             documentChanges.changes.collect {
                 refreshChecklist()
                 refreshUndoAvailability()

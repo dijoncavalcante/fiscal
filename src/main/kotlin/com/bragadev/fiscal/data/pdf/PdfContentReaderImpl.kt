@@ -5,6 +5,7 @@ import com.bragadev.fiscal.data.logging.AppLog
 import com.bragadev.fiscal.data.ocr.OcrEngine
 import com.bragadev.fiscal.data.ocr.OcrMode
 import com.bragadev.fiscal.data.ocr.TesseractOcrEngine
+import com.bragadev.fiscal.data.pdf.PdfContentReaderImpl.Companion.PHOTO_PIXELS
 import com.bragadev.fiscal.domain.model.*
 import com.bragadev.fiscal.domain.repository.DocumentContentReader
 import kotlinx.coroutines.CoroutineDispatcher
@@ -42,9 +43,24 @@ class PdfContentReaderImpl(
     private val mutex = Mutex()
 
     override suspend fun read(file: Path, isEnough: (DocumentContent) -> Boolean): Outcome<DocumentContent> =
-        withContext(dispatcher) { mutex.withLock { readLocked(file, isEnough) } }
+        withContext(dispatcher) { mutex.withLock { withDocument(file) { readContent(it, isEnough) } } }
 
-    private fun readLocked(file: Path, isEnough: (DocumentContent) -> Boolean): Outcome<DocumentContent> {
+    override suspend fun signerNames(file: Path): Outcome<List<String>> =
+        withContext(dispatcher) {
+            withDocument(file) { document -> signersOf(document).mapNotNull(::personName).distinct() }
+        }
+
+    /**
+     * Nome da pessoa no assunto do certificado: "CN=ELVES LINCOLN MENEZES DE LIMA:00000000000,OU=…" vira
+     * "ELVES LINCOLN MENEZES DE LIMA". O nome da assinatura (sem "CN=") vem como está.
+     */
+    private fun personName(subject: String): String? {
+        val commonName =
+            Regex("""(?:^|,)\s*CN=([^,]+)""").find(subject)?.groupValues?.get(1) ?: subject.takeIf { "=" !in it }
+        return commonName?.substringBefore(':')?.trim()?.takeIf { it.isNotEmpty() }
+    }
+
+    private fun <T> withDocument(file: Path, read: (PDDocument) -> T): Outcome<T> {
         val bytes = try {
             Files.readAllBytes(file)
         } catch (error: FileSystemException) {
@@ -60,7 +76,7 @@ class PdfContentReaderImpl(
         }
         return document.use {
             try {
-                Outcome.Success(readContent(it, isEnough))
+                Outcome.Success(read(it))
             } catch (error: Exception) {
                 AppLog.warn("Não foi possível conferir ${file.fileName}", error)
                 Outcome.Failure(FileOperationError.Unknown(error))
@@ -86,8 +102,11 @@ class PdfContentReaderImpl(
         val signers = signersOf(document)
         val renderer = PDFRenderer(document)
         val ocrDone = BooleanArray(texts.size)
-        fun content() =
-            DocumentContent(texts.toList(), signers, texts.indices.filter { ocrDone[it] }.toSet(), layouts.toList())
+        // Digitalização com texto embutido pelo app do scanner ("Ualor a Pagar"): o texto é de OCR, não confiável.
+        val scanned = texts.indices.filter { hasPhoto(document.getPage(it)) }.toSet()
+        fun content() = DocumentContent(
+            texts.toList(), signers, texts.indices.filter { ocrDone[it] }.toSet() + scanned, layouts.toList(),
+        )
         fun ocrPage(index: Int) {
             texts[index] = texts[index] + "\n" + ocr.read(render(renderer, document.getPage(index), index, OCR_DPI))
             ocrDone[index] = true
@@ -181,6 +200,19 @@ class PdfContentReaderImpl(
         return renderer.renderImage(pageIndex, scale, ImageType.GRAY)
     }
 
+    /**
+     * Página com uma foto ou digitalização (imagem grande, de pelo menos [PHOTO_PIXELS]), e não só logotipos.
+     * O texto dessa página, mesmo embutido no PDF, veio de um OCR: um dígito pode estar errado.
+     */
+    private fun hasPhoto(page: PDPage): Boolean {
+        val resources = page.resources ?: return false
+        return resources.xObjectNames.any { name ->
+            runCatching {
+                (resources.getXObject(name) as? PDImageXObject)?.let { it.width.toLong() * it.height >= PHOTO_PIXELS } == true
+            }.getOrDefault(false)
+        }
+    }
+
     private fun hasImages(page: PDPage): Boolean {
         val resources = page.resources ?: return false
         return resources.xObjectNames.any { name ->
@@ -225,6 +257,9 @@ class PdfContentReaderImpl(
         const val MAX_RENDER_PIXELS = 3500f
         const val OCR_DPI = TesseractOcrEngine.OCR_DPI
         const val HIGH_DPI = 300
+
+        /** Cerca de 1000 × 1000 pixels: foto de celular ou página digitalizada (logotipos são bem menores). */
+        const val PHOTO_PIXELS = 1_000_000L
         const val INDEFINITE_LENGTH = 0x80
     }
 }

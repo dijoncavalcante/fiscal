@@ -9,9 +9,11 @@ import java.math.BigDecimal
 import java.text.Normalizer
 
 /**
- * Conferência das despesas da Conta da Manutenção ("3. Despesas"): cada PDF precisa ter o cupom, a nota
- * fiscal ou o recibo, o comprovante do Pix/TED e a assinatura digital (gov.br) de Elves Lincoln Menezes de Lima;
- * e o valor pago no comprovante precisa ser igual ao total do cupom/nota.
+ * Conferência das despesas ("3. Despesas") das contas da Congregação e da Manutenção. Cada PDF precisa ter:
+ * - a assinatura digital (gov.br) do responsável da conta, configurado em Configurações ([ExpenseRequirements]);
+ * - o comprovante do Pix/TED;
+ * - o cupom, a nota fiscal ou o recibo, com o valor pago no comprovante igual ao total — exceto nas despesas
+ *   isentas da Congregação ([ExpenseExemptionRules], pelo nome do arquivo), que não exigem cupom nem conferem valor.
  *
  * Trabalha só com o que já foi lido do PDF: texto (PDF ou OCR), palavras com a posição na página e os nomes
  * dos certificados das assinaturas. O texto é normalizado (sem acentos, maiúsculas, só letras e números) e os
@@ -19,10 +21,15 @@ import java.text.Normalizer
  * de cupom troca letras com frequência ("Nata Fecal" para "Nota Fiscal").
  */
 object ExpenseDocumentRules {
-    const val CATEGORY_ID = "manutencao.despesas"
-    const val SIGNER_NAME = "Elves Lincoln Menezes de Lima"
+    /** Categoria "3. Despesas" da conta, ou `null` se a conta não tem despesas conferidas. */
+    fun categoryFor(account: AccountType?): String? = when (account) {
+        AccountType.CONGREGACAO -> "congregacao.despesas"
+        AccountType.MANUTENCAO -> "manutencao.despesas"
+        else -> null
+    }
 
-    private val signerWords = words(SIGNER_NAME)
+    /** Só a Congregação tem despesas isentas de cupom. */
+    fun hasExemptions(account: AccountType?): Boolean = account == AccountType.CONGREGACAO
 
     /** Cupom fiscal, nota fiscal (DANFE, NFC-e) ou conta de consumo (água, luz, internet). */
     private val fiscalTerms = listOf(
@@ -38,12 +45,19 @@ object ExpenseDocumentRules {
     private val paymentWords = listOf("PIX", "TED", "TRANSFERENCIA").map(::words)
     private val paymentPhrases = listOf("ID DA TRANSACAO", "ID DA TRANSFERENCIA").map(::words)
     private val signatureStamp = words("ASSINADO DIGITALMENTE")
+    private val stampValidationSite = words("VALIDAR")
 
     /** Identificador de uma transação Pix (E2E): "E" + 31 letras/números, ex.: E60746948202609191355M3943eq0hGo. */
     private val pixEndToEndId = Regex("""^E\d{20}[A-Z0-9]{11}$""")
 
     /** Quantas palavras depois de "assinado digitalmente" o nome pode aparecer no selo. */
     private const val STAMP_WINDOW = 12
+
+    /**
+     * Quantas palavras depois de "assinado digitalmente" pode estar o "Verifique em https://validar.iti.gov.br"
+     * (o OCR mistura no meio a data e o que estiver ao lado do selo: "VALOR R$ 82,00").
+     */
+    private const val STAMP_SITE_WINDOW = 40
 
     /**
      * Confiança mínima do OCR (0 a 100) para um total lido na foto valer. Para **bater** com o comprovante basta
@@ -53,30 +67,39 @@ object ExpenseDocumentRules {
     private const val MIN_MATCH_CONFIDENCE = 40f
     private const val MIN_CLAIM_CONFIDENCE = 70f
 
-    fun check(content: DocumentContent): ExpenseCheck {
+    fun check(content: DocumentContent, requirements: ExpenseRequirements): ExpenseCheck {
         val pages = content.pageTexts.map(::words)
         val paymentPages = pages.indices.filter { hasPaymentProof(pages[it]) }.toSet()
         val fiscalPages = pages.indices.filter { hasFiscalDocument(pages[it], isPaymentProof = it in paymentPages) }
+        val signer = requirements.signerName?.takeIf { it.isNotBlank() }
         val missing = buildSet {
-            if (fiscalPages.isEmpty()) add(ExpenseRequirement.FISCAL_DOCUMENT)
+            if (fiscalPages.isEmpty() && requirements.exemptBy == null) add(ExpenseRequirement.FISCAL_DOCUMENT)
             if (paymentPages.isEmpty()) add(ExpenseRequirement.PAYMENT_PROOF)
-            if (!isSigned(content.signers, pages)) add(ExpenseRequirement.SIGNATURE)
+            if (signer == null || !isSigned(content.signers, pages, words(signer))) add(ExpenseRequirement.SIGNATURE)
         }
-        val amount = amountCheck(content, paymentPages, fiscalPages)
-        return ExpenseCheck(missing, amountProblem = amount.problem, amountEvidence = amount.evidence)
+        val amount = requirements.exemptBy?.let { AmountCheck(evidence = exemptionEvidence(it)) }
+            ?: amountCheck(content, paymentPages, fiscalPages)
+        return ExpenseCheck(
+            missing,
+            amountProblem = amount.problem,
+            amountEvidence = amount.evidence,
+            signerName = signer
+        )
     }
 
     /**
-     * Já dá para dar a resposta? Cupom/nota e comprovante achados e o valor resolvido (bateu, ou é diferente
-     * num PDF de texto). Enquanto não, o leitor continua: faz OCR das outras páginas com imagem e novas leituras
-     * das fotos.
+     * Já dá para dar a resposta? Comprovante achado e, quando o cupom é exigido, cupom/nota achados e o valor
+     * resolvido (bateu, ou é diferente num PDF de texto). Enquanto não, o leitor continua: faz OCR das outras
+     * páginas com imagem e novas leituras das fotos.
      */
-    fun hasEnoughText(content: DocumentContent): Boolean {
-        val result = check(content)
+    fun hasEnoughText(content: DocumentContent, requirements: ExpenseRequirements): Boolean {
+        val result = check(content, requirements)
         return ExpenseRequirement.FISCAL_DOCUMENT !in result.missing &&
                 ExpenseRequirement.PAYMENT_PROOF !in result.missing &&
                 (result.amountProblem == null || result.amountProblem.kind == AmountProblemKind.MISMATCH)
     }
+
+    private fun exemptionEvidence(term: String) = "Sem cupom: despesa isenta (\"$term\" no nome do arquivo)"
 
     private class AmountCheck(val problem: AmountProblem? = null, val evidence: String? = null)
 
@@ -195,8 +218,10 @@ object ExpenseDocumentRules {
         }
     }
 
-    /** "R$ 50,00 abaixo de "TOTAL (R$)", página 1 (foto, conta da tabela confere)". */
-    private fun describeTotals(totals: List<TotalCandidate>): String {
+    /** "Valor conferido: R$ 50,00 abaixo de "TOTAL (R$)", página 1 (foto, conta da tabela confere)". */
+    private fun describeTotals(totals: List<TotalCandidate>): String = "Valor conferido: " + describeEach(totals)
+
+    private fun describeEach(totals: List<TotalCandidate>): String {
         val each = totals.map { total ->
             val where = if (total.place == TotalPlace.BELOW) "abaixo de" else "em"
             val source = buildList {
@@ -259,32 +284,32 @@ object ExpenseDocumentRules {
                 paymentPhrases.any { page.findPhrase(it).any() } || page.any(pixEndToEndId::matches)
 
     /**
-     * Assinado pelo responsável: o certificado de alguma assinatura digital tem o nome dele, ou o texto
-     * traz o selo "Documento assinado digitalmente" seguido do nome. Só o nome solto no texto não basta:
-     * ele aparece, por exemplo, como recebedor do Pix.
+     * Assinado pelo responsável: o certificado de alguma assinatura digital tem o nome dele (o mais seguro), ou o
+     * texto traz o selo do gov.br inteiro — "Documento assinado digitalmente", o nome e "Verifique em
+     * https://validar.iti.gov.br"; a data do selo é ignorada. Só o nome solto no texto não basta: ele aparece,
+     * por exemplo, como recebedor do Pix.
      */
-    private fun isSigned(signers: List<String>, pages: List<List<String>>): Boolean =
+    private fun isSigned(signers: List<String>, pages: List<List<String>>, signerWords: List<String>): Boolean =
         signers.any { words(it).findPhrase(signerWords).any() } ||
                 pages.any { page ->
                     page.findPhrase(signatureStamp).any { start ->
-                        val after = page.subList(
-                            start + signatureStamp.size,
-                            minOf(page.size, start + signatureStamp.size + STAMP_WINDOW)
-                        )
-                        after.findPhrase(signerWords).any()
+                        val from = start + signatureStamp.size
+                        val nameArea = page.subList(from, minOf(page.size, from + STAMP_WINDOW))
+                        val siteArea = page.subList(from, minOf(page.size, from + STAMP_SITE_WINDOW))
+                        nameArea.findPhrase(signerWords).any() && siteArea.findPhrase(stampValidationSite).any()
                     }
                 }
 
     /** Pendência gravada para o arquivo, em poucas palavras; `null` se a despesa está completa. */
     fun issueNote(check: ExpenseCheck): String? {
         if (check.unreadable) return UNREADABLE_NOTE
-        val parts = listOfNotNull(missingNote(check.missing), check.amountProblem?.let(::amountNote))
+        val parts = listOfNotNull(missingNote(check.missing, check.signerName), check.amountProblem?.let(::amountNote))
         return parts.takeIf { it.isNotEmpty() }?.joinToString(NOTE_SEPARATOR)
     }
 
-    private fun missingNote(missing: Set<ExpenseRequirement>): String? {
+    private fun missingNote(missing: Set<ExpenseRequirement>, signerName: String?): String? {
         if (missing.isEmpty()) return null
-        val parts = ExpenseRequirement.entries.filter { it in missing }.map(::describe)
+        val parts = ExpenseRequirement.entries.filter { it in missing }.map { describe(it, signerName) }
         val list = if (parts.size == 1) parts.single() else parts.dropLast(1).joinToString(", ") + " e " + parts.last()
         return "Falta $list"
     }
@@ -318,17 +343,26 @@ object ExpenseDocumentRules {
      */
     fun isAutomaticNote(note: String): Boolean =
         note == UNREADABLE_NOTE ||
-                note.split(NOTE_SEPARATOR)
-                    .all { part -> part in missingNotes || automaticAmountNotes.any { it.matches(part) } }
+                note.split(NOTE_SEPARATOR).all { part ->
+                    automaticMissingNotes.any { it.matches(part) } || automaticAmountNotes.any { it.matches(part) }
+                }
 
-    private val missingNotes: Set<String> by lazy {
+    /**
+     * Todas as "Falta …" possíveis, com qualquer nome de responsável (trocar o responsável troca a pendência) e
+     * os textos antigos ("cupom ou nota fiscal", "assinatura de Elves Lincoln").
+     */
+    private val automaticMissingNotes: List<Regex> by lazy {
         val all = ExpenseRequirement.entries
         val subsets =
             (1 until (1 shl all.size)).map { mask -> all.filterIndexed { i, _ -> mask and (1 shl i) != 0 }.toSet() }
-        subsets.mapNotNull(::missingNote)
+        subsets.flatMap { listOfNotNull(missingNote(it, NAME_SLOT), missingNote(it, null)) }
             .flatMap { listOf(it, it.replace(FISCAL_DESCRIPTION, LEGACY_FISCAL_DESCRIPTION)) }
-            .toSet()
+            .distinct()
+            .map { note -> Regex(note.split(NAME_SLOT).joinToString("""[^;,]+?""") { Regex.escape(it) }) }
     }
+
+    /** Lugar do nome do responsável nos modelos de pendência. */
+    private const val NAME_SLOT = "\u0001"
 
     private val automaticAmountNotes: List<Regex> by lazy {
         (amountNotes.values + LEGACY_NOT_FOUND_NOTE).map { template ->
@@ -347,11 +381,16 @@ object ExpenseDocumentRules {
 
     private const val NOTE_SEPARATOR = "; "
 
-    private fun describe(requirement: ExpenseRequirement): String = when (requirement) {
+    private fun describe(requirement: ExpenseRequirement, signerName: String?): String = when (requirement) {
         ExpenseRequirement.FISCAL_DOCUMENT -> FISCAL_DESCRIPTION
         ExpenseRequirement.PAYMENT_PROOF -> "comprovante Pix/TED"
-        ExpenseRequirement.SIGNATURE -> "assinatura de Elves Lincoln"
+        ExpenseRequirement.SIGNATURE ->
+            if (signerName == null) SIGNER_NOT_CONFIGURED else "assinatura de $signerName"
     }
+
+    /** Ninguém configurado: a pendência diz onde configurar. */
+    private const val SIGNER_NOT_CONFIGURED =
+        "assinatura do responsável (configure quem assina em Configurações → Assinaturas das despesas)"
 
     private const val UNREADABLE_NOTE = "Não foi possível ler o PDF"
 }

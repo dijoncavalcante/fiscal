@@ -57,7 +57,7 @@ presentation/
   documentactions/ Botão direito na lista de documentos: renomear, copiar, excluir para a lixeira (DocumentActionsViewModel)
   navigator/    Seletor de mês: pasta raiz das contas → conta → ano de serviço → trimestre → mês (MonthNavigatorViewModel)
   pdftools/     Menu "PDF": converter JPEG/PNG em PDF e juntar PDFs (PdfToolsViewModel, PdfToolsDialog)
-  settings/     Tela de configurações (inclui CutoffMonthSection: mês de corte)
+  settings/     Tela de configurações (inclui CutoffMonthSection: mês de corte, ExpenseSignaturesSection: assinaturas das despesas)
   closing/      "Concluir mês": conferência + relatório PDF (MonthClosingViewModel, MonthClosingDialogHost)
   history/      Tela "Histórico": todas as operações, busca e Desfazer em qualquer uma válida (HistoryViewModel)
   about/        Tela "Sobre": versão, data da compilação, commit, Java embutido, pastas (AboutInfo montado no AppModule)
@@ -99,7 +99,9 @@ Regras de camada:
   **Rolagem contínua:** todas as páginas numa `LazyColumn` (uma abaixo da outra), roda do mouse / `ListScrollbar`
   percorrem o PDF inteiro; tamanho de cada página calculado antes (`PreviewPage`), imagem desenhada só para as
   visíveis ± 1 (`onVisiblePagesChanged`) e descartada além de ± 2 (memória). "Página X de N" = página que ocupa mais
-  espaço na tela; `<`/`>` só rolam até a página. Nos modos de ajuste cada página tem o seu zoom. Teste com PDF real e
+  espaço na tela; `<`/`>` só rolam até a página. Nos modos de ajuste cada página tem o seu zoom. Zoom maior que o
+  painel: barra horizontal embaixo (`HorizontalListScrollbar`, sempre reservando o espaço para o viewport não mudar),
+  Shift + roda ou arrastar a página com o mouse (mãozinha). Teste com PDF real e
   roda do mouse simulada: `PdfPreviewScrollTest`.
 - **Direita — mês em edição:** mês em destaque ("Junho de 2026" + "Liberado para edição" / cadeado "Somente leitura"), conta detectada,
   caminho completo **somente leitura** (texto copiável, pasta do mês em negrito) e lápis para trocar. Abaixo, grupos
@@ -202,17 +204,38 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
 - **Renomear** mantém na pasta atual; **Renomear e Mover** leva para a pasta do mês. A proposta (com destino) é sempre
   mostrada; as opções "Confirmar antes de mover/renomear" só controlam o passo extra "Confirmar operação?".
 
-## Conferência das despesas (Conta da Manutenção)
+## Conferência das despesas (Congregação e Manutenção)
 
-- Só `manutencao.despesas` ("3. Despesas" da Manutenção). Cada PDF precisa ter **cupom, nota fiscal (DANFE) ou
-  recibo**, **comprovante Pix/TED** com o **mesmo valor do total** e **assinatura de Elves Lincoln Menezes de Lima**
-  (regras puras em `ExpenseDocumentRules`; pedidas pelo usuário em 20/10/2026).
+- `congregacao.despesas` e `manutencao.despesas` (`ExpenseDocumentRules.categoryFor`). Regras puras em
+  `ExpenseDocumentRules.check(content, ExpenseRequirements)`; pedidas pelo usuário em 20/10/2026. Sempre: **comprovante
+  Pix/TED** e **assinatura do responsável da conta**. Manutenção: sempre **cupom, nota fiscal (DANFE) ou recibo** com
+  o **mesmo valor do total**. Congregação: **Caso A** — o **nome do arquivo** tem um termo de isenção
+  (`ExpenseExemptionRules`; nos PDFs reais os termos nunca estão no texto) → sem cupom e sem conferir valor, o "certo"
+  diz "Sem cupom: despesa isenta ("Resolução" no nome do arquivo)"; **Caso B** — sem termo → igual à Manutenção.
+- **Termos de isenção** (`AppSettings.DEFAULT_EXPENSE_EXEMPT_TERMS`, editáveis em Configurações, chave
+  `expense_exempt_terms`, um por linha): Ônibus para o congresso/a assembleia, Resolução, Objetivos específicos,
+  Donativo, Reembolso, Depósito de publicações. Vale se **todas as palavras principais** do termo estão no nome, em
+  qualquer ordem, sem acento, singular/plural ("PUBLICAÇÕES" = "publicação"), ignorando "de/para/a…"; comparação
+  exata (sem tolerância de OCR): "Impressão convite do congresso" **não** é isenta. Nas 28 despesas reais de
+  2025-2026: 21 isentas, 7 com cupom (`ExpenseExemptionRulesTest`).
+- **Responsáveis** (Configurações → Assinaturas das despesas, `ExpenseSignaturesViewModel`/`ExpenseSignaturesSection`):
+  nome completo por conta em `expense_signer_congregacao` / `expense_signer_manutencao` (**nenhum nome no código**;
+  sem nome = pendência "Falta assinatura do responsável (configure …)"). "Ler de um PDF assinado…" usa
+  `DocumentContentReader.signerNames` (CN do certificado, sem o ":CPF"; "ANDREY ALVES DA COSTA" → "Andrey Alves da
+  Costa"). Trocar um nome já gravado pede confirmação. Imagem do selo **só de referência**: copiada como PNG para
+  `%APPDATA%\Fiscal\assinaturas\<conta>.png` (`SignatureImageStorage`), nunca no repositório nem usada na conferência.
+- `ExpenseRequirements.key` (responsável + termo de isenção) é gravado em `expense_checks.requirements_key`: mudar
+  responsável ou termos confere de novo (o `OrganizerViewModel` observa essas Configurações e relê o mês).
 - Leitura (`PdfContentReaderImpl`): texto do PDFBox por página; página sem texto (cupom fotografado) passa pelo **OCR
   local** (`TesseractOcrEngine`, tess4j com o modelo `eng` que vem no jar — nada é baixado; carrega antes
   `msvcp140`/`vcruntime140` do Java embutido). Páginas com texto + imagem só vão ao OCR enquanto faltar algo
   (`hasEnoughText` = cupom + comprovante achados **e valor resolvido**). Exceção combinada com o usuário à regra
   "sem IA": OCR offline. O texto normal do OCR usa o modo 6 (bloco único, padrão do tess4j): as regras foram
   calibradas com ele — não trocar (trocar para o 3 fez sumir cupons e assinaturas nas despesas reais).
+- **Digitalização com texto embutido** (app de scanner: "Ualor a Pagar", "valor Tota) k$!"): página com texto e uma
+  imagem ≥ 1 milhão de pixels (`PHOTO_PIXELS`) entra em `ocrPages` — o texto dela também é de OCR, então valor que
+  não bate vira "confira à mão" e nunca "troque o documento" (caso real: "3.2 Despesa da visita - Sidney Anselmo",
+  vários cupons na mesma página; a regra não soma cupons dentro de uma página).
 - **Palavras com posição** (`DocumentContent.layouts`, `PageLayout`/`PageWord`): páginas de texto trazem as palavras
   do PDFBox (`WordCollector`); fotos ganham **novas leituras** do OCR só enquanto o valor não fechou, nesta ordem:
   200 DPI modo 3, 300 DPI modo 11 (palavras soltas), 300 DPI modo 4 (no máximo 3 por foto; `readWords` devolve
@@ -222,9 +245,10 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   no caminho). Não valem: SubTotal, "Total dos produtos/de itens/tributos" e a coluna TOTAL da lista de itens
   (linha com Código/Unitário/Qtd, ou logo abaixo dela). `confirmedBySum`: SubTotal − Desconto + Frete + Acréscimo
   = Total na mesma linha. Caso real: "3.5 Despesa - Compra de refil para bebedouro" (`TableTotalFinderTest`).
-- Assinatura = nome no **certificado** da assinatura digital (`CertificateFactory` lê o PKCS#7; gov.br usa tamanho
-  indefinido `30 80`, não cortar) ou o selo "Documento assinado digitalmente" + nome no texto/OCR (data ignorada).
-  O nome solto **não** vale: ele aparece como recebedor do Pix. A integridade criptográfica não é verificada.
+- Assinatura = nome do responsável no **certificado** da assinatura digital (`CertificateFactory` lê o PKCS#7; gov.br
+  usa tamanho indefinido `30 80`, não cortar) ou o **selo gov.br completo** no texto/OCR: "Documento assinado
+  digitalmente" + nome (até 12 palavras depois) + "validar" (de validar.iti.gov.br, até 40 palavras depois); a data é
+  ignorada. O nome solto **não** vale: ele aparece como recebedor do Pix. A integridade criptográfica não é verificada.
 - Termos procurados palavra a palavra com tolerância a erros do OCR (Levenshtein). Recibo vale, exceto em página de
   orçamento ou no próprio comprovante do banco ("Recibo de transferência"). Orçamento não conta como cupom.
 - **Valor (`AmountProblem`):** o "Valor:" do comprovante (soma, se vários; aceita `1.234,56`, `125.00` e `1,051.49`)
@@ -240,8 +264,8 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   novas leituras só se a página for só comprovante. Quando bate, `ExpenseCheck.amountEvidence` diz de onde veio
   ("R$ 50,00 abaixo de "TOTAL (R$)", página 1 (foto, conta da tabela confere)"): gravado em `amount_evidence` e
   mostrado no "certo" verde. Teste nas despesas reais: trocar o "Valor:" do Pix por +7,13 nunca pode dar OK.
-- Textos de pendência de versões anteriores continuam reconhecidos por `isAutomaticNote` (ex.: "Falta cupom ou nota
-  fiscal"), para serem trocados quando as regras mudam.
+- `isAutomaticNote` reconhece "Falta … assinatura de <qualquer nome>" e os textos de versões anteriores (ex.: "Falta
+  cupom ou nota fiscal", "assinatura de Elves Lincoln"), para serem trocados quando regras ou responsável mudam.
 - Mudou a regra? Aumente `EXPENSE_RULES_VERSION`: resultados antigos em `expense_checks` (`rules_version`) são
   conferidos de novo.
 - `CheckExpensesUseCase` (no `OrganizerViewModel`, em segundo plano): incompleta → pendência "Falta …" (texto de
@@ -345,13 +369,15 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
 
 ## Dados locais
 
-- `%APPDATA%\Fiscal\fiscal.db` (SQLite), `%APPDATA%\Fiscal\backup\` e `%APPDATA%\Fiscal\lixeira\` (excluídos).
+- `%APPDATA%\Fiscal\fiscal.db` (SQLite), `%APPDATA%\Fiscal\backup\`, `%APPDATA%\Fiscal\lixeira\` (excluídos) e
+  `%APPDATA%\Fiscal\assinaturas\` (imagens de referência do selo, opcionais).
 - Tabelas: `documents`, `categories` (+ `file_base_name`, `optional`), `file_operations` (+ `backup_path`, `undone`), `settings`,
   `file_flags` (pendências por pasta + nome, em minúsculas), `expense_checks` (conferência das despesas).
 - Colunas novas: adicionar em `Schema.statements` **e** em `Schema.addedColumns` (migração por `ALTER TABLE` se faltar).
 - Settings: `source_folder`, `month_folder`, `months_root`, `duplicate_policy`, `confirm_before_move`,
   `confirm_before_rename`, `document_sort`, `auto_clean_backups`, `backup_retention_days`, `theme_mode`,
-  `onboarding_done`, `window_bounds`, `first_editable_month` (`root_path` é chave legada, migrada para `source_folder`). Chave ausente ou valor
+  `onboarding_done`, `window_bounds`, `first_editable_month`, `expense_signer_congregacao`, `expense_signer_manutencao`,
+  `expense_exempt_terms` (`root_path` é chave legada, migrada para `source_folder`). Chave ausente ou valor
   inválido = padrão. Único caminho absoluto no código: `SettingsRepositoryImpl.DEFAULT_SUGGESTED_FOLDER =
   D:\Modelo\jw\pendriver` (sugestão inicial, usada só se existir).
 
@@ -364,6 +390,9 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   (Enter/Esc nos diálogos, Ctrl+Z/F5). Configurações salvas: `SettingsPersistenceTest`; janela: `WindowRestoreTest`.
 - Concluir mês com PDF real lido de volta (`PDFTextStripper`): `MonthClosingTest`; histórico: `HistoryTest`; mês de
   corte: `EditablePeriodPolicyTest`; EXIF: `ExifOrientationTest` (`jpegWithOrientation` cria foto "de celular").
+- Despesas da Congregação: `CongregacaoExpenseRulesTest` (Caso A/B, selo completo, responsável),
+  `ExpenseExemptionRulesTest`
+  (os 28 nomes reais) e `ExpenseSignaturesTest` (imagem local, responsável, tela com teclado/mouse simulados).
 - Despesas: `ExpenseDocumentRulesTest` (textos reais de PDF e OCR), `CheckExpensesUseCaseTest`,
   `PdfContentReaderImplTest`
   (OCR de verdade numa página-foto gerada) e `ExpenseCheckDaoTest`.

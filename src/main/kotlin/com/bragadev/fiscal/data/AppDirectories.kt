@@ -12,6 +12,9 @@ class AppDirectories(val dataDirectory: Path = defaultDataDirectory()) {
     val trashDirectory: Path get() = dataDirectory.resolve(TRASH_FOLDER_NAME)
     val logDirectory: Path get() = dataDirectory.resolve(LOG_FOLDER_NAME)
 
+    /** Imagens de referência do selo de assinatura de cada conta (Configurações → Assinaturas das despesas). */
+    val signaturesDirectory: Path get() = dataDirectory.resolve(SIGNATURES_FOLDER_NAME)
+
     /** Banco importado aguardando a próxima abertura do app para substituir o atual. */
     val pendingImportFile: Path get() = dataDirectory.resolve(PENDING_IMPORT_FILE_NAME)
     val instanceLockFile: Path get() = dataDirectory.resolve(LOCK_FILE_NAME)
@@ -30,6 +33,7 @@ class AppDirectories(val dataDirectory: Path = defaultDataDirectory()) {
         private const val BACKUP_FOLDER_NAME = "backup"
         private const val TRASH_FOLDER_NAME = "lixeira"
         private const val LOG_FOLDER_NAME = "logs"
+        private const val SIGNATURES_FOLDER_NAME = "assinaturas"
         private const val PENDING_IMPORT_FILE_NAME = "fiscal-importado.db"
         private const val LOCK_FILE_NAME = "fiscal.lock"
         private const val ACTIVATION_FILE_NAME = "abrir-janela.sinal"

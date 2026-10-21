@@ -12,13 +12,14 @@ import java.time.LocalDateTime
  * `amount_problem`: problema no valor (ex.: "MISMATCH"); `paid_amount`/`fiscal_amount`: valores lidos (texto,
  * ex.: "125.00"). Linhas da versão 2 não têm `amount_problem`: valor gravado = diferença ("MISMATCH").
  * `amount_evidence`: de onde veio o total quando o valor bateu (texto mostrado no "certo" verde).
+ * `requirements_key`: responsável e isenção usados ([ExpenseRequirements.key]); mudou = confere de novo.
  */
 class ExpenseCheckDao(private val database: Database) {
 
     suspend fun checksIn(folder: String): Map<String, StoredExpenseCheck> = database.use {
         prepareStatement(
             "SELECT file_name, size_bytes, modified_millis, missing, unreadable, amount_problem, paid_amount, " +
-                    "fiscal_amount, amount_evidence, rules_version FROM expense_checks WHERE folder = ?",
+                    "fiscal_amount, amount_evidence, rules_version, requirements_key FROM expense_checks WHERE folder = ?",
         ).use { statement ->
             statement.setString(1, folder)
             statement.executeQuery().use { rows ->
@@ -31,7 +32,8 @@ class ExpenseCheckDao(private val database: Database) {
         prepareStatement(
             "INSERT OR REPLACE INTO expense_checks " +
                     "(folder, file_name, size_bytes, modified_millis, missing, unreadable, amount_problem, paid_amount, " +
-                    "fiscal_amount, amount_evidence, rules_version, checked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "fiscal_amount, amount_evidence, rules_version, requirements_key, checked_at) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ).use { statement ->
             val problem = stored.check.amountProblem
             statement.setString(1, folder)
@@ -45,7 +47,8 @@ class ExpenseCheckDao(private val database: Database) {
             statement.setString(9, problem?.fiscal?.toPlainString())
             statement.setString(10, stored.check.amountEvidence)
             statement.setInt(11, stored.rulesVersion)
-            statement.setString(12, LocalDateTime.now().toString())
+            statement.setString(12, stored.requirementsKey)
+            statement.setString(13, LocalDateTime.now().toString())
             statement.executeUpdate()
         }
         Unit
@@ -69,6 +72,7 @@ class ExpenseCheckDao(private val database: Database) {
                 amountEvidence = getString("amount_evidence"),
             ),
             rulesVersion = getInt("rules_version"),
+            requirementsKey = getString("requirements_key").orEmpty(),
         )
     }
 }

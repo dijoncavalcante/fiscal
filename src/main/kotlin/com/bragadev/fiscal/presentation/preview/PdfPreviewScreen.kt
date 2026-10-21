@@ -1,25 +1,30 @@
 package com.bragadev.fiscal.presentation.preview
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bragadev.fiscal.presentation.common.Strings
+import com.bragadev.fiscal.presentation.components.HorizontalListScrollbar
 import com.bragadev.fiscal.presentation.components.ListScrollbar
 import com.bragadev.fiscal.presentation.components.Panel
 import com.bragadev.fiscal.presentation.components.StatusColors
@@ -28,6 +33,9 @@ import java.nio.file.Path
 
 /** Marca da lista de páginas do preview, para os testes. */
 internal const val PREVIEW_PAGES_TAG = "paginas-preview"
+
+/** Marca da barra de rolagem horizontal do preview, para os testes. */
+internal const val PREVIEW_HORIZONTAL_SCROLLBAR_TAG = "rolagem-horizontal-preview"
 
 /** Espaço entre as páginas e em volta delas. */
 private val PAGE_GAP = 12.dp
@@ -73,39 +81,58 @@ private fun PageViewport(
     listState: LazyListState,
     modifier: Modifier
 ) {
+    // Documento novo começa da esquerda.
+    val horizontalState = remember(state.path) { ScrollState(0) }
     Row(modifier.background(StatusColors.PreviewBackdrop)) {
-        BoxWithConstraints(Modifier.weight(1f).fillMaxHeight()) {
-            val density = LocalDensity.current.density
-            LaunchedEffect(maxWidth, maxHeight, density) {
-                viewModel.onViewportChanged(maxWidth.value, maxHeight.value, density)
-            }
-            when {
-                state.error != null && state.pages.isEmpty() -> CenteredMessage(state.error)
-                state.path == null -> CenteredMessage(Strings.PREVIEW_EMPTY)
-                state.pages.isNotEmpty() -> {
-                    LaunchedEffect(listState, viewModel) {
-                        snapshotFlow { listState.layoutInfo.let { it.visibleRange() to it.mostVisibleIndex() } }
-                            .collect { (range, current) ->
-                                viewModel.onVisiblePagesChanged(range)
-                                current?.let(viewModel::onCurrentPageChanged)
-                            }
-                    }
-                    // Com zoom alto a página fica mais larga que o painel: rola também para os lados.
-                    val contentWidth = maxOf(maxWidth, (state.maxPageWidthDp + PAGE_GAP.value * 2).dp)
-                    Box(Modifier.fillMaxSize().horizontalScroll(rememberScrollState())) {
-                        LazyColumn(
-                            Modifier.width(contentWidth).fillMaxHeight().testTag(PREVIEW_PAGES_TAG),
-                            state = listState,
-                            contentPadding = PaddingValues(vertical = PAGE_GAP),
-                            verticalArrangement = Arrangement.spacedBy(PAGE_GAP),
-                            horizontalAlignment = Alignment.CenterHorizontally,
+        Column(Modifier.weight(1f).fillMaxHeight()) {
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                val density = LocalDensity.current.density
+                LaunchedEffect(maxWidth, maxHeight, density) {
+                    viewModel.onViewportChanged(maxWidth.value, maxHeight.value, density)
+                }
+                when {
+                    state.error != null && state.pages.isEmpty() -> CenteredMessage(state.error)
+                    state.path == null -> CenteredMessage(Strings.PREVIEW_EMPTY)
+                    state.pages.isNotEmpty() -> {
+                        LaunchedEffect(listState, viewModel) {
+                            snapshotFlow { listState.layoutInfo.let { it.visibleRange() to it.mostVisibleIndex() } }
+                                .collect { (range, current) ->
+                                    viewModel.onVisiblePagesChanged(range)
+                                    current?.let(viewModel::onCurrentPageChanged)
+                                }
+                        }
+                        // Com zoom alto a página fica mais larga que o painel: rola também para os lados
+                        // (barra embaixo, Shift + roda do mouse ou arrastando a página com o mouse).
+                        val contentWidth = maxOf(maxWidth, (state.maxPageWidthDp + PAGE_GAP.value * 2).dp)
+                        Box(
+                            Modifier.fillMaxSize()
+                                .horizontalScroll(horizontalState)
+                                .pointerHoverIcon(PointerIcon.Hand)
+                                .pointerInput(listState, horizontalState) {
+                                    detectDragGestures { change, drag ->
+                                        change.consume()
+                                        horizontalState.dispatchRawDelta(-drag.x)
+                                        listState.dispatchRawDelta(-drag.y)
+                                    }
+                                }
                         ) {
-                            items(state.pages, key = { it.index }) { page -> PageImage(page, state.pageCount) }
+                            LazyColumn(
+                                Modifier.width(contentWidth).fillMaxHeight().testTag(PREVIEW_PAGES_TAG),
+                                state = listState,
+                                contentPadding = PaddingValues(vertical = PAGE_GAP),
+                                verticalArrangement = Arrangement.spacedBy(PAGE_GAP),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                items(state.pages, key = { it.index }) { page -> PageImage(page, state.pageCount) }
+                            }
                         }
                     }
                 }
+                if (state.isLoading) CircularProgressIndicator(Modifier.align(Alignment.Center))
             }
-            if (state.isLoading) CircularProgressIndicator(Modifier.align(Alignment.Center))
+            // Sempre ocupa o espaço (a barra só aparece com algo para rolar): assim o "Ajustar página" não muda
+            // de tamanho quando o zoom passa da largura do painel.
+            HorizontalListScrollbar(horizontalState, Modifier.testTag(PREVIEW_HORIZONTAL_SCROLLBAR_TAG))
         }
         if (state.pages.isNotEmpty()) ListScrollbar(listState)
     }

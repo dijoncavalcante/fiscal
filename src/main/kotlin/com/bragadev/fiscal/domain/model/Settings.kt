@@ -24,6 +24,13 @@ data class AppSettings(
     val windowBounds: WindowBounds? = null,
     /** Primeiro mês que pode ser alterado; os anteriores ficam somente leitura (prestação de contas já entregue). */
     val firstEditableMonth: YearMonth = DEFAULT_FIRST_EDITABLE_MONTH,
+    /**
+     * Quem assina as despesas de cada conta: nome completo, como aparece no certificado digital (gov.br).
+     * Fica só no banco local: troca-se em Configurações quando o responsável muda. Ausente = não configurado.
+     */
+    val expenseSigners: Map<AccountType, String> = emptyMap(),
+    /** Termos que, no nome do arquivo, dispensam o cupom nas despesas da Conta da Congregação. */
+    val expenseExemptTerms: List<String> = DEFAULT_EXPENSE_EXEMPT_TERMS,
 ) {
     /** Usuário novo: falta a pasta de origem ou o mês e o assistente ainda não foi feito (a raiz das contas pode ser deduzida do mês). */
     val needsOnboarding: Boolean
@@ -33,6 +40,24 @@ data class AppSettings(
         const val DEFAULT_BACKUP_RETENTION_DAYS = 90
         val DEFAULT_FIRST_EDITABLE_MONTH: YearMonth = YearMonth.of(2026, 6)
         val BACKUP_RETENTION_OPTIONS = listOf(30, 90, 180, 365)
+
+        /** Contas cujas despesas ("3. Despesas") são conferidas e têm um responsável pela assinatura. */
+        val EXPENSE_ACCOUNTS = listOf(AccountType.CONGREGACAO, AccountType.MANUTENCAO)
+
+        /**
+         * Despesas da Congregação sem cupom (combinado com o usuário em 20/10/2026). Basta o nome do arquivo ter
+         * as palavras principais de um termo, em qualquer ordem: "Pagamento ônibus Assembleia" vale por
+         * "Ônibus para a assembleia".
+         */
+        val DEFAULT_EXPENSE_EXEMPT_TERMS = listOf(
+            "Ônibus para o congresso",
+            "Ônibus para a assembleia",
+            "Resolução",
+            "Objetivos específicos",
+            "Donativo",
+            "Reembolso",
+            "Depósito de publicações",
+        )
     }
 }
 

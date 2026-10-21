@@ -4,6 +4,7 @@ import com.bragadev.fiscal.data.AppDirectories
 import com.bragadev.fiscal.data.database.*
 import com.bragadev.fiscal.data.filesystem.BackupStorageImpl
 import com.bragadev.fiscal.data.filesystem.FileRepositoryImpl
+import com.bragadev.fiscal.data.filesystem.SignatureImageStorageImpl
 import com.bragadev.fiscal.data.logging.DiagnosticsRepositoryImpl
 import com.bragadev.fiscal.data.maintenance.DataMaintenanceRepositoryImpl
 import com.bragadev.fiscal.data.pdf.PdfContentReaderImpl
@@ -27,6 +28,7 @@ import com.bragadev.fiscal.presentation.organizer.OrganizerViewModel
 import com.bragadev.fiscal.presentation.pdftools.PdfToolsViewModel
 import com.bragadev.fiscal.presentation.preview.PdfPreviewViewModel
 import com.bragadev.fiscal.presentation.settings.DataSafetyViewModel
+import com.bragadev.fiscal.presentation.settings.ExpenseSignaturesViewModel
 import com.bragadev.fiscal.presentation.settings.SettingsViewModel
 import org.koin.dsl.module
 
@@ -53,6 +55,7 @@ fun appModule(directories: AppDirectories) = module {
     // Leitura de texto e assinaturas (com OCR) para conferir despesas; um PDF por vez.
     single<DocumentContentReader> { PdfContentReaderImpl() }
     single<PdfToolsRepository> { PdfToolsRepositoryImpl() }
+    single<SignatureImageStorage> { SignatureImageStorageImpl(get()) }
     single<DataMaintenanceRepository> { DataMaintenanceRepositoryImpl(get(), get()) }
     single<DiagnosticsRepository> { DiagnosticsRepositoryImpl(AppInfo.NAME, AppInfo.FULL_VERSION) }
     single {
@@ -80,7 +83,9 @@ fun appModule(directories: AppDirectories) = module {
     factory { UpdateSettingsUseCase(get()) }
     factory { GetCategoryTreeUseCase(get()) }
     factory { GetMonthChecklistUseCase(get(), get(), get()) }
-    factory { CheckExpensesUseCase(get(), get(), get(), get()) }
+    factory { CheckExpensesUseCase(get(), get(), get(), get(), get()) }
+    factory { ReadPdfSignersUseCase(get()) }
+    factory { SignatureImageUseCase(get()) }
     factory { PlanOrganizationUseCase(get(), get(), get(), get()) }
     factory { RecordedFileMover(get(), get(), get(), get()) }
     factory { OrganizeDocumentUseCase(get(), get(), get(), get(), get()) }
@@ -121,4 +126,5 @@ fun appModule(directories: AppDirectories) = module {
     single { MonthClosingViewModel(get(), get(), get(), get()) }
     single { OnboardingViewModel(get()) }
     single { DataSafetyViewModel(get(), get(), get(), get(), get(), get(), get()) }
+    single { ExpenseSignaturesViewModel(get(), get(), get(), get()) }
 }

@@ -65,18 +65,32 @@ data class PageWord(
 }
 
 /**
+ * O que a conferência exige de uma despesa: depende da conta, do nome do arquivo e das Configurações.
+ *
+ * @param signerName quem precisa ter assinado (nome completo); `null` = ninguém configurado em Configurações.
+ * @param exemptBy termo do nome do arquivo que dispensa o cupom (ex.: "Resolução"); `null` = cupom obrigatório e
+ *   valor do Pix igual ao total.
+ */
+data class ExpenseRequirements(val signerName: String?, val exemptBy: String? = null) {
+    /** Muda quando muda o que é exigido: o resultado guardado de antes deixa de valer. */
+    val key: String get() = "${signerName.orEmpty()}|${exemptBy.orEmpty()}"
+}
+
+/**
  * Resultado da conferência de uma despesa.
  *
  * @param unreadable o PDF não pôde ser aberto (corrompido ou protegido por senha).
  * @param amountProblem o valor pago no comprovante não bate com o total do cupom/nota, ou não deu para conferir.
- * @param amountEvidence quando o valor bateu: de onde veio o total (ex.: "R$ 50,00, abaixo de "TOTAL (R$)" na
- *   página 1 (foto)"), para o usuário conferir num instante.
+ * @param amountEvidence quando o valor bateu: de onde veio o total (ex.: "Valor conferido: R$ 50,00 abaixo de
+ *   "TOTAL (R$)", página 1 (foto)"), ou por que o cupom não foi exigido; para o usuário conferir num instante.
+ * @param signerName quem precisava ter assinado (para a pendência dizer o nome); `null` = não configurado.
  */
 data class ExpenseCheck(
     val missing: Set<ExpenseRequirement> = emptySet(),
     val unreadable: Boolean = false,
     val amountProblem: AmountProblem? = null,
     val amountEvidence: String? = null,
+    val signerName: String? = null,
 ) {
     val isValid: Boolean get() = missing.isEmpty() && !unreadable && amountProblem == null
 }
@@ -110,19 +124,25 @@ data class StoredExpenseCheck(
     val check: ExpenseCheck,
     /** Versão das regras que gerou o resultado: regras novas conferem de novo os arquivos já vistos. */
     val rulesVersion: Int = EXPENSE_RULES_VERSION,
+    /** [ExpenseRequirements.key] usado: trocar o responsável ou os termos de isenção confere de novo. */
+    val requirementsKey: String = "",
 ) {
-    /** Ainda vale: mesmo arquivo (data comparada em milissegundos, a precisão do banco) e regras atuais. */
-    fun matches(document: Document): Boolean =
+    /**
+     * Ainda vale: mesmo arquivo (data comparada em milissegundos, a precisão do banco), regras atuais e as
+     * mesmas exigências.
+     */
+    fun matches(document: Document, requirements: ExpenseRequirements): Boolean =
         sizeBytes == document.sizeBytes && lastModified.toEpochMilli() == document.lastModified.toEpochMilli() &&
-                rulesVersion == EXPENSE_RULES_VERSION
+                rulesVersion == EXPENSE_RULES_VERSION && requirementsKey == requirements.key
 }
 
 /**
  * Aumente quando a conferência passar a olhar algo novo (2 = valor do comprovante × cupom/nota; 3 = recibo vale,
  * valor só contra o total, pendência quando o valor não pôde ser conferido; 4 = total lido pela posição na
- * tabela, novas leituras do OCR e confiança das palavras).
+ * tabela, novas leituras do OCR e confiança das palavras; 5 = Conta da Congregação, responsável configurável,
+ * isenção pelo nome do arquivo e selo gov.br completo).
  */
-const val EXPENSE_RULES_VERSION = 4
+const val EXPENSE_RULES_VERSION = 5
 
 /** Situação de uma despesa na tela do mês em edição. */
 enum class ExpenseStatus {

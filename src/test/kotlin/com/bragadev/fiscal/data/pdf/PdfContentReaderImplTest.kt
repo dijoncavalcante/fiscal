@@ -3,10 +3,7 @@ package com.bragadev.fiscal.data.pdf
 import com.bragadev.fiscal.data.ocr.OcrEngine
 import com.bragadev.fiscal.data.ocr.OcrMode
 import com.bragadev.fiscal.data.ocr.TesseractOcrEngine
-import com.bragadev.fiscal.domain.model.ExpenseRequirement
-import com.bragadev.fiscal.domain.model.FileOperationError
-import com.bragadev.fiscal.domain.model.Outcome
-import com.bragadev.fiscal.domain.model.PageWord
+import com.bragadev.fiscal.domain.model.*
 import com.bragadev.fiscal.domain.rules.ExpenseDocumentRules
 import kotlinx.coroutines.test.runTest
 import org.apache.pdfbox.pdmodel.PDDocument
@@ -34,6 +31,10 @@ class PdfContentReaderImplTest {
     @get:Rule
     val temp = TemporaryFolder()
 
+    private val requirements = ExpenseRequirements(signerName = null)
+
+    private fun enough(content: DocumentContent) = ExpenseDocumentRules.hasEnoughText(content, requirements)
+
     @Test
     fun `cupom fotografado e lido pelo OCR de verdade e o comprovante pelo texto do PDF`() = runTest {
         val pdf = expensePdf(
@@ -44,8 +45,10 @@ class PdfContentReaderImplTest {
         val content = (PdfContentReaderImpl(TesseractOcrEngine()).read(pdf) as Outcome.Success).value
 
         assertTrue("CUPOM" in content.pageTexts[1].uppercase(), "OCR leu: ${content.pageTexts[1]}")
+        // Comprovante só com texto (sem foto) é texto de verdade.
+        assertEquals(setOf(1), content.ocrPages)
         // Sem assinatura digital: só ela falta.
-        assertEquals(setOf(ExpenseRequirement.SIGNATURE), ExpenseDocumentRules.check(content).missing)
+        assertEquals(setOf(ExpenseRequirement.SIGNATURE), ExpenseDocumentRules.check(content, requirements).missing)
     }
 
     @Test
@@ -60,12 +63,12 @@ class PdfContentReaderImplTest {
             ),
         )
 
-        val content = (PdfContentReaderImpl(TesseractOcrEngine()).read(pdf, ExpenseDocumentRules::hasEnoughText)
+        val content = (PdfContentReaderImpl(TesseractOcrEngine()).read(pdf, ::enough)
                 as Outcome.Success).value
-        val result = ExpenseDocumentRules.check(content)
+        val result = ExpenseDocumentRules.check(content, requirements)
 
         assertEquals(null, result.amountProblem, "OCR leu: ${content.pageTexts[1]}")
-        assertTrue(result.amountEvidence!!.startsWith("R$ 125,00 abaixo de"), result.amountEvidence)
+        assertTrue(result.amountEvidence!!.startsWith("Valor conferido: R$ 125,00 abaixo de"), result.amountEvidence)
     }
 
     @Test
@@ -79,12 +82,15 @@ class PdfContentReaderImplTest {
         val ocr = CountingOcr("CUPOM FISCAL TOTAL R$ 125,00")
 
         val content =
-            (PdfContentReaderImpl(ocr).read(pdf, ExpenseDocumentRules::hasEnoughText) as Outcome.Success).value
+            (PdfContentReaderImpl(ocr).read(pdf, ::enough) as Outcome.Success).value
 
+        // Página com texto e uma foto grande (como as digitalizações com texto embutido): conta como foto,
+        // porque esse texto também veio de um OCR.
+        assertEquals(setOf(0, 1), content.ocrPages)
         // Só a página sem texto: com ela o PDF já tem cupom, comprovante e o valor bate.
         assertEquals(1, ocr.calls)
         assertEquals(0, ocr.wordCalls)
-        assertTrue(ExpenseDocumentRules.hasEnoughText(content))
+        assertTrue(enough(content))
     }
 
     @Test
@@ -97,11 +103,11 @@ class PdfContentReaderImplTest {
         val ocr = CountingOcr("Documento Auxiliar da Nota Fiscal", words = table)
 
         val content =
-            (PdfContentReaderImpl(ocr).read(pdf, ExpenseDocumentRules::hasEnoughText) as Outcome.Success).value
+            (PdfContentReaderImpl(ocr).read(pdf, ::enough) as Outcome.Success).value
 
         assertEquals(1, ocr.wordCalls)
         assertEquals(listOf(OcrMode.AUTO), ocr.modes)
-        assertEquals(null, ExpenseDocumentRules.check(content).amountProblem)
+        assertEquals(null, ExpenseDocumentRules.check(content, requirements).amountProblem)
     }
 
     @Test
@@ -110,7 +116,7 @@ class PdfContentReaderImplTest {
         val ocr = CountingOcr("Documento Auxiliar da Nota Fiscal")
 
         val content =
-            (PdfContentReaderImpl(ocr).read(pdf, ExpenseDocumentRules::hasEnoughText) as Outcome.Success).value
+            (PdfContentReaderImpl(ocr).read(pdf, ::enough) as Outcome.Success).value
 
         assertEquals(listOf(OcrMode.AUTO, OcrMode.SPARSE, OcrMode.SINGLE_COLUMN), ocr.modes)
         assertEquals(listOf(200, 300, 300), ocr.dpis)
@@ -124,7 +130,7 @@ class PdfContentReaderImplTest {
         val pdf = expensePdf(textPage = "Orcamento 007-2026", photoLines = listOf("foto"), imageOnTextPage = true)
         val ocr = CountingOcr("nada aqui")
 
-        PdfContentReaderImpl(ocr).read(pdf, ExpenseDocumentRules::hasEnoughText)
+        PdfContentReaderImpl(ocr).read(pdf, ::enough)
 
         assertEquals(2, ocr.calls)
     }

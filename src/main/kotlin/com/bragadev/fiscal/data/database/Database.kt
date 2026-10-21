@@ -54,6 +54,7 @@ private object Schema {
         "expense_checks" to "rules_version INTEGER NOT NULL DEFAULT 1",
         "expense_checks" to "amount_problem TEXT",
         "expense_checks" to "amount_evidence TEXT",
+        "expense_checks" to "requirements_key TEXT NOT NULL DEFAULT ''",
     )
 
     val statements = listOf(
@@ -123,6 +124,7 @@ private object Schema {
             fiscal_amount TEXT,
             amount_problem TEXT,
             amount_evidence TEXT,
+            requirements_key TEXT NOT NULL DEFAULT '',
             rules_version INTEGER NOT NULL DEFAULT 1,
             checked_at TEXT NOT NULL,
             PRIMARY KEY (folder, file_name)

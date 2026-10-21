@@ -14,4 +14,10 @@ interface DocumentContentReader {
      * protegido por senha; outras falhas (arquivo em uso, OCR indisponível) são passageiras.
      */
     suspend fun read(file: Path, isEnough: (DocumentContent) -> Boolean = { false }): Outcome<DocumentContent>
+
+    /**
+     * Nomes de quem assinou digitalmente o PDF, como estão nos certificados (ex.: "ANDREY ALVES DA COSTA"), sem
+     * OCR. Usado em Configurações para escolher o responsável a partir de uma despesa já assinada.
+     */
+    suspend fun signerNames(file: Path): Outcome<List<String>>
 }

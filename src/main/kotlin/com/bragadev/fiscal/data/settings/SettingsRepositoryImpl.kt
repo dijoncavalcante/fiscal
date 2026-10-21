@@ -1,11 +1,7 @@
 package com.bragadev.fiscal.data.settings
 
 import com.bragadev.fiscal.data.database.SettingsDao
-import com.bragadev.fiscal.domain.model.AppSettings
-import com.bragadev.fiscal.domain.model.DocumentSort
-import com.bragadev.fiscal.domain.model.DuplicatePolicy
-import com.bragadev.fiscal.domain.model.ThemeMode
-import com.bragadev.fiscal.domain.model.WindowBounds
+import com.bragadev.fiscal.domain.model.*
 import com.bragadev.fiscal.domain.repository.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,6 +41,12 @@ class SettingsRepositoryImpl(
             firstEditableMonth = values[Keys.FIRST_EDITABLE_MONTH]
                 ?.let { runCatching { YearMonth.parse(it) }.getOrNull() }
                 ?: defaults.firstEditableMonth,
+            expenseSigners = AppSettings.EXPENSE_ACCOUNTS.mapNotNull { account ->
+                values[Keys.expenseSigner(account)]?.trim()?.takeIf { it.isNotEmpty() }?.let { account to it }
+            }.toMap(),
+            expenseExemptTerms = values[Keys.EXPENSE_EXEMPT_TERMS]
+                ?.let { text -> text.lines().map(String::trim).filter(String::isNotEmpty) }
+                ?: defaults.expenseExemptTerms,
         )
         state.value = loaded
         return loaded
@@ -67,7 +69,8 @@ class SettingsRepositoryImpl(
                 Keys.ONBOARDING_DONE to settings.onboardingDone.toString(),
                 Keys.WINDOW_BOUNDS to settings.windowBounds?.encode(),
                 Keys.FIRST_EDITABLE_MONTH to settings.firstEditableMonth.toString(),
-            ),
+                Keys.EXPENSE_EXEMPT_TERMS to settings.expenseExemptTerms.joinToString("\n"),
+            ) + AppSettings.EXPENSE_ACCOUNTS.associate { Keys.expenseSigner(it) to settings.expenseSigners[it] },
         )
         state.value = settings
     }
@@ -87,6 +90,12 @@ class SettingsRepositoryImpl(
         const val ONBOARDING_DONE = "onboarding_done"
         const val WINDOW_BOUNDS = "window_bounds"
         const val FIRST_EDITABLE_MONTH = "first_editable_month"
+
+        /** Termos de isenção de cupom, um por linha. */
+        const val EXPENSE_EXEMPT_TERMS = "expense_exempt_terms"
+
+        /** "expense_signer_congregacao", "expense_signer_manutencao". */
+        fun expenseSigner(account: AccountType) = "expense_signer_${account.name.lowercase()}"
     }
 
     companion object {

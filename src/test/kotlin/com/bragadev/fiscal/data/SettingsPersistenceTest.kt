@@ -3,6 +3,7 @@ package com.bragadev.fiscal.data
 import com.bragadev.fiscal.data.database.Database
 import com.bragadev.fiscal.data.database.SettingsDao
 import com.bragadev.fiscal.data.settings.SettingsRepositoryImpl
+import com.bragadev.fiscal.domain.model.AccountType
 import com.bragadev.fiscal.domain.model.AppSettings
 import com.bragadev.fiscal.domain.model.ThemeMode
 import com.bragadev.fiscal.domain.model.WindowBounds
@@ -41,6 +42,38 @@ class SettingsPersistenceTest {
     }
 
     @Test
+    fun `responsaveis pelas assinaturas e termos de isencao sobrevivem a reabertura`() = runTest {
+        val file = temp.root.toPath().resolve("fiscal.db")
+        val database = Database(file)
+        val signers = mapOf(
+            AccountType.CONGREGACAO to "Andrey Alves da Costa",
+            AccountType.MANUTENCAO to "Elves Lincoln Menezes de Lima"
+        )
+        SettingsRepositoryImpl(SettingsDao(database)).save(
+            AppSettings(expenseSigners = signers, expenseExemptTerms = listOf("Resolução", "Ônibus para o congresso")),
+        )
+        database.close()
+
+        val reopened = Database(file)
+        val repository = SettingsRepositoryImpl(SettingsDao(reopened))
+        val loaded = repository.load()
+        assertEquals(signers, loaded.expenseSigners)
+        assertEquals(listOf("Resolução", "Ônibus para o congresso"), loaded.expenseExemptTerms)
+
+        // Remover o responsável da Manutenção apaga a chave; lista vazia de termos continua vazia.
+        repository.save(
+            loaded.copy(
+                expenseSigners = signers - AccountType.MANUTENCAO,
+                expenseExemptTerms = emptyList()
+            )
+        )
+        val again = repository.load()
+        assertEquals(mapOf(AccountType.CONGREGACAO to "Andrey Alves da Costa"), again.expenseSigners)
+        assertEquals(emptyList(), again.expenseExemptTerms)
+        reopened.close()
+    }
+
+    @Test
     fun `banco antigo sem as chaves novas usa os padroes`() = runTest {
         val database = Database(temp.root.toPath().resolve("antigo.db"))
         SettingsDao(database).putAll(mapOf("month_folder" to "D:\\pendriver\\1. JUNHO", "theme_mode" to "ROXO", "first_editable_month" to "junho"))
@@ -50,6 +83,9 @@ class SettingsPersistenceTest {
         assertFalse(loaded.onboardingDone)
         assertEquals(null, loaded.windowBounds)
         assertEquals(YearMonth.of(2026, 6), loaded.firstEditableMonth)
+        // Ninguém configurado e a lista padrão de isenções.
+        assertEquals(emptyMap(), loaded.expenseSigners)
+        assertEquals(AppSettings.DEFAULT_EXPENSE_EXEMPT_TERMS, loaded.expenseExemptTerms)
         database.close()
     }
 

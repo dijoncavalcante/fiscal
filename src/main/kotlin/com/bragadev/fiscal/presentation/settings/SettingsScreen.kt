@@ -1,25 +1,11 @@
 package com.bragadev.fiscal.presentation.settings
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -53,6 +39,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit, onOpenOnboa
             Section(Strings.SETTINGS_LOCK_SECTION) {
                 CutoffMonthSection(state.firstEditableMonth, viewModel::onFirstEditableMonthChanged)
             }
+            Section(Strings.SIGNATURES_SECTION) { ExpenseSignaturesSection(koinInject()) }
             DuplicatesSection(state.duplicatePolicy, viewModel::onDuplicatePolicyChanged)
             ConfirmationSection(state, viewModel)
             Section(Strings.DATA_SECTION) { DataSafetySection(koinInject()) }

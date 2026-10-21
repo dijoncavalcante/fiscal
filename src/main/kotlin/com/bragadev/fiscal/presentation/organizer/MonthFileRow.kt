@@ -147,7 +147,8 @@ private fun ExpenseStatusIcon(status: ExpenseStatus?, hasIssue: Boolean, evidenc
         status == ExpenseStatus.VERIFIED && !hasIssue ->
             listOfNotNull(
                 Strings.EXPENSE_VERIFIED,
-                evidence?.let { Strings.EXPENSE_AMOUNT_FROM + it }).joinToString("\n")
+                evidence,
+            ).joinToString("\n")
         else -> return
     }
     TooltipBox(
