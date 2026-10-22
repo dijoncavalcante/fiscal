@@ -44,7 +44,7 @@ internal object FuzzyText {
     }
 
     /** Distância de edição (Levenshtein), parando cedo quando passa de [limit]. */
-    private fun distance(a: String, b: String, limit: Int): Int {
+    fun distance(a: String, b: String, limit: Int): Int {
         var previous = IntArray(b.length + 1) { it }
         for (i in 1..a.length) {
             val current = IntArray(b.length + 1)

@@ -45,8 +45,9 @@ class OrganizerViewModel(
             }
         }
         scope.launch {
-            // Trocar o responsável pela assinatura ou os termos de isenção em Configurações confere tudo de novo.
-            observeSettings().map { it.expenseSigners to it.expenseExemptTerms }.distinctUntilChanged().drop(1)
+            // Trocar quem assina (despesas ou extratos) ou os termos de isenção em Configurações confere tudo de novo.
+            observeSettings().map { Triple(it.expenseSigners, it.expenseExemptTerms, it.statementSigner) }
+                .distinctUntilChanged().drop(1)
                 .collect { refreshChecklist() }
         }
         scope.launch {
@@ -136,7 +137,7 @@ class OrganizerViewModel(
     }
 
     /**
-     * Confere as despesas da Conta da Manutenção em segundo plano (pode levar alguns segundos por arquivo novo,
+     * Confere as despesas e o extrato bancário em segundo plano (pode levar alguns segundos por arquivo novo,
      * por causa do OCR). Cada resultado aparece assim que sai; se alguma pendência mudou, a lista é relida.
      */
     private fun startExpenseCheck(info: MonthFolderInfo?, checklist: MonthChecklist?) {
@@ -151,7 +152,8 @@ class OrganizerViewModel(
         }
         if (info == null || checklist == null || names.isEmpty()) return
         expenseJob = scope.launch {
-            val flagsChanged = checkExpenses(info.path, info.account, checklist) { name, status, evidence ->
+            val flagsChanged =
+                checkExpenses(info.path, info.account, checklist, info.detectedMonth?.month) { name, status, evidence ->
                 val key = name.lowercase()
                 state.update {
                     it.copy(

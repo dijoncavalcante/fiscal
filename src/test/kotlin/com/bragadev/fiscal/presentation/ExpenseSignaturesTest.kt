@@ -87,26 +87,26 @@ class ExpenseSignaturesTest {
         val original = image("selo andrey.jpg", "jpg")
         val before = Files.readAllBytes(original)
 
-        assertIs<Outcome.Success<Unit>>(storage.save(AccountType.CONGREGACAO, original))
+        assertIs<Outcome.Success<Unit>>(storage.save(SignatureRole.EXPENSES_CONGREGACAO, original))
 
         val saved = directories.dataDirectory.resolve("assinaturas").resolve("congregacao.png")
         assertTrue(Files.exists(saved))
         assertNotNull(ImageIO.read(saved.toFile()))
         assertContentEquals(before, Files.readAllBytes(original))
-        assertContentEquals(Files.readAllBytes(saved), storage.load(AccountType.CONGREGACAO))
-        assertNull(storage.load(AccountType.MANUTENCAO))
+        assertContentEquals(Files.readAllBytes(saved), storage.load(SignatureRole.EXPENSES_CONGREGACAO))
+        assertNull(storage.load(SignatureRole.EXPENSES_MANUTENCAO))
         // Nada vai para a pasta do projeto.
         assertFalse(Files.exists(Path.of("assinaturas")))
 
-        storage.remove(AccountType.CONGREGACAO)
-        assertNull(storage.load(AccountType.CONGREGACAO))
+        storage.remove(SignatureRole.EXPENSES_CONGREGACAO)
+        assertNull(storage.load(SignatureRole.EXPENSES_CONGREGACAO))
     }
 
     @Test
     fun `arquivo que nao e imagem e recusado`() = runTest {
         val notImage = temp.newFile("selo.png").toPath().also { Files.writeString(it, "não é imagem") }
 
-        val result = SignatureImageStorageImpl(directories).save(AccountType.MANUTENCAO, notImage)
+        val result = SignatureImageStorageImpl(directories).save(SignatureRole.EXPENSES_MANUTENCAO, notImage)
 
         assertEquals(Outcome.Failure(FileOperationError.UnsupportedImage), result)
     }
@@ -126,12 +126,12 @@ class ExpenseSignaturesTest {
     fun `ler de um PDF assinado preenche o campo, e salvar a primeira vez grava direto`() {
         pdfSigners += "ANDREY ALVES DA COSTA"
 
-        viewModel.onReadFromPdf(AccountType.CONGREGACAO, Path.of("despesa.pdf"))
-        val account = viewModel.uiState.value.accounts.first { it.account == AccountType.CONGREGACAO }
+        viewModel.onReadFromPdf(SignatureRole.EXPENSES_CONGREGACAO, Path.of("despesa.pdf"))
+        val account = viewModel.uiState.value.accounts.first { it.role == SignatureRole.EXPENSES_CONGREGACAO }
         assertEquals("Andrey Alves da Costa", account.draftName)
         assertNull(settings.settings.value.expenseSigners[AccountType.CONGREGACAO])
 
-        viewModel.onSaveName(AccountType.CONGREGACAO)
+        viewModel.onSaveName(SignatureRole.EXPENSES_CONGREGACAO)
         assertEquals(
             "Andrey Alves da Costa",
             awaitSettings { it.expenseSigners.isNotEmpty() }.expenseSigners[AccountType.CONGREGACAO]
@@ -141,11 +141,11 @@ class ExpenseSignaturesTest {
 
     @Test
     fun `PDF sem assinatura avisa e varios nomes perguntam qual`() {
-        viewModel.onReadFromPdf(AccountType.MANUTENCAO, Path.of("sem.pdf"))
+        viewModel.onReadFromPdf(SignatureRole.EXPENSES_MANUTENCAO, Path.of("sem.pdf"))
         assertEquals(Strings.SIGNER_PDF_WITHOUT_SIGNATURE, viewModel.uiState.value.message)
 
         pdfSigners += listOf("ELVES LINCOLN MENEZES DE LIMA", "FULANO DE TAL")
-        viewModel.onReadFromPdf(AccountType.MANUTENCAO, Path.of("dois.pdf"))
+        viewModel.onReadFromPdf(SignatureRole.EXPENSES_MANUTENCAO, Path.of("dois.pdf"))
         assertEquals(
             listOf("Elves Lincoln Menezes de Lima", "Fulano de Tal"),
             viewModel.uiState.value.certificateChoice?.names
@@ -156,8 +156,8 @@ class ExpenseSignaturesTest {
     fun `trocar um responsavel ja gravado pede confirmacao`() {
         runBlocking { settings.save(AppSettings(expenseSigners = mapOf(AccountType.MANUTENCAO to "Elves Lincoln Menezes de Lima"))) }
 
-        viewModel.onNameChanged(AccountType.MANUTENCAO, "Novo Responsável")
-        viewModel.onSaveName(AccountType.MANUTENCAO)
+        viewModel.onNameChanged(SignatureRole.EXPENSES_MANUTENCAO, "Novo Responsável")
+        viewModel.onSaveName(SignatureRole.EXPENSES_MANUTENCAO)
         assertEquals("Elves Lincoln Menezes de Lima", settings.settings.value.expenseSigners[AccountType.MANUTENCAO])
         assertEquals("Novo Responsável", viewModel.uiState.value.pendingChange?.to)
 
@@ -174,7 +174,7 @@ class ExpenseSignaturesTest {
     fun `tela - digitar o nome, salvar, trocar com confirmacao e adicionar termo com Enter`() = runComposeUiTest {
         setContent { MaterialTheme { ExpenseSignaturesSection(viewModel) } }
 
-        // Campos: [0] Congregação, [1] Manutenção, [2] novo termo.
+        // Campos: [0] Congregação, [1] Manutenção, [2] extratos bancários, [3] novo termo.
         onAllNodes(hasSetTextAction())[0].performTextInput("Andrey Alves da Costa")
         onAllNodesWithText(Strings.SAVE)[0].performClick()
         waitForIdle()
@@ -187,8 +187,24 @@ class ExpenseSignaturesTest {
         waitForIdle()
         assertEquals("Outra Pessoa", settings.settings.value.expenseSigners[AccountType.CONGREGACAO])
 
-        onAllNodes(hasSetTextAction())[2].performTextInput("Aluguel")
-        onAllNodes(hasSetTextAction())[2].performKeyInput { pressKey(Key.Enter) }
+        // Extratos bancários: um responsável só, para as duas contas.
+        onNodeWithText(Strings.STATEMENT_SIGNER_TITLE).assertExists()
+        onNodeWithText(Strings.STATEMENT_SIGNER_NOT_CONFIGURED).assertExists()
+        onAllNodes(hasSetTextAction())[2].performTextInput("Filipe da Silva Costa")
+        onAllNodesWithText(Strings.SAVE)[2].performClick()
+        waitForIdle()
+        assertEquals("Filipe da Silva Costa", settings.settings.value.statementSigner)
+        assertEquals(Strings.statementSignerSaved("Filipe da Silva Costa"), viewModel.uiState.value.message)
+        assertEquals("Outra Pessoa", settings.settings.value.expenseSigners[AccountType.CONGREGACAO])
+        onAllNodes(hasSetTextAction())[2].performTextReplacement("Outro Responsável")
+        onAllNodesWithText(Strings.SAVE)[2].performClick()
+        onNodeWithText(Strings.STATEMENT_SIGNER_CHANGE_TITLE).assertExists()
+        onNodeWithText(Strings.SIGNER_CHANGE_CONFIRM).performClick()
+        waitForIdle()
+        assertEquals("Outro Responsável", settings.settings.value.statementSigner)
+
+        onAllNodes(hasSetTextAction())[3].performTextInput("Aluguel")
+        onAllNodes(hasSetTextAction())[3].performKeyInput { pressKey(Key.Enter) }
         waitForIdle()
         assertEquals("Aluguel", settings.settings.value.expenseExemptTerms.last())
         onNodeWithText("Aluguel").assertExists()

@@ -1,7 +1,7 @@
 package com.bragadev.fiscal.domain.usecase
 
-import com.bragadev.fiscal.domain.model.AccountType
 import com.bragadev.fiscal.domain.model.Outcome
+import com.bragadev.fiscal.domain.model.SignatureRole
 import com.bragadev.fiscal.domain.repository.DocumentContentReader
 import com.bragadev.fiscal.domain.repository.SignatureImageStorage
 import java.nio.file.Path
@@ -11,11 +11,11 @@ class ReadPdfSignersUseCase(private val reader: DocumentContentReader) {
     suspend operator fun invoke(file: Path): Outcome<List<String>> = reader.signerNames(file)
 }
 
-/** Imagem de referência do selo de assinatura de cada conta, guardada só na pasta de dados do usuário. */
+/** Imagem de referência do selo de assinatura de cada responsável, guardada só na pasta de dados do usuário. */
 class SignatureImageUseCase(private val storage: SignatureImageStorage) {
-    suspend fun load(account: AccountType): ByteArray? = storage.load(account)
+    suspend fun load(role: SignatureRole): ByteArray? = storage.load(role)
 
-    suspend fun save(account: AccountType, source: Path): Outcome<Unit> = storage.save(account, source)
+    suspend fun save(role: SignatureRole, source: Path): Outcome<Unit> = storage.save(role, source)
 
-    suspend fun remove(account: AccountType): Outcome<Unit> = storage.remove(account)
+    suspend fun remove(role: SignatureRole): Outcome<Unit> = storage.remove(role)
 }

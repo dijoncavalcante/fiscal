@@ -50,7 +50,11 @@ class SettingsPersistenceTest {
             AccountType.MANUTENCAO to "Elves Lincoln Menezes de Lima"
         )
         SettingsRepositoryImpl(SettingsDao(database)).save(
-            AppSettings(expenseSigners = signers, expenseExemptTerms = listOf("Resolução", "Ônibus para o congresso")),
+            AppSettings(
+                expenseSigners = signers,
+                expenseExemptTerms = listOf("Resolução", "Ônibus para o congresso"),
+                statementSigner = "Filipe da Silva Costa",
+            ),
         )
         database.close()
 
@@ -58,16 +62,19 @@ class SettingsPersistenceTest {
         val repository = SettingsRepositoryImpl(SettingsDao(reopened))
         val loaded = repository.load()
         assertEquals(signers, loaded.expenseSigners)
+        assertEquals("Filipe da Silva Costa", loaded.statementSigner)
         assertEquals(listOf("Resolução", "Ônibus para o congresso"), loaded.expenseExemptTerms)
 
         // Remover o responsável da Manutenção apaga a chave; lista vazia de termos continua vazia.
         repository.save(
             loaded.copy(
                 expenseSigners = signers - AccountType.MANUTENCAO,
-                expenseExemptTerms = emptyList()
+                expenseExemptTerms = emptyList(),
+                statementSigner = null,
             )
         )
         val again = repository.load()
+        assertEquals(null, again.statementSigner)
         assertEquals(mapOf(AccountType.CONGREGACAO to "Andrey Alves da Costa"), again.expenseSigners)
         assertEquals(emptyList(), again.expenseExemptTerms)
         reopened.close()
@@ -85,6 +92,7 @@ class SettingsPersistenceTest {
         assertEquals(YearMonth.of(2026, 6), loaded.firstEditableMonth)
         // Ninguém configurado e a lista padrão de isenções.
         assertEquals(emptyMap(), loaded.expenseSigners)
+        assertEquals(null, loaded.statementSigner)
         assertEquals(AppSettings.DEFAULT_EXPENSE_EXEMPT_TERMS, loaded.expenseExemptTerms)
         database.close()
     }

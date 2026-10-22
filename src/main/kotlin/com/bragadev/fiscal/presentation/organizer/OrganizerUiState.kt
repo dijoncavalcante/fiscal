@@ -1,6 +1,7 @@
 package com.bragadev.fiscal.presentation.organizer
 
 import com.bragadev.fiscal.domain.model.*
+import com.bragadev.fiscal.domain.rules.BankStatementRules
 import com.bragadev.fiscal.presentation.common.UserMessage
 import java.nio.file.Path
 import java.time.YearMonth
@@ -16,7 +17,7 @@ data class OrganizerUiState(
     val isWorking: Boolean = false,
     val lastUndoableOperationId: UUID? = null,
     val message: UserMessage? = null,
-    /** Conferência das despesas da Conta da Manutenção, por nome de arquivo em minúsculas. */
+    /** Conferência das despesas e do extrato bancário, por nome de arquivo em minúsculas. */
     val expenseChecks: Map<String, ExpenseStatus> = emptyMap(),
     /** De onde veio o total quando o valor bateu (ex.: "R$ 50,00 abaixo de "TOTAL (R$)", página 1 (foto)"). */
     val expenseEvidence: Map<String, String> = emptyMap(),
@@ -27,6 +28,11 @@ data class OrganizerUiState(
 
     /** Só é possível organizar documentos com um mês identificado e liberado. */
     val canOrganize: Boolean get() = monthFolder?.isEditable == true
+
+    companion object {
+        /** Arquivos desta categoria são conferidos como extrato bancário (conta, período e assinatura). */
+        fun isBankStatement(category: DocumentCategory?): Boolean = BankStatementRules.isStatementCategory(category?.id)
+    }
 }
 
 sealed interface OrganizerDialog {

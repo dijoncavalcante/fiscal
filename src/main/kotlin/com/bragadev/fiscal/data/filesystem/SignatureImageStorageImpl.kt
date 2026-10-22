@@ -2,9 +2,9 @@ package com.bragadev.fiscal.data.filesystem
 
 import com.bragadev.fiscal.data.AppDirectories
 import com.bragadev.fiscal.data.logging.AppLog
-import com.bragadev.fiscal.domain.model.AccountType
 import com.bragadev.fiscal.domain.model.FileOperationError
 import com.bragadev.fiscal.domain.model.Outcome
+import com.bragadev.fiscal.domain.model.SignatureRole
 import com.bragadev.fiscal.domain.repository.SignatureImageStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -16,20 +16,20 @@ import java.nio.file.StandardCopyOption
 import javax.imageio.ImageIO
 
 /**
- * Imagens do selo de assinatura em `%APPDATA%\Fiscal\assinaturas\<conta>.png`. A imagem é relida e gravada como
+ * Imagens do selo de assinatura em `%APPDATA%\Fiscal\assinaturas\<conta ou "extratos">.png`. A imagem é relida e gravada como
  * PNG (o arquivo original nunca é alterado): primeiro num arquivo temporário, que só então substitui o anterior.
  */
 class SignatureImageStorageImpl(private val directories: AppDirectories) : SignatureImageStorage {
-    override suspend fun load(account: AccountType): ByteArray? = withContext(Dispatchers.IO) {
-        runCatching { fileOf(account).takeIf(Files::exists)?.let(Files::readAllBytes) }.getOrNull()
+    override suspend fun load(role: SignatureRole): ByteArray? = withContext(Dispatchers.IO) {
+        runCatching { fileOf(role).takeIf(Files::exists)?.let(Files::readAllBytes) }.getOrNull()
     }
 
-    override suspend fun save(account: AccountType, source: Path): Outcome<Unit> = withContext(Dispatchers.IO) {
+    override suspend fun save(role: SignatureRole, source: Path): Outcome<Unit> = withContext(Dispatchers.IO) {
         try {
             val image = Files.newInputStream(source).use(ImageIO::read)
                 ?: return@withContext Outcome.Failure(FileOperationError.UnsupportedImage)
             Files.createDirectories(directories.signaturesDirectory)
-            val target = fileOf(account)
+            val target = fileOf(role)
             val partial = target.resolveSibling("${target.fileName}.parcial")
             if (!ImageIO.write(
                     image,
@@ -38,7 +38,7 @@ class SignatureImageStorageImpl(private val directories: AppDirectories) : Signa
                 )
             ) return@withContext Outcome.Failure(FileOperationError.UnsupportedImage)
             Files.move(partial, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
-            AppLog.info("Imagem da assinatura da conta ${account.name} atualizada")
+            AppLog.info("Imagem da assinatura (${role.name}) atualizada")
             Outcome.Success(Unit)
         } catch (error: FileSystemException) {
             Outcome.Failure(FileErrorMapper.map(error))
@@ -47,9 +47,9 @@ class SignatureImageStorageImpl(private val directories: AppDirectories) : Signa
         }
     }
 
-    override suspend fun remove(account: AccountType): Outcome<Unit> = withContext(Dispatchers.IO) {
+    override suspend fun remove(role: SignatureRole): Outcome<Unit> = withContext(Dispatchers.IO) {
         try {
-            Files.deleteIfExists(fileOf(account))
+            Files.deleteIfExists(fileOf(role))
             Outcome.Success(Unit)
         } catch (error: FileSystemException) {
             Outcome.Failure(FileErrorMapper.map(error))
@@ -58,6 +58,6 @@ class SignatureImageStorageImpl(private val directories: AppDirectories) : Signa
         }
     }
 
-    private fun fileOf(account: AccountType): Path =
-        directories.signaturesDirectory.resolve("${account.name.lowercase()}.png")
+    private fun fileOf(role: SignatureRole): Path =
+        directories.signaturesDirectory.resolve("${role.imageName}.png")
 }

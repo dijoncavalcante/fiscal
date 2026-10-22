@@ -289,6 +289,9 @@ object ExpenseDocumentRules {
      * https://validar.iti.gov.br"; a data do selo é ignorada. Só o nome solto no texto não basta: ele aparece,
      * por exemplo, como recebedor do Pix.
      */
+    internal fun isSignedBy(content: DocumentContent, signerName: String): Boolean =
+        isSigned(content.signers, content.pageTexts.map(::words), words(signerName))
+
     private fun isSigned(signers: List<String>, pages: List<List<String>>, signerWords: List<String>): Boolean =
         signers.any { words(it).findPhrase(signerWords).any() } ||
                 pages.any { page ->
@@ -309,7 +312,7 @@ object ExpenseDocumentRules {
 
     private fun missingNote(missing: Set<ExpenseRequirement>, signerName: String?): String? {
         if (missing.isEmpty()) return null
-        val parts = ExpenseRequirement.entries.filter { it in missing }.map { describe(it, signerName) }
+        val parts = expenseRequirements.filter { it in missing }.map { describe(it, signerName) }
         val list = if (parts.size == 1) parts.single() else parts.dropLast(1).joinToString(", ") + " e " + parts.last()
         return "Falta $list"
     }
@@ -352,7 +355,7 @@ object ExpenseDocumentRules {
      * os textos antigos ("cupom ou nota fiscal", "assinatura de Elves Lincoln").
      */
     private val automaticMissingNotes: List<Regex> by lazy {
-        val all = ExpenseRequirement.entries
+        val all = expenseRequirements
         val subsets =
             (1 until (1 shl all.size)).map { mask -> all.filterIndexed { i, _ -> mask and (1 shl i) != 0 }.toSet() }
         subsets.flatMap { listOfNotNull(missingNote(it, NAME_SLOT), missingNote(it, null)) }
@@ -381,16 +384,22 @@ object ExpenseDocumentRules {
 
     private const val NOTE_SEPARATOR = "; "
 
+    /** Os itens de uma despesa, na ordem da pendência (os outros são dos extratos, em [BankStatementRules]). */
+    private val expenseRequirements = listOf(
+        ExpenseRequirement.FISCAL_DOCUMENT, ExpenseRequirement.PAYMENT_PROOF, ExpenseRequirement.SIGNATURE,
+    )
+
     private fun describe(requirement: ExpenseRequirement, signerName: String?): String = when (requirement) {
         ExpenseRequirement.FISCAL_DOCUMENT -> FISCAL_DESCRIPTION
         ExpenseRequirement.PAYMENT_PROOF -> "comprovante Pix/TED"
         ExpenseRequirement.SIGNATURE ->
             if (signerName == null) SIGNER_NOT_CONFIGURED else "assinatura de $signerName"
+        ExpenseRequirement.BANK_ACCOUNT, ExpenseRequirement.STATEMENT_MONTH -> error("Item de extrato: $requirement")
     }
 
     /** Ninguém configurado: a pendência diz onde configurar. */
     private const val SIGNER_NOT_CONFIGURED =
         "assinatura do responsável (configure quem assina em Configurações → Assinaturas das despesas)"
 
-    private const val UNREADABLE_NOTE = "Não foi possível ler o PDF"
+    internal const val UNREADABLE_NOTE = "Não foi possível ler o PDF"
 }

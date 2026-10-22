@@ -223,7 +223,9 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   sem nome = pendência "Falta assinatura do responsável (configure …)"). "Ler de um PDF assinado…" usa
   `DocumentContentReader.signerNames` (CN do certificado, sem o ":CPF"; "ANDREY ALVES DA COSTA" → "Andrey Alves da
   Costa"). Trocar um nome já gravado pede confirmação. Imagem do selo **só de referência**: copiada como PNG para
-  `%APPDATA%\Fiscal\assinaturas\<conta>.png` (`SignatureImageStorage`), nunca no repositório nem usada na conferência.
+  `%APPDATA%\Fiscal\assinaturas\<congregacao|manutencao|extratos>.png` (`SignatureImageStorage`, por
+  `SignatureRole`), nunca no repositório nem usada na conferência. A mesma seção tem o bloco "Extratos bancários (as
+  duas contas)" (`SignatureRole.BANK_STATEMENTS`, chave `statement_signer`; ver "Conferência dos extratos").
 - `ExpenseRequirements.key` (responsável + termo de isenção) é gravado em `expense_checks.requirements_key`: mudar
   responsável ou termos confere de novo (o `OrganizerViewModel` observa essas Configurações e relê o mês).
 - Leitura (`PdfContentReaderImpl`): texto do PDFBox por página; página sem texto (cupom fotografado) passa pelo **OCR
@@ -273,6 +275,28 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   mexida. Resultado guardado em `expense_checks` por tamanho + data: não repete OCR, e pendência automática removida
   pelo usuário não volta enquanto o arquivo não mudar. Falha passageira (arquivo em uso, OCR) = `NOT_CHECKED`, sem
   pendência. Tela: "certo" verde ao lado do nome (`MonthFileRow.expenseStatus`) ou indicador enquanto confere.
+
+## Conferência dos extratos bancários (pedida em 22/10/2026)
+
+- "8. Extrato Bancário" (`congregacao.extrato_bancario`) e "5. Extrato Bancário" (`manutencao.extrato_bancario`);
+  "9. Extrato Betel" não é conferido. Regras puras em `BankStatementRules.check(content, StatementRequirements)`,
+  pelo mesmo `CheckExpensesUseCase` (resultado em `expense_checks` com `STATEMENT_RULES_VERSION`, pendência
+  automática, "certo" verde com conta + período + quem assinou; `isBankStatement` muda os textos da linha).
+- **Conta certa** (`BankStatementRules.accountFor`, dados passados pelo usuário): Manutenção = next (237 - Banco
+  Bradesco), Agência 3943, Conta 286256-5, DANILO CAVALCANTE BRAGA, Conta Poupança; Congregação = Nubank (Nu
+  Pagamentos/Nu Financeira, CNPJs 18.236.120/0001-58 e 30.680.829/0001-43), Agência 0001, Conta 15077760-0, Filipe
+  da Silva Costa. Agência, conta, titular e tipo são procurados **sozinhos na 1ª página** (o next embaralha:
+  "Agência: | Conta: | Tipo: 3943 286256-5"); o banco em qualquer página (o CNPJ do Nubank só está na 4ª). O
+  Nubank da Congregação cita a conta do next numa transferência: sem "next" no texto, não vale como extrato dele.
+- **Mês**: período "Movimentação entre: 01/08/2026 e 31/08/2026" (next) ou "02 DE AGOSTO DE 2026 a 31 DE AGOSTO DE
+  2026" (Nubank; no texto do PDF o "a" vem antes). Vale o mês com **mais dias** no período
+  (`StatementPeriod.mainMonth`: o Nubank vai de 01/03 a 01/04, de 09/01 a 31/01, de 01/12 a 08/01). Nome do mês
+  exato ou o único mais parecido (JULHO≠JUNHO, DEZEMBRO≠SETEMBRO); OCR: "O1 DE MARGO" vale.
+- **Assinatura**: quem assina os extratos (Configurações, `statement_signer`, um nome para as duas contas),
+  certificado ou selo gov.br completo (`ExpenseDocumentRules.isSignedBy`, data ignorada).
+- Digitalizado (OCR) nunca diz "troque": conta não confirmada / período não lido / mês diferente = "confira à mão".
+  Validado nos extratos reais de 2025-2026: todos reconhecem a conta; os anteriores a ago/2026 não têm a assinatura
+  do Filipe (jul/2026 da Manutenção está assinado pelo Elves) e ficam com a pendência.
 
 ## Fechamento do mês e histórico
 
@@ -377,7 +401,8 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
 - Settings: `source_folder`, `month_folder`, `months_root`, `duplicate_policy`, `confirm_before_move`,
   `confirm_before_rename`, `document_sort`, `auto_clean_backups`, `backup_retention_days`, `theme_mode`,
   `onboarding_done`, `window_bounds`, `first_editable_month`, `expense_signer_congregacao`, `expense_signer_manutencao`,
-  `expense_exempt_terms` (`root_path` é chave legada, migrada para `source_folder`). Chave ausente ou valor
+  `expense_exempt_terms`, `statement_signer` (`root_path` é chave legada, migrada para `source_folder`). Chave ausente
+  ou valor
   inválido = padrão. Único caminho absoluto no código: `SettingsRepositoryImpl.DEFAULT_SUGGESTED_FOLDER =
   D:\Modelo\jw\pendriver` (sugestão inicial, usada só se existir).
 
@@ -395,7 +420,8 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   (os 28 nomes reais) e `ExpenseSignaturesTest` (imagem local, responsável, tela com teclado/mouse simulados).
 - Despesas: `ExpenseDocumentRulesTest` (textos reais de PDF e OCR), `CheckExpensesUseCaseTest`,
   `PdfContentReaderImplTest`
-  (OCR de verdade numa página-foto gerada) e `ExpenseCheckDaoTest`.
+  (OCR de verdade numa página-foto gerada) e `ExpenseCheckDaoTest`. Extratos: `BankStatementRulesTest` (textos reais
+  do next e do Nubank, PDF e OCR) e os casos de extrato em `CheckExpensesUseCaseTest`.
 - Telas que não dá para clicar no app (a janela Java não aceita automação): renderize num `runComposeUiTest`
   descartável e salve `onAllNodes(isRoot())[i].captureToImage()` em PNG para conferir (diálogos são outra raiz).
 - Teste visual sem mexer nos dados do usuário: rode com `APPDATA` apontando para uma pasta temporária **de caminho

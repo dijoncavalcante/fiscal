@@ -1,8 +1,8 @@
 package com.bragadev.fiscal.presentation.settings
 
-import com.bragadev.fiscal.domain.model.AccountType
 import com.bragadev.fiscal.domain.model.AppSettings
 import com.bragadev.fiscal.domain.model.Outcome
+import com.bragadev.fiscal.domain.model.SignatureRole
 import com.bragadev.fiscal.domain.usecase.ObserveSettingsUseCase
 import com.bragadev.fiscal.domain.usecase.ReadPdfSignersUseCase
 import com.bragadev.fiscal.domain.usecase.SignatureImageUseCase
@@ -18,9 +18,9 @@ import kotlinx.coroutines.launch
 import java.nio.file.Path
 import java.util.*
 
-/** Responsável pela assinatura de uma conta, como aparece na tela. */
+/** Quem assina (as despesas de uma conta ou os extratos bancários), como aparece na tela. */
 data class AccountSignatureState(
-    val account: AccountType,
+    val role: SignatureRole,
     /** Nome gravado (o que a conferência usa); vazio = não configurado. */
     val savedName: String = "",
     /** Nome no campo, ainda não salvo. */
@@ -30,20 +30,20 @@ data class AccountSignatureState(
 ) {
     val hasUnsavedName: Boolean get() = draftName.trim() != savedName
 
-    override fun equals(other: Any?): Boolean = other is AccountSignatureState && account == other.account &&
+    override fun equals(other: Any?): Boolean = other is AccountSignatureState && role == other.role &&
             savedName == other.savedName && draftName == other.draftName && image.contentEquals(other.image)
 
-    override fun hashCode(): Int = Objects.hash(account, savedName, draftName, image?.contentHashCode())
+    override fun hashCode(): Int = Objects.hash(role, savedName, draftName, image?.contentHashCode())
 }
 
-/** Troca de responsável esperando confirmação (as despesas da conta serão conferidas de novo). */
-data class SignerChange(val account: AccountType, val from: String, val to: String)
+/** Troca de responsável esperando confirmação (os documentos serão conferidos de novo). */
+data class SignerChange(val role: SignatureRole, val from: String, val to: String)
 
 /** Vários nomes no PDF escolhido: o usuário diz qual é o responsável. */
-data class CertificateChoice(val account: AccountType, val names: List<String>)
+data class CertificateChoice(val role: SignatureRole, val names: List<String>)
 
 data class ExpenseSignaturesUiState(
-    val accounts: List<AccountSignatureState> = AppSettings.EXPENSE_ACCOUNTS.map { AccountSignatureState(it) },
+    val accounts: List<AccountSignatureState> = SignatureRole.entries.map { AccountSignatureState(it) },
     val exemptTerms: List<String> = emptyList(),
     val newTerm: String = "",
     val pendingChange: SignerChange? = null,
@@ -53,8 +53,8 @@ data class ExpenseSignaturesUiState(
 )
 
 /**
- * Configurações → "Assinaturas das despesas": quem assina as despesas de cada conta, a imagem de referência do
- * selo e os termos que dispensam o cupom na Congregação. Tudo fica na máquina (banco local e
+ * Configurações → "Assinaturas das despesas e extratos": quem assina as despesas de cada conta e os extratos
+ * bancários das duas contas, a imagem de referência do selo e os termos que dispensam o cupom na Congregação. Tudo fica na máquina (banco local e
  * `%APPDATA%\Fiscal\assinaturas`). Mudar o responsável ou os termos faz o mês aberto ser conferido de novo.
  */
 class ExpenseSignaturesViewModel(
@@ -72,7 +72,7 @@ class ExpenseSignaturesViewModel(
                 state.update { current ->
                     current.copy(
                         accounts = current.accounts.map { account ->
-                            val saved = settings.expenseSigners[account.account].orEmpty()
+                            val saved = settings.signerFor(account.role).orEmpty()
                             // Campo não mexido acompanha o valor gravado; o que o usuário está digitando fica.
                             val draft = if (account.hasUnsavedName) account.draftName else saved
                             account.copy(savedName = saved, draftName = draft)
@@ -82,30 +82,30 @@ class ExpenseSignaturesViewModel(
                 }
             }
         }
-        scope.launch { AppSettings.EXPENSE_ACCOUNTS.forEach { reloadImage(it) } }
+        scope.launch { SignatureRole.entries.forEach { reloadImage(it) } }
     }
 
-    fun onNameChanged(account: AccountType, text: String) = updateAccount(account) { it.copy(draftName = text) }
+    fun onNameChanged(role: SignatureRole, text: String) = updateAccount(role) { it.copy(draftName = text) }
 
     /** Primeira vez grava direto; trocar um responsável já gravado pede confirmação. */
-    fun onSaveName(account: AccountType) {
-        val current = accountState(account)
+    fun onSaveName(role: SignatureRole) {
+        val current = accountState(role)
         val name = current.draftName.trim()
         if (name == current.savedName) return
-        if (current.savedName.isEmpty()) saveName(account, name)
-        else state.update { it.copy(pendingChange = SignerChange(account, current.savedName, name)) }
+        if (current.savedName.isEmpty()) saveName(role, name)
+        else state.update { it.copy(pendingChange = SignerChange(role, current.savedName, name)) }
     }
 
     fun onConfirmChange() {
         val change = state.value.pendingChange ?: return
         state.update { it.copy(pendingChange = null) }
-        saveName(change.account, change.to)
+        saveName(change.role, change.to)
     }
 
     fun onDismissChange() = state.update { it.copy(pendingChange = null) }
 
     /** Lê os nomes dos certificados do PDF escolhido e coloca no campo (ou pergunta qual, se houver vários). */
-    fun onReadFromPdf(account: AccountType, file: Path) {
+    fun onReadFromPdf(role: SignatureRole, file: Path) {
         scope.launch {
             when (val result = readPdfSigners(file)) {
                 is Outcome.Failure -> showMessage(result.error.toUserMessage(), isError = true)
@@ -113,39 +113,39 @@ class ExpenseSignaturesViewModel(
                     val names = result.value.map(::displayName).distinct()
                     when (names.size) {
                         0 -> showMessage(Strings.SIGNER_PDF_WITHOUT_SIGNATURE, isError = true)
-                        1 -> onCertificateNameChosen(account, names.single())
-                        else -> state.update { it.copy(certificateChoice = CertificateChoice(account, names)) }
+                        1 -> onCertificateNameChosen(role, names.single())
+                        else -> state.update { it.copy(certificateChoice = CertificateChoice(role, names)) }
                     }
                 }
             }
         }
     }
 
-    fun onCertificateNameChosen(account: AccountType, name: String) {
+    fun onCertificateNameChosen(role: SignatureRole, name: String) {
         state.update { it.copy(certificateChoice = null) }
-        updateAccount(account) { it.copy(draftName = name) }
+        updateAccount(role) { it.copy(draftName = name) }
         showMessage(Strings.signerReadFromPdf(name), isError = false)
     }
 
     fun onDismissCertificateChoice() = state.update { it.copy(certificateChoice = null) }
 
-    fun onImagePicked(account: AccountType, file: Path) {
+    fun onImagePicked(role: SignatureRole, file: Path) {
         scope.launch {
-            when (val result = signatureImages.save(account, file)) {
+            when (val result = signatureImages.save(role, file)) {
                 is Outcome.Failure -> showMessage(result.error.toUserMessage(), isError = true)
                 is Outcome.Success -> {
-                    reloadImage(account)
+                    reloadImage(role)
                     showMessage(Strings.SIGNATURE_IMAGE_SAVED, isError = false)
                 }
             }
         }
     }
 
-    fun onRemoveImage(account: AccountType) {
+    fun onRemoveImage(role: SignatureRole) {
         scope.launch {
-            when (val result = signatureImages.remove(account)) {
+            when (val result = signatureImages.remove(role)) {
                 is Outcome.Failure -> showMessage(result.error.toUserMessage(), isError = true)
-                is Outcome.Success -> reloadImage(account)
+                is Outcome.Success -> reloadImage(role)
             }
         }
     }
@@ -167,18 +167,18 @@ class ExpenseSignaturesViewModel(
 
     fun onMessageShown() = state.update { it.copy(message = null) }
 
-    private fun saveName(account: AccountType, name: String) {
+    private fun saveName(role: SignatureRole, name: String) {
         scope.launch {
-            updateSettings { settings ->
-                val signers =
-                    if (name.isEmpty()) settings.expenseSigners - account else settings.expenseSigners + (account to name)
-                settings.copy(expenseSigners = signers)
+            updateSettings { it.withSigner(role, name) }
+            updateAccount(role) { it.copy(draftName = name) }
+            val account = role.account
+            val message = when {
+                account == null && name.isEmpty() -> Strings.STATEMENT_SIGNER_CLEARED
+                account == null -> Strings.statementSignerSaved(name)
+                name.isEmpty() -> Strings.signerCleared(account.displayName)
+                else -> Strings.signerSaved(name)
             }
-            updateAccount(account) { it.copy(draftName = name) }
-            showMessage(
-                if (name.isEmpty()) Strings.signerCleared(account.displayName) else Strings.signerSaved(name),
-                isError = false
-            )
+            showMessage(message, isError = false)
         }
     }
 
@@ -186,16 +186,16 @@ class ExpenseSignaturesViewModel(
         scope.launch { updateSettings { it.copy(expenseExemptTerms = transform(it.expenseExemptTerms)) } }
     }
 
-    private suspend fun reloadImage(account: AccountType) {
-        val image = signatureImages.load(account)
-        updateAccount(account) { it.copy(image = image) }
+    private suspend fun reloadImage(role: SignatureRole) {
+        val image = signatureImages.load(role)
+        updateAccount(role) { it.copy(image = image) }
     }
 
-    private fun accountState(account: AccountType) = state.value.accounts.first { it.account == account }
+    private fun accountState(role: SignatureRole) = state.value.accounts.first { it.role == role }
 
-    private fun updateAccount(account: AccountType, transform: (AccountSignatureState) -> AccountSignatureState) =
+    private fun updateAccount(role: SignatureRole, transform: (AccountSignatureState) -> AccountSignatureState) =
         state.update { current ->
-            current.copy(accounts = current.accounts.map { if (it.account == account) transform(it) else it })
+            current.copy(accounts = current.accounts.map { if (it.role == role) transform(it) else it })
         }
 
     private fun showMessage(message: String, isError: Boolean) =

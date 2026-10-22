@@ -16,6 +16,7 @@ import androidx.compose.ui.input.key.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.bragadev.fiscal.domain.model.SignatureRole
 import com.bragadev.fiscal.presentation.common.Strings
 import com.bragadev.fiscal.presentation.components.*
 
@@ -48,13 +49,21 @@ fun ExpenseSignaturesSection(viewModel: ExpenseSignaturesViewModel) {
 
 @Composable
 private fun AccountSignatureBlock(state: AccountSignatureState, viewModel: ExpenseSignaturesViewModel) {
-    val account = state.account
+    val role = state.role
+    val isStatement = role.account == null
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(account.displayName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        Text(title(role), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        if (isStatement) {
+            Text(
+                Strings.STATEMENT_SIGNER_SCOPE,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         if (state.savedName.isEmpty()) {
             IconText(
                 icon = AppIcons.Warning,
-                text = Strings.SIGNER_NOT_CONFIGURED,
+                text = if (isStatement) Strings.STATEMENT_SIGNER_NOT_CONFIGURED else Strings.SIGNER_NOT_CONFIGURED,
                 color = StatusColors.Warning,
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -62,17 +71,21 @@ private fun AccountSignatureBlock(state: AccountSignatureState, viewModel: Expen
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
                 value = state.draftName,
-                onValueChange = { viewModel.onNameChanged(account, it) },
+                onValueChange = { viewModel.onNameChanged(role, it) },
                 label = { Text(Strings.SIGNER_NAME_LABEL) },
                 singleLine = true,
                 modifier = Modifier.weight(1f),
             )
-            Button(onClick = { viewModel.onSaveName(account) }, enabled = state.hasUnsavedName) { Text(Strings.SAVE) }
+            Button(onClick = { viewModel.onSaveName(role) }, enabled = state.hasUnsavedName) { Text(Strings.SAVE) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedButton(onClick = {
-                pickFiles(Strings.SIGNER_PDF_PICKER_TITLE, null, Strings.PDF_FILTER, listOf("pdf")).firstOrNull()
-                    ?.let { viewModel.onReadFromPdf(account, it) }
+                pickFiles(
+                    if (isStatement) Strings.STATEMENT_SIGNER_PDF_PICKER_TITLE else Strings.SIGNER_PDF_PICKER_TITLE,
+                    null,
+                    Strings.PDF_FILTER,
+                    listOf("pdf"),
+                ).firstOrNull()?.let { viewModel.onReadFromPdf(role, it) }
             }) { Text(Strings.SIGNER_READ_FROM_PDF) }
             OutlinedButton(onClick = {
                 pickFiles(
@@ -81,10 +94,10 @@ private fun AccountSignatureBlock(state: AccountSignatureState, viewModel: Expen
                     Strings.IMAGE_FILTER,
                     listOf("png", "jpg", "jpeg")
                 )
-                    .firstOrNull()?.let { viewModel.onImagePicked(account, it) }
+                    .firstOrNull()?.let { viewModel.onImagePicked(role, it) }
             }) { Text(if (state.image == null) Strings.SIGNATURE_IMAGE_CHOOSE else Strings.SIGNATURE_IMAGE_REPLACE) }
             if (state.image != null) {
-                TextButton(onClick = { viewModel.onRemoveImage(account) }) { Text(Strings.SIGNATURE_IMAGE_REMOVE) }
+                TextButton(onClick = { viewModel.onRemoveImage(role) }) { Text(Strings.SIGNATURE_IMAGE_REMOVE) }
             }
         }
         state.image?.let { SignatureImage(it) }
@@ -160,10 +173,13 @@ private fun ChangeSignerDialog(change: SignerChange, viewModel: ExpenseSignature
     AlertDialog(
         onDismissRequest = viewModel::onDismissChange,
         modifier = Modifier.dialogKeys(viewModel::onConfirmChange, viewModel::onDismissChange),
-        title = { Text(Strings.SIGNER_CHANGE_TITLE) },
+        title = {
+            Text(if (change.role.account == null) Strings.STATEMENT_SIGNER_CHANGE_TITLE else Strings.SIGNER_CHANGE_TITLE)
+        },
         text = {
             Text(
-                Strings.signerChangeBody(change.account.displayName, change.from, change.to),
+                change.role.account?.let { Strings.signerChangeBody(it.displayName, change.from, change.to) }
+                    ?: Strings.statementSignerChangeBody(change.from, change.to),
                 Modifier.widthIn(max = 460.dp).padding(top = 4.dp),
             )
         },
@@ -180,9 +196,13 @@ private fun CertificateChoiceDialog(choice: CertificateChoice, viewModel: Expens
         title = { Text(Strings.SIGNER_CHOICE_TITLE) },
         text = {
             Column(Modifier.fillMaxWidth()) {
-                Text(Strings.signerChoiceBody(choice.account.displayName), Modifier.padding(bottom = 8.dp))
+                Text(
+                    choice.role.account?.let { Strings.signerChoiceBody(it.displayName) }
+                        ?: Strings.STATEMENT_SIGNER_CHOICE_BODY,
+                    Modifier.padding(bottom = 8.dp),
+                )
                 choice.names.forEach { name ->
-                    TextButton(onClick = { viewModel.onCertificateNameChosen(choice.account, name) }) { Text(name) }
+                    TextButton(onClick = { viewModel.onCertificateNameChosen(choice.role, name) }) { Text(name) }
                 }
             }
         },
@@ -190,3 +210,6 @@ private fun CertificateChoiceDialog(choice: CertificateChoice, viewModel: Expens
         dismissButton = { TextButton(onClick = viewModel::onDismissCertificateChoice) { Text(Strings.CANCEL) } },
     )
 }
+
+/** "Conta da Congregação" (despesas) ou "Extratos bancários (as duas contas)". */
+private fun title(role: SignatureRole): String = role.account?.displayName ?: Strings.STATEMENT_SIGNER_TITLE

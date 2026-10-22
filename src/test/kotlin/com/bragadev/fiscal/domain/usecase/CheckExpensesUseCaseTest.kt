@@ -300,6 +300,75 @@ class CheckExpensesUseCaseTest {
         assertEquals("Não foi possível ler o PDF", flags.flags[file])
     }
 
+    /** "5. Extrato Bancário" do next, de setembro/2026, assinado pelo Filipe. */
+    private val nextSeptember = DocumentContent(
+        listOf(
+            "Extrato de Conta Poupança Banco de origem: next (237 - Banco Bradesco S.A.) " +
+                    "Extrato de: Agência:  | Conta:  | Tipo: 3943 286256-5 Conta Poupança " +
+                    "Nome: DANILO CAVALCANTE BRAGA Movimentação entre: 01/09/2026 e 30/09/2026",
+        ),
+        signers = listOf("FILIPE DA SILVA COSTA"),
+    )
+
+    @Test
+    fun `extrato bancario e conferido com o mes em edicao e quem assina os extratos`() = runTest {
+        val statement = september.createFakePdf("5. Extrato Bancário.pdf")
+        reader.contents[statement.fileName.toString()] = nextSeptember
+        val month = java.time.YearMonth.of(2026, 9)
+        suspend fun runStatement() = mutableMapOf<String, ExpenseStatus>().also { results ->
+            checkExpenses(
+                september,
+                AccountType.MANUTENCAO,
+                checklist(september, AccountType.MANUTENCAO),
+                month
+            ) { name, status, evidence ->
+                results[name] = status
+                evidences[name] = evidence
+            }
+        }
+
+        // Ninguém configurado para os extratos: pendência dizendo onde configurar.
+        assertEquals(ExpenseStatus.HAS_ISSUES, runStatement()[statement.fileName.toString()])
+        assertTrue(flags.flags[statement]!!.startsWith("Falta assinatura do responsável pelos extratos"))
+
+        // Configurado: confere de novo e a pendência automática sai.
+        settings.save(settings.settings.value.copy(statementSigner = "Filipe da Silva Costa"))
+        assertEquals(ExpenseStatus.VERIFIED, runStatement()[statement.fileName.toString()])
+        assertNull(flags.flags[statement])
+        assertTrue(evidences[statement.fileName.toString()]!!.contains("de 01/09/2026 a 30/09/2026"))
+
+        // A assinatura das despesas (Elves) não vale para o extrato.
+        settings.save(settings.settings.value.copy(statementSigner = ELVES))
+        assertEquals(ExpenseStatus.HAS_ISSUES, runStatement()[statement.fileName.toString()])
+        assertEquals("Falta assinatura de $ELVES", flags.flags[statement])
+    }
+
+    @Test
+    fun `extrato de outro mes ganha pendencia e o da Betel nao e conferido`() = runTest {
+        val statement = congregation.createFakePdf("8. Extrato Bancário.pdf")
+        val betel = congregation.createFakePdf("9. Extrato Betel.pdf")
+        reader.contents[statement.fileName.toString()] = DocumentContent(
+            listOf(
+                "Filipe da Silva Costa CPF Agência 0001 Conta 15077760-0 " +
+                        "01 DE AGOSTO DE 2026 a 31 DE AGOSTO DE 2026 VALORES EM R$ Nu Pagamentos S.A.",
+            ),
+            signers = listOf("FILIPE DA SILVA COSTA"),
+        )
+        settings.save(settings.settings.value.copy(statementSigner = "Filipe da Silva Costa"))
+        val results = mutableMapOf<String, ExpenseStatus>()
+        checkExpenses(
+            congregation, AccountType.CONGREGACAO, checklist(congregation, AccountType.CONGREGACAO),
+            java.time.YearMonth.of(2026, 9),
+        ) { name, status, _ -> results[name] = status }
+
+        assertEquals(mapOf(statement.fileName.toString() to ExpenseStatus.HAS_ISSUES), results)
+        assertEquals(
+            "Extrato de 01/08/2026 a 31/08/2026, mas o mês em edição é setembro de 2026: troque pelo extrato do mês",
+            flags.flags[statement],
+        )
+        assertNull(flags.flags[betel])
+    }
+
     /** Troca o conteúdo do arquivo (outro tamanho e outra data), como quando o usuário substitui o PDF. */
     private fun replace(file: Path, content: DocumentContent) {
         Files.writeString(file, Files.readString(file) + "\n% corrigido")

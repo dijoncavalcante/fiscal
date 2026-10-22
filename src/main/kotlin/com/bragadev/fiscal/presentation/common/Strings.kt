@@ -190,9 +190,10 @@ object Strings {
         "Verificado: assinatura do responsável, comprovante Pix/TED e cupom/nota com o mesmo valor (quando exigido)"
 
     // Configurações → Assinaturas das despesas
-    const val SIGNATURES_SECTION = "Assinaturas das despesas"
+    const val SIGNATURES_SECTION = "Assinaturas das despesas e extratos"
     const val SIGNATURES_EXPLANATION =
-        "Quem precisa assinar (assinatura digital gov.br) os PDFs de \"3. Despesas\" de cada conta. A conferência " +
+        "Quem precisa assinar (assinatura digital gov.br) os PDFs de \"3. Despesas\" de cada conta e os extratos " +
+                "bancários (\"8. Extrato Bancário\" da Congregação e \"5. Extrato Bancário\" da Manutenção). A conferência " +
                 "usa o nome completo, igual ao do certificado digital; a data da assinatura não importa. Tudo fica " +
                 "só neste computador. Se o responsável mudar, troque aqui."
     const val SIGNER_NAME_LABEL = "Nome completo de quem assina"
@@ -210,6 +211,23 @@ object Strings {
     fun signerReadFromPdf(name: String) = "Nome lido do certificado: $name. Confira e clique em Salvar."
     fun signerSaved(name: String) = "Responsável salvo: $name. As despesas serão conferidas de novo."
     fun signerCleared(account: String) = "Responsável da $account removido."
+    const val STATEMENT_SIGNER_TITLE = "Extratos bancários (as duas contas)"
+    const val STATEMENT_SIGNER_SCOPE =
+        "Obrigatória em \"8. Extrato Bancário\" (Conta da Congregação) e \"5. Extrato Bancário\" (Conta da Manutenção)."
+    const val STATEMENT_SIGNER_NOT_CONFIGURED =
+        "Ninguém configurado: os extratos bancários ficam com pendência até você salvar um nome."
+    const val STATEMENT_SIGNER_PDF_PICKER_TITLE = "Escolha um extrato já assinado pelo responsável"
+    fun statementSignerSaved(name: String) =
+        "Responsável pelos extratos salvo: $name. Os extratos serão conferidos de novo."
+
+    const val STATEMENT_SIGNER_CLEARED = "Responsável pelos extratos removido."
+    const val STATEMENT_SIGNER_CHANGE_TITLE = "Trocar quem assina os extratos?"
+    fun statementSignerChangeBody(from: String, to: String) =
+        "Os extratos bancários das duas contas passam a exigir a assinatura de \"$to\" em vez de \"$from\". Eles " +
+                "serão conferidos de novo e as pendências automáticas serão atualizadas (as que você escreveu não mudam)."
+
+    const val STATEMENT_SIGNER_CHOICE_BODY =
+        "O PDF tem mais de uma assinatura. Escolha quem assina os extratos bancários:"
     const val SIGNATURE_IMAGE_CHOOSE = "Escolher imagem da assinatura…"
     const val SIGNATURE_IMAGE_REPLACE = "Trocar imagem…"
     const val SIGNATURE_IMAGE_REMOVE = "Remover imagem"
@@ -238,6 +256,8 @@ object Strings {
     const val EXEMPT_TERMS_RESTORE = "Restaurar a lista padrão"
     fun removeTerm(term: String) = "Remover \"$term\""
     const val EXPENSE_CHECKING = "Conferindo cupom, comprovante e assinatura…"
+    const val STATEMENT_CHECKING = "Conferindo conta, mês e assinatura do extrato…"
+    const val STATEMENT_VERIFIED = "Verificado: extrato da conta certa, do mês em edição e assinado"
 
     // Documentos: ordenação e busca
     const val REFRESH_FOLDER = "Atualizar a pasta"

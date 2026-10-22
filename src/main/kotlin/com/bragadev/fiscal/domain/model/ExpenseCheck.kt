@@ -3,7 +3,7 @@ package com.bragadev.fiscal.domain.model
 import java.math.BigDecimal
 import java.time.Instant
 
-/** O que uma despesa da Conta da Manutenção precisa ter dentro do PDF. */
+/** O que uma despesa (ou um extrato bancário) precisa ter dentro do PDF. */
 enum class ExpenseRequirement {
     /** Cupom fiscal, nota fiscal (NFC-e, DANFE, fatura...) ou recibo. */
     FISCAL_DOCUMENT,
@@ -13,6 +13,12 @@ enum class ExpenseRequirement {
 
     /** Assinatura digital (gov.br) do responsável. */
     SIGNATURE,
+
+    /** Extrato bancário: do banco, agência, conta e titular combinados para a conta. */
+    BANK_ACCOUNT,
+
+    /** Extrato bancário: período de movimentação do mês em edição. */
+    STATEMENT_MONTH,
 }
 
 /**
@@ -131,9 +137,9 @@ data class StoredExpenseCheck(
      * Ainda vale: mesmo arquivo (data comparada em milissegundos, a precisão do banco), regras atuais e as
      * mesmas exigências.
      */
-    fun matches(document: Document, requirements: ExpenseRequirements): Boolean =
+    fun matches(document: Document, requirementsKey: String, rulesVersion: Int = EXPENSE_RULES_VERSION): Boolean =
         sizeBytes == document.sizeBytes && lastModified.toEpochMilli() == document.lastModified.toEpochMilli() &&
-                rulesVersion == EXPENSE_RULES_VERSION && requirementsKey == requirements.key
+                this.rulesVersion == rulesVersion && this.requirementsKey == requirementsKey
 }
 
 /**
@@ -143,6 +149,9 @@ data class StoredExpenseCheck(
  * isenção pelo nome do arquivo e selo gov.br completo).
  */
 const val EXPENSE_RULES_VERSION = 5
+
+/** Como [EXPENSE_RULES_VERSION], para a conferência dos extratos bancários. */
+const val STATEMENT_RULES_VERSION = 1
 
 /** Situação de uma despesa na tela do mês em edição. */
 enum class ExpenseStatus {
