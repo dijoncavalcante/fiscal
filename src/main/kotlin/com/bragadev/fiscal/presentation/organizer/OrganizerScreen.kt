@@ -272,7 +272,7 @@ private fun CategoryRow(entry: TreeEntry, context: MonthContext) {
                 modifier = Modifier.padding(start = 4.dp),
                 expenseStatus = context.expenseStatus(name),
                 expenseEvidence = context.expenseEvidence(name),
-                isBankStatement = OrganizerUiState.isBankStatement(category),
+                checkedDocument = OrganizerUiState.checkedDocumentOf(category),
             )
         }
         if (showDropHighlight) {

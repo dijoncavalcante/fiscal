@@ -394,7 +394,8 @@ object ExpenseDocumentRules {
         ExpenseRequirement.PAYMENT_PROOF -> "comprovante Pix/TED"
         ExpenseRequirement.SIGNATURE ->
             if (signerName == null) SIGNER_NOT_CONFIGURED else "assinatura de $signerName"
-        ExpenseRequirement.BANK_ACCOUNT, ExpenseRequirement.STATEMENT_MONTH -> error("Item de extrato: $requirement")
+        ExpenseRequirement.BANK_ACCOUNT, ExpenseRequirement.STATEMENT_MONTH,
+        ExpenseRequirement.SHEET_HEADER, ExpenseRequirement.SHEET_MONTH -> error("Item de outro documento: $requirement")
     }
 
     /** Ninguém configurado: a pendência diz onde configurar. */

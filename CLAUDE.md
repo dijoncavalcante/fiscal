@@ -298,6 +298,19 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   Validado nos extratos reais de 2025-2026: todos reconhecem a conta; os anteriores a ago/2026 não têm a assinatura
   do Filipe (jul/2026 da Manutenção está assinado pelo Elves) e ficam com a pendência.
 
+## Conferência da Folha de Contas (pedida em 22/10/2026)
+
+- "1. Folha de Contas" (`congregacao.folha_de_contas`, `manutencao.folha_de_contas`), regras puras em
+  `AccountSheetRules.check(content, account, month)`, pelo mesmo `CheckExpensesUseCase` (`SHEET_RULES_VERSION`,
+  pendência automática, "certo" verde com nome da conta + mês; `CheckedDocument.ACCOUNT_SHEET` muda os textos).
+- Na 1ª página: "FOLHA DE CONTAS (S-26)", o nome da conta — Congregação "Trinta e Um de Março - Manaus AM (68361)",
+  Manutenção "Comissão de Funcionamento do Salão do Reino" (**completo**: a folha da Congregação cita "COMISSÃO DE
+  FUNCIONAMENTO" numa saída) — e o "<mês> de <ano>" logo depois do nome (impressão do JW Hub: "... (68361) agosto de
+  2026"), igual ao mês em edição. Nomes de mês lidos por `Months.number` (o mesmo dos extratos).
+- Folha da outra conta = "Folha de Contas da conta da Manutenção (…), não da conta da Congregação: troque pela folha
+  certa" (caso real: a pasta de junho/2026 da Congregação tem a folha da Manutenção). Digitalizada (OCR) = "confira à
+  mão". Nas 24 folhas reais de 2025-2026 (6 digitalizadas) só essa fica com pendência (`AccountSheetRulesTest`).
+
 ## Fechamento do mês e histórico
 
 - **Concluir mês** (botão no cabeçalho do mês em edição, aparece com mês identificado — também em meses fechados):
@@ -421,7 +434,8 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
 - Despesas: `ExpenseDocumentRulesTest` (textos reais de PDF e OCR), `CheckExpensesUseCaseTest`,
   `PdfContentReaderImplTest`
   (OCR de verdade numa página-foto gerada) e `ExpenseCheckDaoTest`. Extratos: `BankStatementRulesTest` (textos reais
-  do next e do Nubank, PDF e OCR) e os casos de extrato em `CheckExpensesUseCaseTest`.
+  do next e do Nubank, PDF e OCR) e os casos de extrato em `CheckExpensesUseCaseTest`. Folha de Contas:
+  `AccountSheetRulesTest` e o caso da folha em `CheckExpensesUseCaseTest`.
 - Telas que não dá para clicar no app (a janela Java não aceita automação): renderize num `runComposeUiTest`
   descartável e salve `onAllNodes(isRoot())[i].captureToImage()` em PNG para conferir (diálogos são outra raiz).
 - Teste visual sem mexer nos dados do usuário: rode com `APPDATA` apontando para uma pasta temporária **de caminho

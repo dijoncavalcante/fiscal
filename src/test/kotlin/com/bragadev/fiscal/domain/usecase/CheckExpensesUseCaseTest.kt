@@ -67,7 +67,7 @@ class CheckExpensesUseCaseTest {
     fun `despesa completa ganha o check e incompleta ganha pendencia dizendo o que falta`() = runTest {
         val ok = september.createFakePdf("3. Despesa - Dreno encapado.pdf")
         val missing = september.createFakePdf("3.1 Despesa - Espuma para microfone.pdf")
-        september.createFakePdf("1. Folha de Contas.pdf")
+        september.createFakePdf("2. Donativo - Japiim.pdf")
         reader.contents[ok.fileName.toString()] = complete
         reader.contents[missing.fileName.toString()] = unsigned
 
@@ -367,6 +367,45 @@ class CheckExpensesUseCaseTest {
             flags.flags[statement],
         )
         assertNull(flags.flags[betel])
+    }
+
+    @Test
+    fun `Folha de Contas da outra conta ganha pendencia e a certa ganha o check`() = runTest {
+        val wrong = congregation.createFakePdf("1. Folha de Contas.pdf")
+        reader.contents[wrong.fileName.toString()] = DocumentContent(
+            listOf("FOLHA DE CONTAS (S-26)\nComissão de Funcionamento do Salão do Reino setembro de 2026"),
+        )
+        val month = java.time.YearMonth.of(2026, 9)
+        suspend fun runSheet() = mutableMapOf<String, ExpenseStatus>().also { results ->
+            checkExpenses(
+                congregation,
+                AccountType.CONGREGACAO,
+                checklist(congregation, AccountType.CONGREGACAO),
+                month
+            ) { name, status, evidence ->
+                results[name] = status
+                evidences[name] = evidence
+            }
+        }
+
+        assertEquals(ExpenseStatus.HAS_ISSUES, runSheet()[wrong.fileName.toString()])
+        assertEquals(
+            "Folha de Contas da conta da Manutenção (Comissão de Funcionamento do Salão do Reino), não da conta da " +
+                    "Congregação: troque pela folha certa",
+            flags.flags[wrong],
+        )
+
+        // Trocada pela folha certa: a pendência automática sai.
+        replace(
+            wrong,
+            DocumentContent(listOf("FOLHA DE CONTAS (S-26)\nTrinta e Um de Março - Manaus AM (68361) setembro de 2026"))
+        )
+        assertEquals(ExpenseStatus.VERIFIED, runSheet()[wrong.fileName.toString()])
+        assertNull(flags.flags[wrong])
+        assertEquals(
+            "FOLHA DE CONTAS (S-26) de Trinta e Um de Março - Manaus AM (68361), setembro de 2026",
+            evidences[wrong.fileName.toString()],
+        )
     }
 
     /** Troca o conteúdo do arquivo (outro tamanho e outra data), como quando o usuário substitui o PDF. */

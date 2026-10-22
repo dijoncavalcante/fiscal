@@ -1,6 +1,7 @@
 package com.bragadev.fiscal.presentation.organizer
 
 import com.bragadev.fiscal.domain.model.*
+import com.bragadev.fiscal.domain.rules.AccountSheetRules
 import com.bragadev.fiscal.domain.rules.BankStatementRules
 import com.bragadev.fiscal.presentation.common.UserMessage
 import java.nio.file.Path
@@ -30,10 +31,17 @@ data class OrganizerUiState(
     val canOrganize: Boolean get() = monthFolder?.isEditable == true
 
     companion object {
-        /** Arquivos desta categoria são conferidos como extrato bancário (conta, período e assinatura). */
-        fun isBankStatement(category: DocumentCategory?): Boolean = BankStatementRules.isStatementCategory(category?.id)
+        /** Como os arquivos desta categoria são conferidos (muda os textos do "certo" e do "conferindo"). */
+        fun checkedDocumentOf(category: DocumentCategory?): CheckedDocument = when {
+            BankStatementRules.isStatementCategory(category?.id) -> CheckedDocument.BANK_STATEMENT
+            AccountSheetRules.isSheetCategory(category?.id) -> CheckedDocument.ACCOUNT_SHEET
+            else -> CheckedDocument.EXPENSE
+        }
     }
 }
+
+/** Documento conferido automaticamente: despesa, extrato bancário ou Folha de Contas. */
+enum class CheckedDocument { EXPENSE, BANK_STATEMENT, ACCOUNT_SHEET }
 
 sealed interface OrganizerDialog {
     /**

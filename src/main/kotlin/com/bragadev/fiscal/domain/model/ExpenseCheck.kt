@@ -19,6 +19,12 @@ enum class ExpenseRequirement {
 
     /** Extrato bancário: período de movimentação do mês em edição. */
     STATEMENT_MONTH,
+
+    /** Folha de Contas: título "FOLHA DE CONTAS (S-26)" e o nome da conta (congregação ou comissão). */
+    SHEET_HEADER,
+
+    /** Folha de Contas: mês e ano do mês em edição. */
+    SHEET_MONTH,
 }
 
 /**
@@ -152,6 +158,9 @@ const val EXPENSE_RULES_VERSION = 5
 
 /** Como [EXPENSE_RULES_VERSION], para a conferência dos extratos bancários. */
 const val STATEMENT_RULES_VERSION = 1
+
+/** Como [EXPENSE_RULES_VERSION], para a conferência da Folha de Contas (S-26). */
+const val SHEET_RULES_VERSION = 1
 
 /** Situação de uma despesa na tela do mês em edição. */
 enum class ExpenseStatus {

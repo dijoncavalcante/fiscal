@@ -258,6 +258,8 @@ object Strings {
     const val EXPENSE_CHECKING = "Conferindo cupom, comprovante e assinatura…"
     const val STATEMENT_CHECKING = "Conferindo conta, mês e assinatura do extrato…"
     const val STATEMENT_VERIFIED = "Verificado: extrato da conta certa, do mês em edição e assinado"
+    const val SHEET_CHECKING = "Conferindo título, conta e mês da Folha de Contas…"
+    const val SHEET_VERIFIED = "Verificado: Folha de Contas (S-26) da conta certa e do mês em edição"
 
     // Documentos: ordenação e busca
     const val REFRESH_FOLDER = "Atualizar a pasta"

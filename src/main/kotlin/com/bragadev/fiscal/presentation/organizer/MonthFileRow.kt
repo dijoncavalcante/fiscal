@@ -66,8 +66,8 @@ fun MonthFileRow(
     expenseStatus: ExpenseStatus? = null,
     /** De onde veio o total do cupom/nota quando o valor bateu (aparece junto do "certo" verde). */
     expenseEvidence: String? = null,
-    /** O arquivo é o extrato bancário (o "certo" e o "conferindo" falam do extrato, não da despesa). */
-    isBankStatement: Boolean = false,
+    /** O que o arquivo é (o "certo" e o "conferindo" falam da despesa, do extrato ou da folha). */
+    checkedDocument: CheckedDocument = CheckedDocument.EXPENSE,
 ) {
     // Mesmo destaque da lista de documentos (lado esquerdo) para o arquivo aberto no preview.
     val background = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
@@ -98,7 +98,7 @@ fun MonthFileRow(
                     maxLines = 1,
                     modifier = Modifier.weight(1f).clickable { actions.onPreview(file) }.padding(vertical = 4.dp),
                 )
-                ExpenseStatusIcon(expenseStatus, hasIssue = issue != null, evidence = expenseEvidence, isBankStatement)
+                ExpenseStatusIcon(expenseStatus, hasIssue = issue != null, evidence = expenseEvidence, checkedDocument)
                 if (editable && category != null) {
                     IconButton(onClick = { actions.onRename(file, category) }, modifier = Modifier.size(28.dp)) {
                         Icon(
@@ -140,16 +140,29 @@ fun MonthFileRow(
  * Ao lado do nome da despesa: "certo" verde quando cupom/nota, comprovante e assinatura foram encontrados, ou
  * um indicador enquanto confere. Com pendência não mostra nada: a própria pendência diz o que falta.
  * O "certo" diz de onde veio o total do cupom/nota ([evidence]), para o usuário conferir num instante. No extrato
- * bancário, diz a conta, o período e quem assinou.
+ * bancário, diz a conta, o período e quem assinou; na Folha de Contas, o nome da conta e o mês.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ExpenseStatusIcon(status: ExpenseStatus?, hasIssue: Boolean, evidence: String?, isBankStatement: Boolean) {
+private fun ExpenseStatusIcon(
+    status: ExpenseStatus?,
+    hasIssue: Boolean,
+    evidence: String?,
+    checkedDocument: CheckedDocument,
+) {
     val description = when {
-        status == ExpenseStatus.CHECKING -> if (isBankStatement) Strings.STATEMENT_CHECKING else Strings.EXPENSE_CHECKING
+        status == ExpenseStatus.CHECKING -> when (checkedDocument) {
+            CheckedDocument.EXPENSE -> Strings.EXPENSE_CHECKING
+            CheckedDocument.BANK_STATEMENT -> Strings.STATEMENT_CHECKING
+            CheckedDocument.ACCOUNT_SHEET -> Strings.SHEET_CHECKING
+        }
         status == ExpenseStatus.VERIFIED && !hasIssue ->
             listOfNotNull(
-                if (isBankStatement) Strings.STATEMENT_VERIFIED else Strings.EXPENSE_VERIFIED,
+                when (checkedDocument) {
+                    CheckedDocument.EXPENSE -> Strings.EXPENSE_VERIFIED
+                    CheckedDocument.BANK_STATEMENT -> Strings.STATEMENT_VERIFIED
+                    CheckedDocument.ACCOUNT_SHEET -> Strings.SHEET_VERIFIED
+                },
                 evidence,
             ).joinToString("\n")
         else -> return

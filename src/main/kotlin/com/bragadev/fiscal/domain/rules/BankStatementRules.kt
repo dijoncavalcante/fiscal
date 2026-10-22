@@ -4,6 +4,7 @@ import com.bragadev.fiscal.domain.model.*
 import com.bragadev.fiscal.domain.rules.BankStatementRules.accountFor
 import com.bragadev.fiscal.domain.rules.FuzzyText.findPhrase
 import com.bragadev.fiscal.domain.rules.FuzzyText.words
+import com.bragadev.fiscal.domain.rules.Months.plain
 import java.text.Normalizer
 import java.time.DateTimeException
 import java.time.LocalDate
@@ -140,11 +141,6 @@ object BankStatementRules {
     /** Nubank: "02 DE AGOSTO DE 2026 a 31 DE AGOSTO DE 2026" (no texto do PDF o "a" vem antes das datas). */
     private val periodWritten = Regex("""$WRITTEN_DATE (?:A )?$WRITTEN_DATE""")
 
-    private val monthNames = listOf(
-        "JANEIRO", "FEVEREIRO", "MARCO", "ABRIL", "MAIO", "JUNHO",
-        "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO",
-    )
-
     /** Primeiro período achado e a página (a partir de 0) onde estava; `null` se não foi lido. */
     internal fun findPeriod(pageTexts: List<String>): Pair<StatementPeriod, Int>? =
         pageTexts.withIndex().firstNotNullOfOrNull { (index, text) ->
@@ -169,28 +165,11 @@ object BankStatementRules {
             null
         }
 
-    /**
-     * "01 DE MARGO DE 2026" (OCR de "MARÇO") também vale. Vários meses se parecem (JULHO/JUNHO,
-     * SETEMBRO/NOVEMBRO/DEZEMBRO): vale o nome exato ou o único mais parecido; empate = não lido.
-     */
-    private fun writtenDate(day: String, monthName: String, year: String): LocalDate? {
-        val exact = monthNames.indexOf(monthName)
-        val month = if (exact >= 0) exact else {
-            val close = monthNames.indices.filter { FuzzyText.similar(monthName, monthNames[it], inPhrase = false) }
-                .groupBy { FuzzyText.distance(monthName, monthNames[it], limit = 2) }
-            close.minByOrNull { it.key }?.value?.singleOrNull() ?: return null
-        }
-        return date(day, (month + 1).toString(), year)
-    }
+    /** "01 DE MARGO DE 2026" (OCR de "MARÇO") também vale ([Months.number]). */
+    private fun writtenDate(day: String, monthName: String, year: String): LocalDate? =
+        Months.number(monthName)?.let { date(day, it.toString(), year) }
 
-    /**
-     * Sem acentos, em maiúsculas, espaços simples. O OCR lê o zero como a letra O em datas ("O1 DE MARGO"):
-     * colado a dígitos, vira zero.
-     */
-    private fun plain(text: String): String =
-        Normalizer.normalize(text, Normalizer.Form.NFD).replace(Regex("""\p{M}"""), "").uppercase()
-            .replace(Regex("""\s+"""), " ")
-            .replace(Regex("""(?<![A-Z])O(?=\d)|(?<=\d)O(?![A-Z])"""), "0")
+    private fun plain(text: String): String = Months.plain(text)
 
     // ---- Pendência ----
 
@@ -250,12 +229,35 @@ object BankStatementRules {
     )
 }
 
-/** Nome do mês para a pendência ("agosto de 2026"). */
+/** Nomes dos meses: para a pendência ("agosto de 2026") e para ler datas escritas nos PDFs. */
 internal object Months {
     private val names = listOf(
         "janeiro", "fevereiro", "março", "abril", "maio", "junho",
         "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
     )
 
+    private val upperNames = names.map { plain(it) }
+
     fun name(month: YearMonth?): String = month?.let { "${names[it.monthValue - 1]} de ${it.year}" } ?: "?"
+
+    /**
+     * Número do mês (1 a 12) de um nome já em [plain] ("MARCO", ou "MARGO" lido pelo OCR). Vários meses se
+     * parecem (JULHO/JUNHO, SETEMBRO/NOVEMBRO/DEZEMBRO): vale o nome exato ou o único mais parecido; empate = `null`.
+     */
+    fun number(name: String): Int? {
+        val exact = upperNames.indexOf(name)
+        if (exact >= 0) return exact + 1
+        val close = upperNames.indices.filter { FuzzyText.similar(name, upperNames[it], inPhrase = false) }
+            .groupBy { FuzzyText.distance(name, upperNames[it], limit = 2) }
+        return close.minByOrNull { it.key }?.value?.singleOrNull()?.plus(1)
+    }
+
+    /**
+     * Sem acentos, em maiúsculas, espaços simples. O OCR lê o zero como a letra O em datas ("O1 DE MARGO"):
+     * colado a dígitos, vira zero.
+     */
+    fun plain(text: String): String =
+        Normalizer.normalize(text, Normalizer.Form.NFD).replace(Regex("""\p{M}"""), "").uppercase()
+            .replace(Regex("""\s+"""), " ")
+            .replace(Regex("""(?<![A-Z])O(?=\d)|(?<=\d)O(?![A-Z])"""), "0")
 }
