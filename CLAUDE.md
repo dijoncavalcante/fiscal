@@ -227,7 +227,8 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   `SignatureRole`), nunca no repositório nem usada na conferência. A mesma seção tem o bloco "Extratos bancários (as
   duas contas)" (`SignatureRole.BANK_STATEMENTS`, chave `statement_signer`; ver "Conferência dos extratos") e o
   bloco "Servo de contas" (`SignatureRole.ACCOUNTS_SERVANT`, chave `accounts_servant_signer`, pedido em 26/10/2026):
-  assina o "4. TO-62" com o responsável das despesas da Congregação (ver "Conferência do TO-62 e da Remessa Betel").
+  assina o "4. TO-62" com o responsável das despesas da Congregação (ver "Conferência do TO-62, da Remessa Betel e do
+  comprovante").
 - `ExpenseRequirements.key` (responsável + termo de isenção) é gravado em `expense_checks.requirements_key`: mudar
   responsável ou termos invalida o resultado guardado (o `OrganizerViewModel` observa essas Configurações e mostra
   os documentos como "não conferido" até o próximo "Checar pendências"). A chave leva também o mês em edição.
@@ -362,7 +363,7 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
 - Nos reais de 2025-2026: março a agosto/2026 passam; setembro/2026 Japiim (foto borrada, "Valor Ag 600,00") fica
   com "confira à mão"; meses antigos acusam a numeração 2.1/2.2 e o valor de R$ 700,00 daquela época.
 
-## Conferência do TO-62 e da Remessa Betel (pedidas em 26/10/2026)
+## Conferência do TO-62, da Remessa Betel e do comprovante (pedidas em 26/10/2026)
 
 - "4. TO-62" da Congregação (`congregacao.to62`), regras puras em `TransferRecordRules`
   (`TRANSFER_RULES_VERSION`, `CheckedDocument.TRANSFER_RECORD`). Precisa ter: título "REGISTRO DE TRANSFERÊNCIA DE
@@ -375,10 +376,20 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   "Movimentação realizada." **ou** "Transação realizada." (o site escrevia assim até jul/2026; escolha do usuário)
   (`REMITTANCE_TEXT`) e o "Total" igual ao "TOTAL DE FUNDOS ENVIADOS:" do TO-62 (`TRANSFER_TOTAL`).
 - Os dois são conferidos **juntos** (`CheckExpensesUseCase.checkTransferRecords`, como os donativos): a chave guardada
-  leva quem assina + nome/tamanho/data de todos os arquivos das duas categorias; mudar ou organizar qualquer um confere
-  os dois. Sem documento na outra categoria = pendência "… não pôde ser conferido: "5. Remessa Betel" (ou "4. TO-62")
+  leva quem assina + nome/tamanho/data de todos os arquivos das três categorias; mudar ou organizar qualquer um confere
+  todos. Sem documento na outra categoria = pendência "… não pôde ser conferido: "5. Remessa Betel" (ou "4. TO-62")
   não tem nenhum documento neste mês"; valores diferentes = pendência com os dois valores ("corrija o documento
   errado"; algum lado digitalizado = "confira à mão (foto)").
+- "5.1 Comprovante Remessa" (`congregacao.comprovante_remessa`, regras em `RemittanceProofRules`,
+  `CheckedDocument.REMITTANCE_PROOF`; pedido em 26/10/2026), no mesmo grupo: assinatura digital do responsável das
+  despesas da Congregação (`SIGNATURE`); comprovante do Nubank / Nu Pagamentos, origem Filipe da Silva Costa (Nu
+  Pagamentos, 0001, 15077760-0, CPF ***.369.732-**) e destino Associação Torre de Vigia de Bíblias e Tratados (CNPJ
+  33755687000124, Bradesco, Agência 3372, Conta 40100-5, Conta corrente) (`PROOF_DATA`, mesma leitura dos donativos:
+  `DonationRules.missingData`, `Party(isCompany = true)` para o CNPJ; na foto o nome aceita uma palavra solta onde
+  quebra a linha, "Vigia de / ome Biblias"); e o "Valor" igual ao Total da remessa **e** ao TOTAL DE FUNDOS ENVIADOS
+  do TO-62 (`TRANSFER_TOTAL`, uma pendência para cada um que não bate ou não existe). Os 12 reais de 2025-2026 são
+  fotos: jul e ago/2026 passam; os anteriores não têm a assinatura e vários têm OCR ruim ("Conta 401706-5", "Valor
+  R$ 1eD DO") = "confira à mão". "Valor R3 866,10" (o "$" lido como "3") vale.
 - OCR: "791.50" e "1.13225" (vírgula perdida, só depois de milhar com ponto) são lidos; "Total de donativos e
   pagamentos" não vale. Nos 12 meses reais de 2025-2026: título, congregação e total batem em todos; as 12 remessas
   passam; os 12 TO-62 (escaneados, assinados à mão) ficam com "Falta assinatura digital (gov.br) de …".
@@ -512,8 +523,9 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   e o caso do relatório em `CheckExpensesUseCaseTest`. Donativos: `DonationRulesTest` (OCR real dos comprovantes) e
   o caso dos donativos (conferidos juntos, renomear confere de novo) em `CheckExpensesUseCaseTest`. Data da
   transferência das despesas: `PaymentDateRulesTest` e o caso da despesa paga em outro mês em
-  `CheckExpensesUseCaseTest`. TO-62 e Remessa Betel: `TransferRecordRulesTest` (OCR real) e o caso dos dois
-  juntos em `CheckExpensesUseCaseTest`.
+  `CheckExpensesUseCaseTest`. TO-62, Remessa Betel e comprovante: `TransferRecordRulesTest`,
+  `RemittanceProofRulesTest` (OCR real) e os casos
+  dos três juntos em `CheckExpensesUseCaseTest`.
 - Telas que não dá para clicar no app (a janela Java não aceita automação): renderize num `runComposeUiTest`
   descartável e salve `onAllNodes(isRoot())[i].captureToImage()` em PNG para conferir (diálogos são outra raiz).
 - Teste visual sem mexer nos dados do usuário: rode com `APPDATA` apontando para uma pasta temporária **de caminho

@@ -29,8 +29,8 @@ class CheckExpensesUseCase(
     private val settingsRepository: SettingsRepository,
 ) {
     /**
-     * Nomes dos arquivos conferidos neste mês: folha, donativos, despesas, TO-62, remessa, relatório mensal e extrato
-     * bancário (vazio se a conta não tem).
+     * Nomes dos arquivos conferidos neste mês: folha, donativos, despesas, TO-62, remessa, comprovante da remessa,
+     * relatório mensal e extrato bancário (vazio se a conta não tem).
      */
     fun expenseFiles(account: AccountType?, checklist: MonthChecklist): List<String> =
         listOfNotNull(
@@ -39,6 +39,7 @@ class CheckExpensesUseCase(
             ExpenseDocumentRules.categoryFor(account),
             TransferRecordRules.categoryFor(account),
             TransferRecordRules.remittanceCategoryFor(account),
+            RemittanceProofRules.categoryFor(account),
             MonthlyReportRules.categoryFor(account),
             BankStatementRules.categoryFor(account),
         )
@@ -97,13 +98,15 @@ class CheckExpensesUseCase(
         }
         val transferRecords = TransferRecordRules.categoryFor(account)?.let(checklist::filesFor).orEmpty()
         val remittances = TransferRecordRules.remittanceCategoryFor(account)?.let(checklist::filesFor).orEmpty()
-        if (transferRecords.isNotEmpty() || remittances.isNotEmpty()) {
-            val changed =
-                checkTransferRecords(transferRecords, remittances, documents, stored, checklist, only, onResult)
+        val proofs = RemittanceProofRules.categoryFor(account)?.let(checklist::filesFor).orEmpty()
+        if (transferRecords.isNotEmpty() || remittances.isNotEmpty() || proofs.isNotEmpty()) {
+            val changed = checkTransferRecords(
+                transferRecords, remittances, proofs, documents, stored, checklist, only, onResult,
+            )
             flagsChanged = changed || flagsChanged
         }
         for (name in names) {
-            if (name in donations || name in transferRecords || name in remittances) continue
+            if (name in donations || name in transferRecords || name in remittances || name in proofs) continue
             val document = documents[name.lowercase()] ?: continue
             val previous = stored[name.lowercase()]
             val plan = if (name.lowercase() in statements) {
@@ -256,13 +259,14 @@ class CheckExpensesUseCase(
     }
 
     /**
-     * O TO-62 e a "5. Remessa Betel" do mês são conferidos juntos (o total de um precisa ser igual ao do outro): o
-     * resultado guardado vale enquanto nenhum arquivo das duas categorias (nome, tamanho, data) nem quem assina o
-     * TO-62 mudar. Organizar um deles confere os dois de novo.
+     * O TO-62, a "5. Remessa Betel" e o "5.1 Comprovante Remessa" do mês são conferidos juntos (os valores precisam
+     * ser iguais): o resultado guardado vale enquanto nenhum arquivo das três categorias (nome, tamanho, data) nem
+     * quem assina mudar. Organizar qualquer um deles confere os três de novo.
      */
     private suspend fun checkTransferRecords(
         names: List<String>,
         remittanceNames: List<String>,
+        proofNames: List<String>,
         documents: Map<String, Document>,
         stored: Map<String, StoredExpenseCheck>,
         checklist: MonthChecklist,
@@ -272,7 +276,8 @@ class CheckExpensesUseCase(
         val requirements = transferRequirements()
         val records = names.mapNotNull { name -> documents[name.lowercase()]?.let { name to it } }
         val remittances = remittanceNames.mapNotNull { name -> documents[name.lowercase()]?.let { name to it } }
-        val files = records + remittances
+        val proofs = proofNames.mapNotNull { name -> documents[name.lowercase()]?.let { name to it } }
+        val files = records + remittances + proofs
         if (files.isEmpty()) return false
         val key = "to62|${requirements.key}|" + files.sortedBy { it.first.lowercase() }
             .joinToString("|") { (name, doc) ->
@@ -322,7 +327,11 @@ class CheckExpensesUseCase(
                 name in names ->
                     TransferRecordRules.check(content, requirements, remittance).let { it.check to it.note }
 
-                else -> TransferRecordRules.checkRemittance(content, transferRecord).let { it.check to it.note }
+                name in remittanceNames ->
+                    TransferRecordRules.checkRemittance(content, transferRecord).let { it.check to it.note }
+
+                else -> RemittanceProofRules.check(content, requirements.expenseSigner, remittance, transferRecord)
+                    .let { it.check to it.note }
             }
             checkRepository.save(
                 document.path,
@@ -360,7 +369,7 @@ class CheckExpensesUseCase(
         val isOurs = current == null || ExpenseDocumentRules.isAutomaticNote(current) ||
                 BankStatementRules.isAutomaticNote(current) || AccountSheetRules.isAutomaticNote(current) ||
                 MonthlyReportRules.isAutomaticNote(current) || DonationRules.isAutomaticNote(current) ||
-                TransferRecordRules.isAutomaticNote(current)
+                TransferRecordRules.isAutomaticNote(current) || RemittanceProofRules.isAutomaticNote(current)
         return when {
             !isOurs || current == note -> false
             note == null -> {

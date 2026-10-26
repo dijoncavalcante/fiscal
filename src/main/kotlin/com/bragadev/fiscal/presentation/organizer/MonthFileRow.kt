@@ -161,6 +161,7 @@ private fun ExpenseStatusIcon(
             CheckedDocument.DONATION -> Strings.DONATION_CHECKING
             CheckedDocument.TRANSFER_RECORD -> Strings.TRANSFER_CHECKING
             CheckedDocument.REMITTANCE -> Strings.REMITTANCE_CHECKING
+            CheckedDocument.REMITTANCE_PROOF -> Strings.REMITTANCE_PROOF_CHECKING
         }
         status == ExpenseStatus.VERIFIED && !hasIssue ->
             listOfNotNull(
@@ -172,6 +173,7 @@ private fun ExpenseStatusIcon(
                     CheckedDocument.DONATION -> Strings.DONATION_VERIFIED
                     CheckedDocument.TRANSFER_RECORD -> Strings.TRANSFER_VERIFIED
                     CheckedDocument.REMITTANCE -> Strings.REMITTANCE_VERIFIED
+                    CheckedDocument.REMITTANCE_PROOF -> Strings.REMITTANCE_PROOF_VERIFIED
                 },
                 evidence,
             ).joinToString("\n")

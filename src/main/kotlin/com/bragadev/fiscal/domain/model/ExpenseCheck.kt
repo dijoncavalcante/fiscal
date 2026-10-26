@@ -57,6 +57,9 @@ enum class ExpenseRequirement {
 
     /** Remessa Betel: "Remessas" e "Movimentação realizada." (ou "Transação realizada."). */
     REMITTANCE_TEXT,
+
+    /** Comprovante da remessa: do Nubank, com a origem e o destino combinados. */
+    PROOF_DATA,
 }
 
 /**
@@ -218,8 +221,8 @@ const val REPORT_RULES_VERSION = 1
 const val DONATION_RULES_VERSION = 1
 
 /** Como [EXPENSE_RULES_VERSION], para a conferência do TO-62 (Registro de Transferência de Fundos)
- * e da Remessa Betel, conferidos juntos (2 = a remessa também é conferida). */
-const val TRANSFER_RULES_VERSION = 2
+ * e da Remessa Betel, conferidos juntos (2 = a remessa também é conferida; 3 = e o comprovante da remessa). */
+const val TRANSFER_RULES_VERSION = 3
 
 /** Situação de uma despesa na tela do mês em edição. */
 enum class ExpenseStatus {

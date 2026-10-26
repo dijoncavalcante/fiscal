@@ -42,13 +42,18 @@ object DonationRules {
     /** Dados de uma ponta da transferência, como aparecem no comprovante. */
     data class Party(
         val name: String,
-        /** Só os dígitos que aparecem no comprovante ("***.638.182-**"). */
+        /** Só os dígitos do CPF que aparecem no comprovante ("***.638.182-**"), ou o CNPJ inteiro ([isCompany]). */
         val cpf: String,
         val institution: String,
         val branch: String,
         val account: String,
         val accountType: String? = null,
-    )
+        /** Empresa: o comprovante mostra o CNPJ inteiro ("33755687000124") no lugar do CPF mascarado. */
+        val isCompany: Boolean = false,
+    ) {
+        /** Como o documento aparece na pendência. */
+        val taxIdLabel: String get() = if (isCompany) "CNPJ $cpf" else "CPF ***.$cpf-**"
+    }
 
     /** Conta Poupança do next/Bradesco da Manutenção, que recebe os dois donativos. */
     val destination = Party(
@@ -121,15 +126,19 @@ object DonationRules {
 
     /** Quantos dados identificam a origem: nome e conta (a instituição e a agência são iguais nas duas). */
     private fun originScore(page: List<String>, origin: Party, fromOcr: Boolean): Int =
-        listOf(hasName(page, origin), hasAccount(page, origin.account, fromOcr)).count { it }
+        listOf(hasName(page, origin, fromOcr), hasAccount(page, origin.account, fromOcr)).count { it }
 
-    private fun missingData(page: List<String>, party: Party, fromOcr: Boolean): List<String> {
-        val hasName = hasName(page, party)
+    /**
+     * Dados da [party] que não foram achados no texto (já em palavras, [words]). Na foto, o CPF/CNPJ não conta
+     * quando o nome e a conta foram lidos.
+     */
+    internal fun missingData(page: List<String>, party: Party, fromOcr: Boolean): List<String> {
+        val hasName = hasName(page, party, fromOcr)
         val hasAccount = hasAccount(page, party.account, fromOcr)
         return buildList {
             if (!hasName) add("nome ${party.name}")
             val cpfRead = hasDigits(page, words(party.cpf), fromOcr)
-            if (!cpfRead && !(fromOcr && hasName && hasAccount)) add("CPF ***.${party.cpf}-**")
+            if (!cpfRead && !(fromOcr && hasName && hasAccount)) add(party.taxIdLabel)
             if (page.findPhrase(words(party.institution)).none()) add(party.institution)
             if (!hasBranch(page, party.branch, fromOcr)) add("Agência ${party.branch}")
             if (!hasAccount) add("Conta ${party.account}")
@@ -137,7 +146,22 @@ object DonationRules {
         }
     }
 
-    private fun hasName(page: List<String>, party: Party): Boolean = page.findPhrase(words(party.name)).any()
+    /**
+     * Nome completo em sequência. Na foto, aceita uma palavra solta no meio, onde o nome quebra a linha
+     * ("Associacao Torre de Vigia de / ome Biblias e Tratados").
+     */
+    private fun hasName(page: List<String>, party: Party, fromOcr: Boolean): Boolean {
+        val name = words(party.name)
+        if (page.findPhrase(name).any()) return true
+        if (!fromOcr) return false
+        return (1 until name.size).any { cut ->
+            val rest = name.drop(cut)
+            page.findPhrase(name.take(cut)).any { start ->
+                val after = start + cut + 1
+                after + rest.size <= page.size && page.subList(after, after + rest.size).findPhrase(rest).any()
+            }
+        }
+    }
 
     /** "286256-5": o número antes do dígito; o OCR às vezes separa ("15077 760-0"), por isso junta vizinhos. */
     private fun hasAccount(page: List<String>, account: String, fromOcr: Boolean): Boolean {
@@ -200,8 +224,11 @@ object DonationRules {
         return date to time
     }
 
-    /** "Valor R$ 800,00" (OCR: "Valor RS 800,00", "Valor R&S 700,00", "Valor . R$ 800,00"). */
-    private val amountLine = Regex("""VALOR[^0-9]{0,8}${Money.PATTERN}""")
+    /**
+     * "Valor R$ 800,00" (OCR: "Valor RS 800,00", "Valor R&S 700,00", "Valor . R$ 800,00", "Valor R3 866,10" — o "$"
+     * lido como "3").
+     */
+    private val amountLine = Regex("""VALOR[^0-9]{0,8}(?:(?<=R)3 )?${Money.PATTERN}""")
 
     internal fun findAmount(text: String): BigDecimal? =
         amountLine.find(Months.plain(text))?.let { Money.amount(it.groupValues[1], it.groupValues[2]) }

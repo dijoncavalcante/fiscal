@@ -654,6 +654,62 @@ class CheckExpensesUseCaseTest {
         )
     }
 
+    @Test
+    fun `comprovante da remessa e conferido com a remessa e o TO-62 do mes`() = runTest {
+        settings.save(settings.settings.value.copy(accountsServant = "Dijon Braga"))
+        val proof = congregation.createFakePdf("5.1 Comprovante Remessa.pdf")
+        reader.contents[proof.fileName.toString()] = DocumentContent(
+            listOf(
+                "Comprovante de transferência 31 AGO 2026 - 11:08:47 Valor R$ 975,00 Destino Nome Associação Torre " +
+                        "de Vigia de Bíblias e Tratados CNPJ 33755687000124 Instituição BCO BRADESCO S.A. " +
+                        "Agência 3372 Conta 40100-5 Tipo de conta Conta corrente Origem Nome Filipe da Silva Costa " +
+                        "Instituição NU PAGAMENTOS - IP Agência 0001 Conta 15077760-0 CPF ***.369.732-**",
+            ),
+            signers = listOf("CN=ANDREY ALVES DA COSTA"),
+        )
+        suspend fun runCongregation(only: Set<String>? = null) = mutableMapOf<String, ExpenseStatus>().also { results ->
+            checkExpenses(
+                congregation, AccountType.CONGREGACAO, checklist(congregation, AccountType.CONGREGACAO),
+                java.time.YearMonth.of(2026, 8), only
+            ) { name, status, evidence ->
+                results[name] = status
+                evidences[name] = evidence
+            }
+        }
+
+        // Sozinho no mês: não dá para conferir o valor.
+        assertEquals(ExpenseStatus.HAS_ISSUES, runCongregation()[proof.fileName.toString()])
+        assertEquals(
+            "Valor da transferência (R$ 975,00) não pôde ser conferido com o Total da Remessa Betel: \"5. Remessa " +
+                    "Betel\" não tem nenhum documento neste mês; Valor da transferência (R$ 975,00) não pôde ser " +
+                    "conferido com o TOTAL DE FUNDOS ENVIADOS do TO-62: \"4. TO-62\" não tem nenhum documento neste mês",
+            flags.flags[proof],
+        )
+
+        // Chegam a remessa e o TO-62 com o mesmo valor: organizar a remessa confere o comprovante de novo.
+        val to62 = congregation.createFakePdf("4. TO-62.pdf")
+        reader.contents[to62.fileName.toString()] = DocumentContent(
+            listOf(
+                "REGISTRO DE TRANSFERENCIA DE FUNDOS (TO-62) Congregacao: Trinta e Um de Marco - Manaus AM (68361) " +
+                        "TOTAL DE FUNDOS ENVIADOS: 975,00",
+            ),
+            signers = listOf("CN=DIJON BRAGA", "CN=ANDREY ALVES DA COSTA"),
+        )
+        val remittance = congregation.createFakePdf("5. Remessa Betel.pdf")
+        reader.contents[remittance.fileName.toString()] =
+            DocumentContent(listOf("Total R$975,00 Remessas Movimentação realizada."))
+        val all = runCongregation(only = setOf(remittance.fileName.toString().lowercase()))
+        assertEquals(ExpenseStatus.VERIFIED, all[proof.fileName.toString()])
+        assertEquals(ExpenseStatus.VERIFIED, all[remittance.fileName.toString()])
+        assertEquals(ExpenseStatus.VERIFIED, all[to62.fileName.toString()])
+        assertNull(flags.flags[proof])
+        assertEquals(
+            "R$ 975,00 de Filipe da Silva Costa (Nubank) para Associação Torre de Vigia de Bíblias e Tratados, " +
+                    "igual à remessa e ao TO-62; assinado por $ANDREY",
+            evidences[proof.fileName.toString()],
+        )
+    }
+
     /** Troca o conteúdo do arquivo (outro tamanho e outra data), como quando o usuário substitui o PDF. */
     private fun replace(file: Path, content: DocumentContent) {
         Files.writeString(file, Files.readString(file) + "\n% corrigido")
