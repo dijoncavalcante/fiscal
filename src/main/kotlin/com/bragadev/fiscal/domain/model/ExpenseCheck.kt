@@ -54,6 +54,9 @@ enum class ExpenseRequirement {
 
     /** TO-62: "TOTAL DE FUNDOS ENVIADOS" igual ao Total da Remessa Betel do mês. */
     TRANSFER_TOTAL,
+
+    /** Remessa Betel: "Remessas" e "Movimentação realizada." (ou "Transação realizada."). */
+    REMITTANCE_TEXT,
 }
 
 /**
@@ -214,8 +217,9 @@ const val REPORT_RULES_VERSION = 1
 /** Como [EXPENSE_RULES_VERSION], para a conferência dos Donativos das Congregações. */
 const val DONATION_RULES_VERSION = 1
 
-/** Como [EXPENSE_RULES_VERSION], para a conferência do TO-62 (Registro de Transferência de Fundos). */
-const val TRANSFER_RULES_VERSION = 1
+/** Como [EXPENSE_RULES_VERSION], para a conferência do TO-62 (Registro de Transferência de Fundos)
+ * e da Remessa Betel, conferidos juntos (2 = a remessa também é conferida). */
+const val TRANSFER_RULES_VERSION = 2
 
 /** Situação de uma despesa na tela do mês em edição. */
 enum class ExpenseStatus {

@@ -160,6 +160,7 @@ private fun ExpenseStatusIcon(
             CheckedDocument.MONTHLY_REPORT -> Strings.REPORT_CHECKING
             CheckedDocument.DONATION -> Strings.DONATION_CHECKING
             CheckedDocument.TRANSFER_RECORD -> Strings.TRANSFER_CHECKING
+            CheckedDocument.REMITTANCE -> Strings.REMITTANCE_CHECKING
         }
         status == ExpenseStatus.VERIFIED && !hasIssue ->
             listOfNotNull(
@@ -170,6 +171,7 @@ private fun ExpenseStatusIcon(
                     CheckedDocument.MONTHLY_REPORT -> Strings.REPORT_VERIFIED
                     CheckedDocument.DONATION -> Strings.DONATION_VERIFIED
                     CheckedDocument.TRANSFER_RECORD -> Strings.TRANSFER_VERIFIED
+                    CheckedDocument.REMITTANCE -> Strings.REMITTANCE_VERIFIED
                 },
                 evidence,
             ).joinToString("\n")

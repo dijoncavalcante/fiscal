@@ -28,13 +28,17 @@ class CheckExpensesUseCase(
     private val flagRepository: FileFlagRepository,
     private val settingsRepository: SettingsRepository,
 ) {
-    /** Nomes dos arquivos conferidos neste mês: folha, donativos, despesas, relatório mensal e extrato bancário (vazio se a conta não tem). */
+    /**
+     * Nomes dos arquivos conferidos neste mês: folha, donativos, despesas, TO-62, remessa, relatório mensal e extrato
+     * bancário (vazio se a conta não tem).
+     */
     fun expenseFiles(account: AccountType?, checklist: MonthChecklist): List<String> =
         listOfNotNull(
             AccountSheetRules.categoryFor(account),
             DonationRules.categoryFor(account),
             ExpenseDocumentRules.categoryFor(account),
             TransferRecordRules.categoryFor(account),
+            TransferRecordRules.remittanceCategoryFor(account),
             MonthlyReportRules.categoryFor(account),
             BankStatementRules.categoryFor(account),
         )
@@ -92,14 +96,14 @@ class CheckExpensesUseCase(
             flagsChanged = checkDonations(donations, documents, stored, checklist, month, only, onResult)
         }
         val transferRecords = TransferRecordRules.categoryFor(account)?.let(checklist::filesFor).orEmpty()
-        if (transferRecords.isNotEmpty()) {
-            val remittances = TransferRecordRules.remittanceCategoryFor(account)?.let(checklist::filesFor).orEmpty()
+        val remittances = TransferRecordRules.remittanceCategoryFor(account)?.let(checklist::filesFor).orEmpty()
+        if (transferRecords.isNotEmpty() || remittances.isNotEmpty()) {
             val changed =
                 checkTransferRecords(transferRecords, remittances, documents, stored, checklist, only, onResult)
             flagsChanged = changed || flagsChanged
         }
         for (name in names) {
-            if (name in donations || name in transferRecords) continue
+            if (name in donations || name in transferRecords || name in remittances) continue
             val document = documents[name.lowercase()] ?: continue
             val previous = stored[name.lowercase()]
             val plan = if (name.lowercase() in statements) {
@@ -252,9 +256,9 @@ class CheckExpensesUseCase(
     }
 
     /**
-     * O TO-62 é conferido junto com a "5. Remessa Betel" do mês (o total precisa ser igual): o resultado guardado
-     * vale enquanto o TO-62, os documentos da remessa (nome, tamanho, data) e quem assina não mudarem. Organizar
-     * uma remessa também confere o TO-62 de novo.
+     * O TO-62 e a "5. Remessa Betel" do mês são conferidos juntos (o total de um precisa ser igual ao do outro): o
+     * resultado guardado vale enquanto nenhum arquivo das duas categorias (nome, tamanho, data) nem quem assina o
+     * TO-62 mudar. Organizar um deles confere os dois de novo.
      */
     private suspend fun checkTransferRecords(
         names: List<String>,
@@ -266,37 +270,59 @@ class CheckExpensesUseCase(
         onResult: (String, ExpenseStatus, String?) -> Unit,
     ): Boolean {
         val requirements = transferRequirements()
-        val remittanceFiles = remittanceNames.mapNotNull { documents[it.lowercase()] }
-        val key = "to62|${requirements.key}|" + remittanceFiles.sortedBy { it.name.lowercase() }
-            .joinToString("|") { "${it.name.lowercase()}:${it.sizeBytes}:${it.lastModified.toEpochMilli()}" }
-        val canRead = only == null || remittanceNames.any { it.lowercase() in only }
-        var remittance: TransferRecordRules.Remittance? = null
+        val records = names.mapNotNull { name -> documents[name.lowercase()]?.let { name to it } }
+        val remittances = remittanceNames.mapNotNull { name -> documents[name.lowercase()]?.let { name to it } }
+        val files = records + remittances
+        if (files.isEmpty()) return false
+        val key = "to62|${requirements.key}|" + files.sortedBy { it.first.lowercase() }
+            .joinToString("|") { (name, doc) ->
+                "${name.lowercase()}:${doc.sizeBytes}:${doc.lastModified.toEpochMilli()}"
+            }
+        val previous = files.map { (name, document) ->
+            stored[name.lowercase()]?.takeIf { it.matches(document, key, TRANSFER_RULES_VERSION) }
+        }
+        if (previous.all { it != null }) {
+            files.forEachIndexed { i, (name, _) ->
+                onResult(name, statusOf(previous[i]!!.check), previous[i]!!.check.amountEvidence)
+            }
+            return false
+        }
+        if (only != null && files.none { it.first.lowercase() in only }) {
+            files.forEach { (name, _) -> onResult(name, ExpenseStatus.UNCHECKED, null) }
+            return false
+        }
+        // Lê tudo antes: cada lado precisa do total do outro. O TO-62 escaneado vai ao OCR.
+        val contents = mutableMapOf<String, DocumentContent?>()
+        for ((name, document) in files) {
+            when (val content = reader.read(document.path)) {
+                is Outcome.Success -> contents[name] = content.value
+                is Outcome.Failure -> if (content.error == FileOperationError.InvalidPdf) contents[name] = null else {
+                    files.forEach { (other, _) -> onResult(other, ExpenseStatus.NOT_CHECKED, null) }
+                    return false
+                }
+            }
+        }
+        val recordContents = records.map { contents[it.first] }
+        val remittanceContents = remittances.map { contents[it.first] }
+        val remittance = TransferRecordRules.Remittance(
+            remittances.map { it.first },
+            sumOrNull(remittanceContents.map { it?.let(TransferRecordRules::remittanceTotal) }),
+            fromOcr = remittanceContents.any { it?.ocrPages?.isNotEmpty() == true },
+        )
+        val transferRecord = TransferRecordRules.TransferRecord(
+            records.map { it.first },
+            sumOrNull(recordContents.map { it?.pageTexts?.firstNotNullOfOrNull(TransferRecordRules::fundsSent) }),
+            fromOcr = recordContents.any { it?.ocrPages?.isNotEmpty() == true },
+        )
         var flagsChanged = false
-        for (name in names) {
-            val document = documents[name.lowercase()] ?: continue
-            val previous = stored[name.lowercase()]
-            if (previous != null && previous.matches(document, key, TRANSFER_RULES_VERSION)) {
-                onResult(name, statusOf(previous.check), previous.check.amountEvidence)
-                continue
-            }
-            if (!canRead && name.lowercase() !in only.orEmpty()) {
-                onResult(name, ExpenseStatus.UNCHECKED, null)
-                continue
-            }
-            remittance = remittance ?: readRemittance(remittanceFiles) ?: run {
-                onResult(name, ExpenseStatus.NOT_CHECKED, null)
-                return flagsChanged
-            }
-            val plan = Plan(
-                key,
-                TRANSFER_RULES_VERSION,
-                { TransferRecordRules.hasEnoughText(it, requirements, remittance) },
-                { content -> TransferRecordRules.check(content, requirements, remittance).let { it.check to it.note } },
-            )
-            val (check, note) = checkDocument(document, plan)
-            if (check == null) {
-                onResult(name, ExpenseStatus.NOT_CHECKED, null)
-                continue
+        for ((name, document) in files) {
+            val content = contents[name]
+            val (check, note) = when {
+                content == null -> ExpenseCheck(unreadable = true).let { it to ExpenseDocumentRules.issueNote(it) }
+                name in names ->
+                    TransferRecordRules.check(content, requirements, remittance).let { it.check to it.note }
+
+                else -> TransferRecordRules.checkRemittance(content, transferRecord).let { it.check to it.note }
             }
             checkRepository.save(
                 document.path,
@@ -314,19 +340,10 @@ class CheckExpensesUseCase(
         return flagsChanged
     }
 
-    /** Total da remessa do mês (soma, se houver mais de um documento); `null` = não deu para ler agora. */
-    private suspend fun readRemittance(files: List<Document>): TransferRecordRules.Remittance? {
-        var total: java.math.BigDecimal? = java.math.BigDecimal.ZERO
-        for (file in files) {
-            val content = when (val read = reader.read(file.path)) {
-                is Outcome.Success -> read.value
-                is Outcome.Failure -> if (read.error == FileOperationError.InvalidPdf) null else return null
-            }
-            val value = content?.let(TransferRecordRules::remittanceTotal)
-            total = if (value == null) null else total?.add(value)
-        }
-        return TransferRecordRules.Remittance(files.map { it.name }, total.takeIf { files.isNotEmpty() })
-    }
+    /** Soma dos valores; `null` se algum não foi lido (ou não há nenhum). */
+    private fun sumOrNull(values: List<java.math.BigDecimal?>): java.math.BigDecimal? =
+        if (values.isEmpty() || values.any { it == null }) null
+        else values.filterNotNull().fold(java.math.BigDecimal.ZERO, java.math.BigDecimal::add)
 
     /** Resultado `null` quando não deu para ler agora (arquivo em uso, OCR indisponível): tenta de novo depois. */
     private suspend fun checkDocument(document: Document, plan: Plan): Pair<ExpenseCheck?, String?> =

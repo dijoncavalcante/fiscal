@@ -6,6 +6,7 @@ import com.bragadev.fiscal.domain.model.ExpenseCheck
 import com.bragadev.fiscal.domain.model.ExpenseRequirement
 import com.bragadev.fiscal.domain.rules.FuzzyText.findPhrase
 import com.bragadev.fiscal.domain.rules.FuzzyText.words
+import com.bragadev.fiscal.domain.rules.TransferRecordRules.checkRemittance
 import java.math.BigDecimal
 
 /**
@@ -20,6 +21,8 @@ import java.math.BigDecimal
  *   (impressão do site de donativos: "Total R$975,00"). Sem remessa no mês = pendência.
  *
  * TO-62 escaneado (OCR): o que não foi lido ou não bate vira "confira à mão", nunca "troque".
+ *
+ * A "5. Remessa Betel" é conferida aqui também ([checkRemittance]), contra o TO-62: os dois andam juntos.
  */
 object TransferRecordRules {
     const val CATEGORY = "congregacao.to62"
@@ -38,6 +41,8 @@ object TransferRecordRules {
 
     fun isTransferRecordCategory(categoryId: String?): Boolean = categoryId == CATEGORY
 
+    fun isRemittanceCategory(categoryId: String?): Boolean = categoryId == REMITTANCE_CATEGORY
+
     /**
      * Quem precisa assinar: o servo de contas e o responsável das despesas da Congregação (`null` = não
      * configurado).
@@ -51,8 +56,18 @@ object TransferRecordRules {
      *
      * @param files nomes dos arquivos (vazio = nenhum documento na categoria).
      * @param total soma do "Total" de cada um; `null` = algum não foi lido.
+     * @param fromOcr algum veio do OCR (digitalizado): valor diferente vira "confira à mão".
      */
-    data class Remittance(val files: List<String>, val total: BigDecimal?)
+    data class Remittance(val files: List<String>, val total: BigDecimal?, val fromOcr: Boolean = false)
+
+    /**
+     * Os documentos de "4. TO-62" do mês, para conferir a remessa.
+     *
+     * @param files nomes dos arquivos (vazio = nenhum documento na categoria).
+     * @param sent soma do "TOTAL DE FUNDOS ENVIADOS" de cada um; `null` = algum não foi lido.
+     * @param fromOcr algum veio do OCR (os TO-62 reais são escaneados).
+     */
+    data class TransferRecord(val files: List<String>, val sent: BigDecimal?, val fromOcr: Boolean)
 
     /** Resultado e texto da pendência (`null` = TO-62 certo); só o resultado é guardado no banco. */
     fun check(content: DocumentContent, requirements: Requirements, remittance: Remittance): BankStatementRules.Result {
@@ -73,7 +88,7 @@ object TransferRecordRules {
         }
 
         val sent = content.pageTexts.firstNotNullOfOrNull(::fundsSent)
-        val totalProblem = totalNote(sent, remittance, fromOcr = fromOcr || content.ocrPages.isNotEmpty())
+        val totalProblem = totalNote(sent, remittance, fromOcr = content.ocrPages.isNotEmpty() || remittance.fromOcr)
 
         val missing = buildSet {
             if (!hasTitle || !hasCongregation) add(ExpenseRequirement.TRANSFER_HEADER)
@@ -97,9 +112,45 @@ object TransferRecordRules {
         )
     }
 
-    /** Sem OCR das páginas com imagem se o TO-62 já está certo. */
-    fun hasEnoughText(content: DocumentContent, requirements: Requirements, remittance: Remittance): Boolean =
-        check(content, requirements, remittance).check.isValid
+    // ---- 5. Remessa Betel ----
+
+    /**
+     * "5. Remessa Betel" (impressão do site de donativos, pedida em 26/10/2026): precisa ter "Remessas", a
+     * confirmação "Movimentação realizada." — ou "Transação realizada.", como o site escrevia até julho/2026
+     * (escolha do usuário) — e o "Total" igual ao "TOTAL DE FUNDOS ENVIADOS:" do(s) TO-62 do mesmo mês. Sem TO-62
+     * no mês = pendência.
+     */
+    fun checkRemittance(content: DocumentContent, transferRecord: TransferRecord): BankStatementRules.Result {
+        val pages = content.pageTexts.map(::words)
+        val fromOcr = content.ocrPages.isNotEmpty()
+        val hasRemessas = pages.any { it.findPhrase(words(REMITTANCES)).any() }
+        val done = doneTexts.firstOrNull { text -> pages.any { it.findPhrase(words(text)).any() } }
+
+        val total = remittanceTotal(content)
+        val totalProblem = remittanceTotalNote(total, transferRecord, fromOcr = fromOcr || transferRecord.fromOcr)
+
+        val missing = buildSet {
+            if (!hasRemessas || done == null) add(ExpenseRequirement.REMITTANCE_TEXT)
+            if (totalProblem != null) add(ExpenseRequirement.TRANSFER_TOTAL)
+        }
+        val notes = buildList {
+            if (!hasRemessas) add(remittanceTextNote("\"$REMITTANCES\"", fromOcr))
+            if (done == null) add(remittanceTextNote("\"${doneTexts.first()}\"", fromOcr))
+            totalProblem?.let(::add)
+        }
+        val evidence = if (missing.isEmpty() && total != null) {
+            "Total R$ ${Money.format(total)}, igual ao TOTAL DE FUNDOS ENVIADOS do TO-62; $done"
+        } else null
+        return BankStatementRules.Result(
+            ExpenseCheck(missing, amountEvidence = evidence),
+            notes.takeIf { it.isNotEmpty() }?.joinToString(NOTE_SEPARATOR),
+        )
+    }
+
+    private const val REMITTANCES = "Remessas"
+
+    /** O primeiro é o texto atual do site (agosto/2026 em diante). */
+    private val doneTexts = listOf("Movimentação realizada.", "Transação realizada.")
 
     // ---- Valores ----
 
@@ -161,6 +212,34 @@ object TransferRecordRules {
         }
     }
 
+    private const val REMITTANCE_TOTAL = "Total da Remessa Betel"
+    private const val TRANSFER_RECORD_LABEL = "\"4. TO-62\""
+
+    private fun remittanceTextNote(what: String, fromOcr: Boolean): String =
+        if (fromOcr) "Remessa Betel sem $what na foto: confira à mão"
+        else "Remessa Betel sem $what: troque pela remessa certa (impressão do site de donativos)"
+
+    private fun remittanceTotalNote(total: BigDecimal?, transferRecord: TransferRecord, fromOcr: Boolean): String? {
+        val sent = transferRecord.sent
+        return when {
+            transferRecord.files.isEmpty() ->
+                (total?.let { "$REMITTANCE_TOTAL (R$ ${Money.format(it)})" } ?: REMITTANCE_TOTAL) +
+                        " não pôde ser conferido: $TRANSFER_RECORD_LABEL não tem nenhum documento neste mês"
+
+            total == null -> "$REMITTANCE_TOTAL não foi lido: confira à mão se é igual ao $SENT" +
+                    (sent?.let { " (R$ ${Money.format(it)})" } ?: "")
+
+            sent == null -> "$SENT não foi lido: confira à mão se é igual ao $REMITTANCE_TOTAL " +
+                    "(R$ ${Money.format(total)})"
+
+            total.compareTo(sent) != 0 -> "$REMITTANCE_TOTAL (R$ ${Money.format(total)}) é diferente do $SENT " +
+                    "(R$ ${Money.format(sent)}): " +
+                    if (fromOcr) "confira à mão (foto)" else "corrija o documento errado"
+
+            else -> null
+        }
+    }
+
     /** A pendência foi escrita por esta conferência? As do usuário nunca são mexidas. */
     fun isAutomaticNote(note: String): Boolean =
         note.split(NOTE_SEPARATOR).all { part -> automaticNotes.any { it.matches(part) } }
@@ -173,6 +252,10 @@ object TransferRecordRules {
         Regex("""${Regex.escape(SENT)} não foi lido: confira à mão .+"""),
         Regex("""Total da Remessa Betel não foi lido: confira à mão .+"""),
         Regex("""${Regex.escape(SENT)} \(R\$ [\d.,]+\) é diferente do Total da Remessa Betel .+"""),
+        Regex("""Remessa Betel sem ".+" na foto: confira à mão"""),
+        Regex("""Remessa Betel sem ".+": troque pela remessa certa .+"""),
+        Regex("""${Regex.escape(REMITTANCE_TOTAL)}( \(R\$ [\d.,]+\))? não pôde ser conferido: .+"""),
+        Regex("""${Regex.escape(REMITTANCE_TOTAL)} \(R\$ [\d.,]+\) é diferente do ${Regex.escape(SENT)} .+"""),
         Regex(Regex.escape(ExpenseDocumentRules.UNREADABLE_NOTE)),
     )
 }

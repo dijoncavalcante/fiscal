@@ -283,6 +283,9 @@ object Strings {
     const val TRANSFER_CHECKING = "Conferindo título, congregação, assinaturas e total do TO-62…"
     const val TRANSFER_VERIFIED =
         "Verificado: TO-62 da congregação, assinado e com o total igual ao da Remessa Betel"
+    const val REMITTANCE_CHECKING = "Conferindo a Remessa Betel e o total do TO-62…"
+    const val REMITTANCE_VERIFIED =
+        "Verificado: remessa realizada, com o total igual ao TOTAL DE FUNDOS ENVIADOS do TO-62"
     const val NOT_CHECKED_YET = "Ainda não conferido: clique em \"Checar pendências\" no topo do mês"
     const val NOT_CHECKED_NOW =
         "Não deu para conferir agora (arquivo aberto em outro programa?). Clique em \"Checar pendências\" para tentar de novo."
@@ -291,7 +294,7 @@ object Strings {
     const val CHECK_ISSUES = "Checar pendências"
     const val CHECKING_ISSUES = "Conferindo…"
     const val CHECK_ISSUES_HINT =
-        "Confere a Folha de Contas, os donativos, as despesas, o TO-62, o Relatório Mensal e o extrato bancário deste mês que ainda não foram conferidos " +
+        "Confere a Folha de Contas, os donativos, as despesas, o TO-62, a Remessa Betel, o Relatório Mensal e o extrato bancário deste mês que ainda não foram conferidos " +
                 "(arquivos novos ou mudados). Os já conferidos não são lidos de novo."
     const val CHECK_ISSUES_NOTHING =
         "Este mês não tem Folha de Contas, despesas, Relatório Mensal nem extrato bancário para conferir."

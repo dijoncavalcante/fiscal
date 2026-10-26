@@ -47,13 +47,19 @@ data class OrganizerUiState(
             MonthlyReportRules.isReportCategory(category?.id) -> CheckedDocument.MONTHLY_REPORT
             DonationRules.isDonationCategory(category?.id) -> CheckedDocument.DONATION
             TransferRecordRules.isTransferRecordCategory(category?.id) -> CheckedDocument.TRANSFER_RECORD
+            TransferRecordRules.isRemittanceCategory(category?.id) -> CheckedDocument.REMITTANCE
             else -> CheckedDocument.EXPENSE
         }
     }
 }
 
-/** Documento conferido automaticamente: despesa, extrato bancário, Folha de Contas, Relatório Mensal, donativo ou TO-62. */
-enum class CheckedDocument { EXPENSE, BANK_STATEMENT, ACCOUNT_SHEET, MONTHLY_REPORT, DONATION, TRANSFER_RECORD }
+/**
+ * Documento conferido automaticamente: despesa, extrato bancário, Folha de Contas, Relatório Mensal, donativo, TO-62
+ * ou Remessa Betel.
+ */
+enum class CheckedDocument {
+    EXPENSE, BANK_STATEMENT, ACCOUNT_SHEET, MONTHLY_REPORT, DONATION, TRANSFER_RECORD, REMITTANCE
+}
 
 sealed interface OrganizerDialog {
     /**

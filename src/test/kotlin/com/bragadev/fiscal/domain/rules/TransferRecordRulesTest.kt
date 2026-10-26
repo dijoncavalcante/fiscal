@@ -194,6 +194,90 @@ class TransferRecordRulesTest {
         assertTrue(check(signed(stamped).copy(signers = emptyList())).check.isValid)
     }
 
+    // ---- 5. Remessa Betel ----
+
+    /** O resto da "5. Remessa Betel.pdf" de agosto/2026, com a confirmação do site. */
+    private fun remittancePage(done: String = "Movimentação realizada.", total: String = "975,00") = DocumentContent(
+        listOf(
+            augustRemittance.pageTexts.single().replace("975,00", total) +
+                    "\nNúmero de confirmação: 3290248\nFilipe Costa\nTrinta e Um de Março - Manaus AM (68361)\n$done\n" +
+                    "Detalhes\nData do depósito\n31 de agosto de 2026",
+        ),
+    )
+
+    private val to62Sent = TransferRecordRules.TransferRecord(listOf("4. TO-62.pdf"), BigDecimal("975.00"), true)
+
+    @Test
+    fun `remessa com Movimentacao realizada e o total do TO-62 passa`() {
+        val result = TransferRecordRules.checkRemittance(remittancePage(), to62Sent)
+        assertTrue(result.check.isValid)
+        assertNull(result.note)
+        assertEquals(
+            "Total R$ 975,00, igual ao TOTAL DE FUNDOS ENVIADOS do TO-62; Movimentação realizada.",
+            result.check.amountEvidence,
+        )
+    }
+
+    @Test
+    fun `Transacao realizada das remessas ate julho de 2026 tambem vale`() {
+        assertTrue(TransferRecordRules.checkRemittance(remittancePage("Transação realizada."), to62Sent).check.isValid)
+    }
+
+    @Test
+    fun `remessa sem os textos do site vira pendencia`() {
+        val result = TransferRecordRules.checkRemittance(
+            DocumentContent(listOf("Comprovante de transferência Total R$975,00")),
+            to62Sent,
+        )
+        assertEquals(setOf(ExpenseRequirement.REMITTANCE_TEXT), result.check.missing)
+        assertEquals(
+            "Remessa Betel sem \"Remessas\": troque pela remessa certa (impressão do site de donativos); " +
+                    "Remessa Betel sem \"Movimentação realizada.\": troque pela remessa certa (impressão do site de " +
+                    "donativos)",
+            result.note,
+        )
+        assertTrue(TransferRecordRules.isAutomaticNote(result.note!!))
+    }
+
+    @Test
+    fun `total da remessa diferente do TO-62 vira pendencia com os dois valores`() {
+        val photoTo62 = TransferRecordRules.checkRemittance(remittancePage(total = "960,00"), to62Sent)
+        assertEquals(setOf(ExpenseRequirement.TRANSFER_TOTAL), photoTo62.check.missing)
+        assertEquals(
+            "Total da Remessa Betel (R$ 960,00) é diferente do TOTAL DE FUNDOS ENVIADOS do TO-62 (R$ 975,00): " +
+                    "confira à mão (foto)",
+            photoTo62.note,
+        )
+        val textTo62 =
+            TransferRecordRules.checkRemittance(remittancePage(total = "960,00"), to62Sent.copy(fromOcr = false))
+        assertEquals(
+            "Total da Remessa Betel (R$ 960,00) é diferente do TOTAL DE FUNDOS ENVIADOS do TO-62 (R$ 975,00): " +
+                    "corrija o documento errado",
+            textTo62.note,
+        )
+        listOf(photoTo62.note!!, textTo62.note!!).forEach { assertTrue(TransferRecordRules.isAutomaticNote(it)) }
+    }
+
+    @Test
+    fun `sem documento no TO-62 a remessa ganha pendencia`() {
+        val result = TransferRecordRules.checkRemittance(
+            remittancePage(),
+            TransferRecordRules.TransferRecord(emptyList(), null, fromOcr = false),
+        )
+        assertEquals(
+            "Total da Remessa Betel (R$ 975,00) não pôde ser conferido: \"4. TO-62\" não tem nenhum documento neste mês",
+            result.note,
+        )
+        assertTrue(TransferRecordRules.isAutomaticNote(result.note!!))
+
+        val unread = TransferRecordRules.checkRemittance(remittancePage(), to62Sent.copy(sent = null))
+        assertEquals(
+            "TOTAL DE FUNDOS ENVIADOS do TO-62 não foi lido: confira à mão se é igual ao Total da Remessa Betel " +
+                    "(R$ 975,00)",
+            unread.note,
+        )
+    }
+
     private companion object {
         const val DIJON = "Dijon Braga"
         const val ANDREY = "Andrey Alves da Costa"
