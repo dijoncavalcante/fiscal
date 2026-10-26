@@ -573,6 +573,68 @@ class CheckExpensesUseCaseTest {
         assertNull(flags.flags[file])
     }
 
+    @Test
+    fun `TO-62 e conferido com a Remessa Betel do mes e organizar a remessa confere de novo`() = runTest {
+        settings.save(settings.settings.value.copy(accountsServant = "Dijon Braga"))
+        val to62 = congregation.createFakePdf("4. TO-62.pdf")
+        reader.contents[to62.fileName.toString()] = DocumentContent(
+            listOf(
+                "REGISTRO DE TRANSFERENCIA DE FUNDOS (TO-62) Congregacao: Trinta e Um de Marco - Manaus AM (68361) " +
+                        "Total de donativos e pagamentos: 975,00 TOTAL DE FUNDOS ENVIADOS: 975,00",
+            ),
+            signers = listOf("CN=DIJON BRAGA", "CN=ANDREY ALVES DA COSTA"),
+            ocrPages = setOf(0),
+        )
+        suspend fun runCongregation(only: Set<String>? = null) = mutableMapOf<String, ExpenseStatus>().also { results ->
+            checkExpenses(
+                congregation,
+                AccountType.CONGREGACAO,
+                checklist(congregation, AccountType.CONGREGACAO),
+                java.time.YearMonth.of(2026, 9),
+                only,
+            ) { name, status, evidence ->
+                results[name] = status
+                evidences[name] = evidence
+            }
+        }
+
+        // Sem remessa no mês: pendência dizendo por quê.
+        assertEquals(ExpenseStatus.HAS_ISSUES, runCongregation()[to62.fileName.toString()])
+        assertEquals(
+            "TOTAL DE FUNDOS ENVIADOS do TO-62 (R$ 975,00) não pôde ser conferido: \"5. Remessa Betel\" não tem " +
+                    "nenhum documento neste mês",
+            flags.flags[to62],
+        )
+
+        // A remessa é organizada: só ela foi pedida, mas o TO-62 depende dela e é conferido de novo.
+        val remittance = congregation.createFakePdf("5. Remessa Betel.pdf")
+        reader.contents[remittance.fileName.toString()] =
+            DocumentContent(listOf("Total R$975,00 Remessas Associação Torre de Vigia"))
+        assertEquals(
+            ExpenseStatus.VERIFIED,
+            runCongregation(only = setOf(remittance.fileName.toString().lowercase()))[to62.fileName.toString()],
+        )
+        assertNull(flags.flags[to62])
+        assertEquals(
+            "TOTAL DE FUNDOS ENVIADOS R$ 975,00, igual ao da Remessa Betel; assinado por Dijon Braga e $ANDREY",
+            evidences[to62.fileName.toString()],
+        )
+
+        // Sem mudança: nada é lido de novo.
+        val reads = reader.reads
+        runCongregation()
+        assertEquals(reads, reader.reads)
+
+        // A remessa é trocada por outra com outro total: o TO-62 ganha a pendência com os dois valores.
+        replace(remittance, DocumentContent(listOf("Total R$960,00 Remessas")))
+        assertEquals(ExpenseStatus.HAS_ISSUES, runCongregation()[to62.fileName.toString()])
+        assertEquals(
+            "TOTAL DE FUNDOS ENVIADOS do TO-62 (R$ 975,00) é diferente do Total da Remessa Betel (R$ 960,00): " +
+                    "confira à mão (foto)",
+            flags.flags[to62],
+        )
+    }
+
     /** Troca o conteúdo do arquivo (outro tamanho e outra data), como quando o usuário substitui o PDF. */
     private fun replace(file: Path, content: DocumentContent) {
         Files.writeString(file, Files.readString(file) + "\n% corrigido")

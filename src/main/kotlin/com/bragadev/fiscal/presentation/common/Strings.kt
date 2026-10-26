@@ -230,15 +230,17 @@ object Strings {
         "O PDF tem mais de uma assinatura. Escolha quem assina os extratos bancários:"
     const val ACCOUNTS_SERVANT_TITLE = "Servo de contas"
     const val ACCOUNTS_SERVANT_SCOPE =
-        "Assinatura do servo de contas da congregação. Por enquanto fica só guardada: nenhum documento é conferido " +
-                "com ela."
-    const val ACCOUNTS_SERVANT_NOT_CONFIGURED = "Ninguém configurado."
+        "Obrigatória no \"4. TO-62\" da Conta da Congregação, junto com a do responsável das despesas da " +
+                "Congregação (assinatura digital gov.br)."
+    const val ACCOUNTS_SERVANT_NOT_CONFIGURED =
+        "Ninguém configurado: o TO-62 fica com pendência até você salvar um nome."
     const val ACCOUNTS_SERVANT_PDF_PICKER_TITLE = "Escolha um PDF já assinado pelo servo de contas"
-    fun accountsServantSaved(name: String) = "Servo de contas salvo: $name."
+    fun accountsServantSaved(name: String) = "Servo de contas salvo: $name. O TO-62 será conferido de novo."
     const val ACCOUNTS_SERVANT_CLEARED = "Servo de contas removido."
     const val ACCOUNTS_SERVANT_CHANGE_TITLE = "Trocar o servo de contas?"
     fun accountsServantChangeBody(from: String, to: String) =
-        "O servo de contas passa a ser \"$to\" em vez de \"$from\"."
+        "O TO-62 passa a exigir a assinatura de \"$to\" em vez de \"$from\". Ele será conferido de novo e as " +
+                "pendências automáticas serão atualizadas (as que você escreveu não mudam)."
 
     const val ACCOUNTS_SERVANT_CHOICE_BODY = "O PDF tem mais de uma assinatura. Escolha quem é o servo de contas:"
     const val SIGNATURE_IMAGE_CHOOSE = "Escolher imagem da assinatura…"
@@ -278,6 +280,9 @@ object Strings {
     const val DONATION_CHECKING = "Conferindo data, valor, destino e origem do donativo…"
     const val DONATION_VERIFIED =
         "Verificado: donativo do mês, com o valor, o destino e a origem certos e na ordem da transferência"
+    const val TRANSFER_CHECKING = "Conferindo título, congregação, assinaturas e total do TO-62…"
+    const val TRANSFER_VERIFIED =
+        "Verificado: TO-62 da congregação, assinado e com o total igual ao da Remessa Betel"
     const val NOT_CHECKED_YET = "Ainda não conferido: clique em \"Checar pendências\" no topo do mês"
     const val NOT_CHECKED_NOW =
         "Não deu para conferir agora (arquivo aberto em outro programa?). Clique em \"Checar pendências\" para tentar de novo."
@@ -286,7 +291,7 @@ object Strings {
     const val CHECK_ISSUES = "Checar pendências"
     const val CHECKING_ISSUES = "Conferindo…"
     const val CHECK_ISSUES_HINT =
-        "Confere a Folha de Contas, os donativos, as despesas, o Relatório Mensal e o extrato bancário deste mês que ainda não foram conferidos " +
+        "Confere a Folha de Contas, os donativos, as despesas, o TO-62, o Relatório Mensal e o extrato bancário deste mês que ainda não foram conferidos " +
                 "(arquivos novos ou mudados). Os já conferidos não são lidos de novo."
     const val CHECK_ISSUES_NOTHING =
         "Este mês não tem Folha de Contas, despesas, Relatório Mensal nem extrato bancário para conferir."

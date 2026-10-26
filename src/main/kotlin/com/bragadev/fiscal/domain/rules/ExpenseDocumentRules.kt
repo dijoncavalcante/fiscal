@@ -444,7 +444,8 @@ object ExpenseDocumentRules {
         ExpenseRequirement.SHEET_HEADER, ExpenseRequirement.SHEET_MONTH,
         ExpenseRequirement.REPORT_TITLE, ExpenseRequirement.REPORT_MONTH,
         ExpenseRequirement.DONATION_DATA, ExpenseRequirement.DONATION_MONTH, ExpenseRequirement.DONATION_AMOUNT,
-        ExpenseRequirement.DONATION_SET -> error("Item de outro documento: $requirement")
+        ExpenseRequirement.DONATION_SET, ExpenseRequirement.TRANSFER_HEADER,
+        ExpenseRequirement.TRANSFER_TOTAL -> error("Item de outro documento: $requirement")
     }
 
     /** Ninguém configurado: a pendência diz onde configurar. */

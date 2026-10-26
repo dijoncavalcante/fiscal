@@ -54,9 +54,17 @@ class OrganizerViewModel(
             }
         }
         scope.launch {
-            // Trocar quem assina (despesas ou extratos) ou os termos de isenção em Configurações invalida os
-            // resultados guardados: os documentos voltam a "não conferido" até o próximo "Checar pendências".
-            observeSettings().map { Triple(it.expenseSigners, it.expenseExemptTerms, it.statementSigner) }
+            // Trocar quem assina (despesas, extratos, servo de contas do TO-62) ou os termos de isenção em
+            // Configurações invalida os resultados guardados: os documentos voltam a "não conferido" até o próximo
+            // "Checar pendências".
+            observeSettings().map {
+                listOf(
+                    it.expenseSigners,
+                    it.expenseExemptTerms,
+                    it.statementSigner,
+                    it.accountsServant
+                )
+            }
                 .distinctUntilChanged().drop(1)
                 .collect { refreshChecklist() }
         }

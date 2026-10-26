@@ -34,6 +34,7 @@ class CheckExpensesUseCase(
             AccountSheetRules.categoryFor(account),
             DonationRules.categoryFor(account),
             ExpenseDocumentRules.categoryFor(account),
+            TransferRecordRules.categoryFor(account),
             MonthlyReportRules.categoryFor(account),
             BankStatementRules.categoryFor(account),
         )
@@ -90,8 +91,15 @@ class CheckExpensesUseCase(
         if (donations.isNotEmpty()) {
             flagsChanged = checkDonations(donations, documents, stored, checklist, month, only, onResult)
         }
+        val transferRecords = TransferRecordRules.categoryFor(account)?.let(checklist::filesFor).orEmpty()
+        if (transferRecords.isNotEmpty()) {
+            val remittances = TransferRecordRules.remittanceCategoryFor(account)?.let(checklist::filesFor).orEmpty()
+            val changed =
+                checkTransferRecords(transferRecords, remittances, documents, stored, checklist, only, onResult)
+            flagsChanged = changed || flagsChanged
+        }
         for (name in names) {
-            if (name in donations) continue
+            if (name in donations || name in transferRecords) continue
             val document = documents[name.lowercase()] ?: continue
             val previous = stored[name.lowercase()]
             val plan = if (name.lowercase() in statements) {
@@ -234,6 +242,92 @@ class CheckExpensesUseCase(
         return flagsChanged
     }
 
+    /** Quem precisa assinar o TO-62: o servo de contas e o responsável das despesas da Congregação. */
+    fun transferRequirements(): TransferRecordRules.Requirements {
+        val settings = settingsRepository.settings.value
+        return TransferRecordRules.Requirements(
+            settings.accountsServant,
+            settings.expenseSigners[AccountType.CONGREGACAO]
+        )
+    }
+
+    /**
+     * O TO-62 é conferido junto com a "5. Remessa Betel" do mês (o total precisa ser igual): o resultado guardado
+     * vale enquanto o TO-62, os documentos da remessa (nome, tamanho, data) e quem assina não mudarem. Organizar
+     * uma remessa também confere o TO-62 de novo.
+     */
+    private suspend fun checkTransferRecords(
+        names: List<String>,
+        remittanceNames: List<String>,
+        documents: Map<String, Document>,
+        stored: Map<String, StoredExpenseCheck>,
+        checklist: MonthChecklist,
+        only: Set<String>?,
+        onResult: (String, ExpenseStatus, String?) -> Unit,
+    ): Boolean {
+        val requirements = transferRequirements()
+        val remittanceFiles = remittanceNames.mapNotNull { documents[it.lowercase()] }
+        val key = "to62|${requirements.key}|" + remittanceFiles.sortedBy { it.name.lowercase() }
+            .joinToString("|") { "${it.name.lowercase()}:${it.sizeBytes}:${it.lastModified.toEpochMilli()}" }
+        val canRead = only == null || remittanceNames.any { it.lowercase() in only }
+        var remittance: TransferRecordRules.Remittance? = null
+        var flagsChanged = false
+        for (name in names) {
+            val document = documents[name.lowercase()] ?: continue
+            val previous = stored[name.lowercase()]
+            if (previous != null && previous.matches(document, key, TRANSFER_RULES_VERSION)) {
+                onResult(name, statusOf(previous.check), previous.check.amountEvidence)
+                continue
+            }
+            if (!canRead && name.lowercase() !in only.orEmpty()) {
+                onResult(name, ExpenseStatus.UNCHECKED, null)
+                continue
+            }
+            remittance = remittance ?: readRemittance(remittanceFiles) ?: run {
+                onResult(name, ExpenseStatus.NOT_CHECKED, null)
+                return flagsChanged
+            }
+            val plan = Plan(
+                key,
+                TRANSFER_RULES_VERSION,
+                { TransferRecordRules.hasEnoughText(it, requirements, remittance) },
+                { content -> TransferRecordRules.check(content, requirements, remittance).let { it.check to it.note } },
+            )
+            val (check, note) = checkDocument(document, plan)
+            if (check == null) {
+                onResult(name, ExpenseStatus.NOT_CHECKED, null)
+                continue
+            }
+            checkRepository.save(
+                document.path,
+                StoredExpenseCheck(
+                    document.sizeBytes,
+                    document.lastModified,
+                    check,
+                    rulesVersion = TRANSFER_RULES_VERSION,
+                    requirementsKey = key,
+                ),
+            )
+            if (updateFlag(document.path, checklist.flagFor(name), note)) flagsChanged = true
+            onResult(name, statusOf(check), check.amountEvidence)
+        }
+        return flagsChanged
+    }
+
+    /** Total da remessa do mês (soma, se houver mais de um documento); `null` = não deu para ler agora. */
+    private suspend fun readRemittance(files: List<Document>): TransferRecordRules.Remittance? {
+        var total: java.math.BigDecimal? = java.math.BigDecimal.ZERO
+        for (file in files) {
+            val content = when (val read = reader.read(file.path)) {
+                is Outcome.Success -> read.value
+                is Outcome.Failure -> if (read.error == FileOperationError.InvalidPdf) null else return null
+            }
+            val value = content?.let(TransferRecordRules::remittanceTotal)
+            total = if (value == null) null else total?.add(value)
+        }
+        return TransferRecordRules.Remittance(files.map { it.name }, total.takeIf { files.isNotEmpty() })
+    }
+
     /** Resultado `null` quando não deu para ler agora (arquivo em uso, OCR indisponível): tenta de novo depois. */
     private suspend fun checkDocument(document: Document, plan: Plan): Pair<ExpenseCheck?, String?> =
         when (val content = reader.read(document.path, plan.isEnough)) {
@@ -248,7 +342,8 @@ class CheckExpensesUseCase(
     private suspend fun updateFlag(file: Path, current: String?, note: String?): Boolean {
         val isOurs = current == null || ExpenseDocumentRules.isAutomaticNote(current) ||
                 BankStatementRules.isAutomaticNote(current) || AccountSheetRules.isAutomaticNote(current) ||
-                MonthlyReportRules.isAutomaticNote(current) || DonationRules.isAutomaticNote(current)
+                MonthlyReportRules.isAutomaticNote(current) || DonationRules.isAutomaticNote(current) ||
+                TransferRecordRules.isAutomaticNote(current)
         return when {
             !isOurs || current == note -> false
             note == null -> {

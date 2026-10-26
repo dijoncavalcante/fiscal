@@ -31,12 +31,12 @@ data class OrganizerUiState(
     /** Só é possível organizar documentos com um mês identificado e liberado. */
     val canOrganize: Boolean get() = monthFolder?.isEditable == true
 
-    /** "Checar pendências" só aparece em conta com documentos conferidos (folha, donativos, despesas, relatório, extrato). */
+    /** "Checar pendências" só aparece em conta com documentos conferidos (folha, donativos, despesas, TO-62, relatório, extrato). */
     val canCheckIssues: Boolean
         get() = monthFolder?.account.let { account ->
             AccountSheetRules.categoryFor(account) != null || ExpenseDocumentRules.categoryFor(account) != null ||
                     BankStatementRules.categoryFor(account) != null || MonthlyReportRules.categoryFor(account) != null ||
-                    DonationRules.categoryFor(account) != null
+                    DonationRules.categoryFor(account) != null || TransferRecordRules.categoryFor(account) != null
         }
 
     companion object {
@@ -46,13 +46,14 @@ data class OrganizerUiState(
             AccountSheetRules.isSheetCategory(category?.id) -> CheckedDocument.ACCOUNT_SHEET
             MonthlyReportRules.isReportCategory(category?.id) -> CheckedDocument.MONTHLY_REPORT
             DonationRules.isDonationCategory(category?.id) -> CheckedDocument.DONATION
+            TransferRecordRules.isTransferRecordCategory(category?.id) -> CheckedDocument.TRANSFER_RECORD
             else -> CheckedDocument.EXPENSE
         }
     }
 }
 
-/** Documento conferido automaticamente: despesa, extrato bancário, Folha de Contas, Relatório Mensal ou donativo. */
-enum class CheckedDocument { EXPENSE, BANK_STATEMENT, ACCOUNT_SHEET, MONTHLY_REPORT, DONATION }
+/** Documento conferido automaticamente: despesa, extrato bancário, Folha de Contas, Relatório Mensal, donativo ou TO-62. */
+enum class CheckedDocument { EXPENSE, BANK_STATEMENT, ACCOUNT_SHEET, MONTHLY_REPORT, DONATION, TRANSFER_RECORD }
 
 sealed interface OrganizerDialog {
     /**
