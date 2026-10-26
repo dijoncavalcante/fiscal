@@ -39,13 +39,16 @@ class CheckExpensesUseCase(
         )
             .flatMap(checklist::filesFor)
 
-    /** O que é exigido deste arquivo: o responsável da conta e, na Congregação, a isenção pelo nome. */
-    fun requirementsFor(account: AccountType?, fileName: String): ExpenseRequirements {
+    /**
+     * O que é exigido deste arquivo: o responsável da conta, a transferência no mês em edição e, na Congregação, a
+     * isenção pelo nome.
+     */
+    fun requirementsFor(account: AccountType?, fileName: String, month: YearMonth? = null): ExpenseRequirements {
         val settings = settingsRepository.settings.value
         val exemptBy = if (ExpenseDocumentRules.hasExemptions(account)) {
             ExpenseExemptionRules.exemptBy(fileName, settings.expenseExemptTerms)
         } else null
-        return ExpenseRequirements(settings.expenseSigners[account], exemptBy)
+        return ExpenseRequirements(settings.expenseSigners[account], exemptBy, month)
     }
 
     /** O que é exigido do extrato bancário da conta no mês; `null` se a conta não tem extrato conferido. */
@@ -98,7 +101,7 @@ class CheckExpensesUseCase(
             } else if (name.lowercase() in reports) {
                 reportPlan(account ?: continue, month)
             } else {
-                expensePlan(requirementsFor(account, document.name))
+                expensePlan(requirementsFor(account, document.name, month))
             }
             if (previous != null && previous.matches(document, plan.key, plan.rulesVersion)) {
                 onResult(name, statusOf(previous.check), previous.check.amountEvidence)

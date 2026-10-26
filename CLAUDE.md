@@ -228,7 +228,17 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   duas contas)" (`SignatureRole.BANK_STATEMENTS`, chave `statement_signer`; ver "Conferência dos extratos").
 - `ExpenseRequirements.key` (responsável + termo de isenção) é gravado em `expense_checks.requirements_key`: mudar
   responsável ou termos invalida o resultado guardado (o `OrganizerViewModel` observa essas Configurações e mostra
-  os documentos como "não conferido" até o próximo "Checar pendências").
+  os documentos como "não conferido" até o próximo "Checar pendências"). A chave leva também o mês em edição.
+- **Data da transferência (pedida em 26/10/2026, `EXPENSE_RULES_VERSION` 6):** todo comprovante Pix/TED do arquivo
+  precisa ter a data no mês em edição (`ExpenseRequirements.month`, `ExpenseRequirement.PAYMENT_MONTH`,
+  `ExpenseCheck.paymentDate` — este não é gravado no banco, só o item em `missing`). Data lida por `TransferDates`:
+  "Data da operação: 18/09/2026" (next; OCR "Date da operaeha: 18072026"), "Data do pagamento …", "15 SET 2026 -
+  16:56:42" (Nubank) e, sem nenhuma, o identificador do Pix (E2E, aaaaMMddHHmm em UTC, −3 h). **Não valem** a data
+  do selo gov.br ("Data: 12/08/2026 07:38:13-0300", dia da assinatura) nem a expiração do QR Code. PDF com texto e
+  data de outro mês = "confira se a despesa é deste mês"; foto ou E2E = "confira à mão (foto)"; não lida = "confira
+  à mão se é de <mês>". Nas 123 despesas reais de 2025-2026: 1 de outro mês (Manutenção set/2025 "3.6 Compra de
+  CABO HDMI", paga em 01/10) e 7 sem data legível (fotos ruins; de jun/2026 em diante só a "3. Despesa - Compra de
+  argamassa" de jul/2026, "Data di opersedat (7007/2026") (`PaymentDateRulesTest`).
 - Leitura (`PdfContentReaderImpl`): texto do PDFBox por página; página sem texto (cupom fotografado) passa pelo **OCR
   local** (`TesseractOcrEngine`, tess4j com o modelo `eng` que vem no jar — nada é baixado; carrega antes
   `msvcp140`/`vcruntime140` do Java embutido). Páginas com texto + imagem só vão ao OCR enquanto faltar algo
@@ -476,7 +486,9 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   do next e do Nubank, PDF e OCR) e os casos de extrato em `CheckExpensesUseCaseTest`. Folha de Contas:
   `AccountSheetRulesTest` e o caso da folha em `CheckExpensesUseCaseTest`. Relatório Mensal: `MonthlyReportRulesTest`
   e o caso do relatório em `CheckExpensesUseCaseTest`. Donativos: `DonationRulesTest` (OCR real dos comprovantes) e
-  o caso dos donativos (conferidos juntos, renomear confere de novo) em `CheckExpensesUseCaseTest`.
+  o caso dos donativos (conferidos juntos, renomear confere de novo) em `CheckExpensesUseCaseTest`. Data da
+  transferência das despesas: `PaymentDateRulesTest` e o caso da despesa paga em outro mês em
+  `CheckExpensesUseCaseTest`.
 - Telas que não dá para clicar no app (a janela Java não aceita automação): renderize num `runComposeUiTest`
   descartável e salve `onAllNodes(isRoot())[i].captureToImage()` em PNG para conferir (diálogos são outra raiz).
 - Teste visual sem mexer nos dados do usuário: rode com `APPDATA` apontando para uma pasta temporária **de caminho

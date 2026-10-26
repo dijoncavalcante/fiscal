@@ -2,6 +2,8 @@ package com.bragadev.fiscal.domain.model
 
 import java.math.BigDecimal
 import java.time.Instant
+import java.time.LocalDate
+import java.time.YearMonth
 
 /** O que uma despesa (ou um extrato bancário) precisa ter dentro do PDF. */
 enum class ExpenseRequirement {
@@ -10,6 +12,9 @@ enum class ExpenseRequirement {
 
     /** Comprovante da transação Pix ou TED. */
     PAYMENT_PROOF,
+
+    /** Data da transferência do comprovante Pix/TED no mês em edição (lida e certa). */
+    PAYMENT_MONTH,
 
     /** Assinatura digital (gov.br) do responsável. */
     SIGNATURE,
@@ -100,10 +105,15 @@ data class PageWord(
  * @param signerName quem precisa ter assinado (nome completo); `null` = ninguém configurado em Configurações.
  * @param exemptBy termo do nome do arquivo que dispensa o cupom (ex.: "Resolução"); `null` = cupom obrigatório e
  *   valor do Pix igual ao total.
+ * @param month mês em edição: a transferência do comprovante precisa ser dele; `null` = não confere a data.
  */
-data class ExpenseRequirements(val signerName: String?, val exemptBy: String? = null) {
+data class ExpenseRequirements(
+    val signerName: String?,
+    val exemptBy: String? = null,
+    val month: YearMonth? = null,
+) {
     /** Muda quando muda o que é exigido: o resultado guardado de antes deixa de valer. */
-    val key: String get() = "${signerName.orEmpty()}|${exemptBy.orEmpty()}"
+    val key: String get() = "${signerName.orEmpty()}|${exemptBy.orEmpty()}" + (month?.let { "|$it" } ?: "")
 }
 
 /**
@@ -114,6 +124,8 @@ data class ExpenseRequirements(val signerName: String?, val exemptBy: String? = 
  * @param amountEvidence quando o valor bateu: de onde veio o total (ex.: "Valor conferido: R$ 50,00 abaixo de
  *   "TOTAL (R$)", página 1 (foto)"), ou por que o cupom não foi exigido; para o usuário conferir num instante.
  * @param signerName quem precisava ter assinado (para a pendência dizer o nome); `null` = não configurado.
+ * @param paymentDate problema na data da transferência (para a pendência dizer a data); não é guardado no banco —
+ *   só o [ExpenseRequirement.PAYMENT_MONTH] em [missing].
  */
 data class ExpenseCheck(
     val missing: Set<ExpenseRequirement> = emptySet(),
@@ -121,9 +133,19 @@ data class ExpenseCheck(
     val amountProblem: AmountProblem? = null,
     val amountEvidence: String? = null,
     val signerName: String? = null,
+    val paymentDate: PaymentDateProblem? = null,
 ) {
     val isValid: Boolean get() = missing.isEmpty() && !unreadable && amountProblem == null
 }
+
+/**
+ * Comprovante Pix/TED fora do mês em edição.
+ *
+ * @param found data da transferência lida; `null` = não foi lida.
+ * @param uncertain veio de foto (OCR) ou do identificador do Pix: pode ter sido mal lida, a pendência pede para
+ *   conferir à mão.
+ */
+data class PaymentDateProblem(val expected: YearMonth, val found: LocalDate?, val uncertain: Boolean)
 
 /**
  * Problema no valor do comprovante × total do cupom/nota fiscal.
@@ -170,9 +192,9 @@ data class StoredExpenseCheck(
  * Aumente quando a conferência passar a olhar algo novo (2 = valor do comprovante × cupom/nota; 3 = recibo vale,
  * valor só contra o total, pendência quando o valor não pôde ser conferido; 4 = total lido pela posição na
  * tabela, novas leituras do OCR e confiança das palavras; 5 = Conta da Congregação, responsável configurável,
- * isenção pelo nome do arquivo e selo gov.br completo).
+ * isenção pelo nome do arquivo e selo gov.br completo; 6 = data da transferência no mês em edição).
  */
-const val EXPENSE_RULES_VERSION = 5
+const val EXPENSE_RULES_VERSION = 6
 
 /** Como [EXPENSE_RULES_VERSION], para a conferência dos extratos bancários. */
 const val STATEMENT_RULES_VERSION = 1

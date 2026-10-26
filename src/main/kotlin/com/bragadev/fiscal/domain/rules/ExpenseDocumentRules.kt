@@ -7,6 +7,7 @@ import com.bragadev.fiscal.domain.rules.FuzzyText.findPhrase
 import com.bragadev.fiscal.domain.rules.FuzzyText.words
 import java.math.BigDecimal
 import java.text.Normalizer
+import java.time.YearMonth
 
 /**
  * Conferência das despesas ("3. Despesas") das contas da Congregação e da Manutenção. Cada PDF precisa ter:
@@ -79,12 +80,33 @@ object ExpenseDocumentRules {
         }
         val amount = requirements.exemptBy?.let { AmountCheck(evidence = exemptionEvidence(it)) }
             ?: amountCheck(content, paymentPages, fiscalPages)
+        val dateProblem = requirements.month?.let { paymentDateProblem(content, paymentPages, it) }
         return ExpenseCheck(
-            missing,
+            if (dateProblem != null) missing + ExpenseRequirement.PAYMENT_MONTH else missing,
             amountProblem = amount.problem,
             amountEvidence = amount.evidence,
-            signerName = signer
+            signerName = signer,
+            paymentDate = dateProblem,
         )
+    }
+
+    /**
+     * Cada comprovante Pix/TED do arquivo precisa ter a data da transferência no mês em edição ([TransferDates]).
+     * Página de comprovante sem data lida não conta se outra tem; nenhuma lida = conferir à mão. Sem comprovante, a
+     * pendência "Falta comprovante" já diz o que fazer.
+     */
+    private fun paymentDateProblem(
+        content: DocumentContent,
+        paymentPages: Set<Int>,
+        month: YearMonth
+    ): PaymentDateProblem? {
+        if (paymentPages.isEmpty()) return null
+        val dates = paymentPages.sorted().mapNotNull { page ->
+            TransferDates.find(content.pageTexts[page])?.let { it to (page in content.ocrPages || it.fromPixId) }
+        }
+        if (dates.isEmpty()) return PaymentDateProblem(month, found = null, uncertain = true)
+        val (outside, uncertain) = dates.firstOrNull { YearMonth.from(it.first.date) != month } ?: return null
+        return PaymentDateProblem(month, outside.date, uncertain)
     }
 
     /**
@@ -279,7 +301,7 @@ object ExpenseDocumentRules {
      * Comprovante Pix/TED: "comprovante" junto de Pix, TED ou transferência na mesma página, ou o
      * identificador da transação. Uma fatura que só diz "pague com Pix" não conta.
      */
-    private fun hasPaymentProof(page: List<String>): Boolean =
+    internal fun hasPaymentProof(page: List<String>): Boolean =
         (page.findPhrase(comprovante).any() && paymentWords.any { page.findPhrase(it).any() }) ||
                 paymentPhrases.any { page.findPhrase(it).any() } || page.any(pixEndToEndId::matches)
 
@@ -306,13 +328,35 @@ object ExpenseDocumentRules {
     /** Pendência gravada para o arquivo, em poucas palavras; `null` se a despesa está completa. */
     fun issueNote(check: ExpenseCheck): String? {
         if (check.unreadable) return UNREADABLE_NOTE
-        val parts = listOfNotNull(missingNote(check.missing, check.signerName), check.amountProblem?.let(::amountNote))
+        val parts = listOfNotNull(
+            missingNote(check.missing, check.signerName),
+            check.paymentDate?.let(::paymentDateNote),
+            check.amountProblem?.let(::amountNote),
+        )
         return parts.takeIf { it.isNotEmpty() }?.joinToString(NOTE_SEPARATOR)
     }
 
+    private const val PAYMENT_DATE_UNREADABLE = "Data da transferência do comprovante Pix/TED não foi lida"
+
+    /** Transferência de outro mês: no PDF com texto, a data é certa; na foto (ou pelo identificador do Pix), não. */
+    private fun paymentDateNote(problem: PaymentDateProblem): String {
+        val month = Months.name(problem.expected)
+        val found = problem.found ?: return "$PAYMENT_DATE_UNREADABLE: confira à mão se é de $month"
+        val action = if (problem.uncertain) "confira à mão (foto)" else "confira se a despesa é deste mês"
+        return "Comprovante Pix/TED de ${found.format(TransferDates.format)}, mas o mês em edição é $month: $action"
+    }
+
+    private val automaticDateNotes = listOf(
+        Regex("""${Regex.escape(PAYMENT_DATE_UNREADABLE)}: confira à mão se é de .+"""),
+        Regex(
+            """Comprovante Pix/TED de \d{2}/\d{2}/\d{4}, mas o mês em edição é .+: """ +
+                    """(confira à mão \(foto\)|confira se a despesa é deste mês)""",
+        ),
+    )
+
     private fun missingNote(missing: Set<ExpenseRequirement>, signerName: String?): String? {
-        if (missing.isEmpty()) return null
         val parts = expenseRequirements.filter { it in missing }.map { describe(it, signerName) }
+        if (parts.isEmpty()) return null
         val list = if (parts.size == 1) parts.single() else parts.dropLast(1).joinToString(", ") + " e " + parts.last()
         return "Falta $list"
     }
@@ -347,7 +391,8 @@ object ExpenseDocumentRules {
     fun isAutomaticNote(note: String): Boolean =
         note == UNREADABLE_NOTE ||
                 note.split(NOTE_SEPARATOR).all { part ->
-                    automaticMissingNotes.any { it.matches(part) } || automaticAmountNotes.any { it.matches(part) }
+                    automaticMissingNotes.any { it.matches(part) } || automaticAmountNotes.any { it.matches(part) } ||
+                            automaticDateNotes.any { it.matches(part) }
                 }
 
     /**
@@ -394,6 +439,7 @@ object ExpenseDocumentRules {
         ExpenseRequirement.PAYMENT_PROOF -> "comprovante Pix/TED"
         ExpenseRequirement.SIGNATURE ->
             if (signerName == null) SIGNER_NOT_CONFIGURED else "assinatura de $signerName"
+        ExpenseRequirement.PAYMENT_MONTH -> error("A data tem pendência própria (paymentDateNote)")
         ExpenseRequirement.BANK_ACCOUNT, ExpenseRequirement.STATEMENT_MONTH,
         ExpenseRequirement.SHEET_HEADER, ExpenseRequirement.SHEET_MONTH,
         ExpenseRequirement.REPORT_TITLE, ExpenseRequirement.REPORT_MONTH,

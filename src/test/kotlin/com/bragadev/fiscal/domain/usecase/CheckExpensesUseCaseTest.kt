@@ -543,6 +543,36 @@ class CheckExpensesUseCaseTest {
         )
     }
 
+    @Test
+    fun `despesa paga em outro mes ganha pendencia com a data do comprovante`() = runTest {
+        val file = september.createFakePdf("3. Despesa - Dreno encapado.pdf")
+        fun paidOn(date: String) = complete.copy(
+            pageTexts = listOf(
+                complete.pageTexts[0],
+                "Comprovante de transação Pix Data da operação: $date - 10:55 Valor: 125.00",
+            ),
+        )
+        reader.contents[file.fileName.toString()] = paidOn("01/10/2026")
+        suspend fun runSeptember() = mutableMapOf<String, ExpenseStatus>().also { results ->
+            checkExpenses(
+                september,
+                AccountType.MANUTENCAO,
+                checklist(september, AccountType.MANUTENCAO),
+                java.time.YearMonth.of(2026, 9),
+            ) { name, status, _ -> results[name] = status }
+        }
+
+        assertEquals(ExpenseStatus.HAS_ISSUES, runSeptember()[file.fileName.toString()])
+        assertEquals(
+            "Comprovante Pix/TED de 01/10/2026, mas o mês em edição é setembro de 2026: confira se a despesa é deste mês",
+            flags.flags[file],
+        )
+
+        replace(file, paidOn("19/09/2026"))
+        assertEquals(ExpenseStatus.VERIFIED, runSeptember()[file.fileName.toString()])
+        assertNull(flags.flags[file])
+    }
+
     /** Troca o conteúdo do arquivo (outro tamanho e outra data), como quando o usuário substitui o PDF. */
     private fun replace(file: Path, content: DocumentContent) {
         Files.writeString(file, Files.readString(file) + "\n% corrigido")
