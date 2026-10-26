@@ -75,6 +75,7 @@ fun OrganizerScreen(
     /** Seletor de mês, mostrado no topo da lista (rola junto com as categorias). */
     navigator: @Composable () -> Unit = {},
     onConcludeMonth: (Path) -> Unit = {},
+    onCheckIssues: () -> Unit = {},
     collapse: PanelCollapse? = null,
 ) {
     // Grupos começam expandidos, exceto a lista de arquivos sem número.
@@ -94,7 +95,13 @@ fun OrganizerScreen(
     )
 
     Panel(title = Strings.MONTH_PANEL, modifier = modifier, collapse = collapse) {
-        MonthHeader(state.monthFolder, state.firstEditableMonth, onConcludeMonth = onConcludeMonth)
+        MonthHeader(
+            state.monthFolder,
+            state.firstEditableMonth,
+            onConcludeMonth = onConcludeMonth,
+            onCheckIssues = onCheckIssues.takeIf { state.canCheckIssues },
+            isCheckingIssues = state.isCheckingAll,
+        )
         HorizontalDivider()
         Text(
             text = Strings.DROP_HINT,

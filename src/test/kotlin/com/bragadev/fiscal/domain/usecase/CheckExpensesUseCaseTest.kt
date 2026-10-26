@@ -67,7 +67,7 @@ class CheckExpensesUseCaseTest {
     fun `despesa completa ganha o check e incompleta ganha pendencia dizendo o que falta`() = runTest {
         val ok = september.createFakePdf("3. Despesa - Dreno encapado.pdf")
         val missing = september.createFakePdf("3.1 Despesa - Espuma para microfone.pdf")
-        september.createFakePdf("2. Donativo - Japiim.pdf")
+        september.createFakePdf("6. Outros - Planilha de controle.pdf")
         reader.contents[ok.fileName.toString()] = complete
         reader.contents[missing.fileName.toString()] = unsigned
 
@@ -77,7 +77,7 @@ class CheckExpensesUseCaseTest {
         assertEquals(ExpenseStatus.HAS_ISSUES, results["3.1 Despesa - Espuma para microfone.pdf"])
         assertNull(flags.flags[ok])
         assertEquals("Falta assinatura de $ELVES", flags.flags[missing])
-        // Só as despesas são conferidas.
+        // Só as despesas são conferidas ("Outros" não tem regras).
         assertEquals(2, results.size)
     }
 
@@ -279,6 +279,50 @@ class CheckExpensesUseCaseTest {
     }
 
     @Test
+    fun `fora do Checar pendencias so le os arquivos pedidos e os outros ficam nao conferidos`() = runTest {
+        val organized = september.createFakePdf("3. Despesa - Dreno encapado.pdf")
+        val other = september.createFakePdf("3.1 Despesa - Espuma para microfone.pdf")
+        reader.contents[organized.fileName.toString()] = complete
+        reader.contents[other.fileName.toString()] = unsigned
+        val results = mutableMapOf<String, ExpenseStatus>()
+
+        // Abrir o mês sem nada pedido: nenhum PDF é lido e nenhuma pendência é criada.
+        checkExpenses(
+            september,
+            AccountType.MANUTENCAO,
+            checklist(september, AccountType.MANUTENCAO),
+            only = emptySet()
+        ) { name, status, _ ->
+            results[name] = status
+        }
+        assertEquals(0, reader.reads)
+        assertEquals(ExpenseStatus.UNCHECKED, results[organized.fileName.toString()])
+        assertEquals(ExpenseStatus.UNCHECKED, results[other.fileName.toString()])
+        assertNull(flags.flags[other])
+
+        // Documento recém-organizado: só ele é lido.
+        val onlyOrganized = setOf(organized.fileName.toString().lowercase())
+        checkExpenses(
+            september,
+            AccountType.MANUTENCAO,
+            checklist(september, AccountType.MANUTENCAO),
+            only = onlyOrganized
+        ) { name, status, _ ->
+            results[name] = status
+        }
+        assertEquals(1, reader.reads)
+        assertEquals(ExpenseStatus.VERIFIED, results[organized.fileName.toString()])
+        assertEquals(ExpenseStatus.UNCHECKED, results[other.fileName.toString()])
+
+        // "Checar pendências" (todos): lê só o que falta; o já conferido vem do resultado guardado.
+        val all = run()
+        assertEquals(2, reader.reads)
+        assertEquals(ExpenseStatus.VERIFIED, all[organized.fileName.toString()])
+        assertEquals(ExpenseStatus.HAS_ISSUES, all[other.fileName.toString()])
+        assertEquals("Falta assinatura de $ELVES", flags.flags[other])
+    }
+
+    @Test
     fun `falha passageira nao marca pendencia e tenta de novo depois`() = runTest {
         val file = september.createFakePdf("3. Despesa - Dreno encapado.pdf")
         reader.failure = FileOperationError.FileLocked
@@ -405,6 +449,97 @@ class CheckExpensesUseCaseTest {
         assertEquals(
             "FOLHA DE CONTAS (S-26) de Trinta e Um de Março - Manaus AM (68361), setembro de 2026",
             evidences[wrong.fileName.toString()],
+        )
+    }
+
+    @Test
+    fun `Relatorio Mensal de outro mes ganha pendencia e o do mes ganha o check`() = runTest {
+        val report = september.createFakePdf("4. Relatório Mensal.pdf")
+        fun s44(month: String) = DocumentContent(
+            listOf("RELATÓRIO MENSAL DE CONTAS DA COMISSÃO DE FUNCIONAMENTO DO SALÃO DO\nREINO (S-44)\n$month\n"),
+        )
+        reader.contents[report.fileName.toString()] = s44("agosto de 2026")
+        suspend fun runReport() = mutableMapOf<String, ExpenseStatus>().also { results ->
+            checkExpenses(
+                september,
+                AccountType.MANUTENCAO,
+                checklist(september, AccountType.MANUTENCAO),
+                java.time.YearMonth.of(2026, 9),
+            ) { name, status, evidence ->
+                results[name] = status
+                evidences[name] = evidence
+            }
+        }
+
+        assertEquals(ExpenseStatus.HAS_ISSUES, runReport()[report.fileName.toString()])
+        assertEquals(
+            "Relatório Mensal de agosto de 2026, mas o mês em edição é setembro de 2026: troque pelo relatório do mês",
+            flags.flags[report],
+        )
+
+        replace(report, s44("setembro de 2026"))
+        assertEquals(ExpenseStatus.VERIFIED, runReport()[report.fileName.toString()])
+        assertNull(flags.flags[report])
+        assertEquals(
+            "RELATÓRIO MENSAL DE CONTAS DA COMISSÃO DE FUNCIONAMENTO DO SALÃO DO REINO (S-44), setembro de 2026",
+            evidences[report.fileName.toString()],
+        )
+    }
+
+    @Test
+    fun `donativos sao conferidos juntos e renomear um confere os dois de novo`() = runTest {
+        fun pix(moment: String, origin: String, account: String) = DocumentContent(
+            listOf(
+                "Comprovante de transferência $moment Valor R$ 800,00 Destino Nome Danilo Cavalcante Braga " +
+                        "CPF ***.638.182-** Instituição BCO BRADESCO S.A. Agência 3943 Conta 286256-5 " +
+                        "Tipo de conta Conta poupança Origem Nome $origin Instituição NU PAGAMENTOS - IP " +
+                        "Agência 0001 Conta $account",
+            ),
+        )
+
+        val japiim = september.createFakePdf("2. Donativo - Japiim.pdf")
+        val trinta = september.createFakePdf("2.1 Donativo - Trinta e um de março.pdf")
+        // Japiim transferiu depois: os números estão trocados.
+        reader.contents[japiim.fileName.toString()] =
+            pix("10 SET 2026 - 11:00:00", "Walter Santana Mota do Rosário CPF ***.250.412-**", "18938180-7")
+        reader.contents[trinta.fileName.toString()] =
+            pix("10 SET 2026 - 10:36:07", "Filipe da Silva Costa CPF ***.369.732-**", "15077760-0")
+        suspend fun runDonations() = mutableMapOf<String, ExpenseStatus>().also { results ->
+            checkExpenses(
+                september,
+                AccountType.MANUTENCAO,
+                checklist(september, AccountType.MANUTENCAO),
+                java.time.YearMonth.of(2026, 9),
+            ) { name, status, evidence ->
+                results[name] = status
+                evidences[name] = evidence
+            }
+        }
+
+        val first = runDonations()
+        assertEquals(ExpenseStatus.HAS_ISSUES, first[japiim.fileName.toString()])
+        assertEquals(
+            "Transferência de 10/09/2026 11:00 é a segunda do mês: o arquivo deve começar com \"2.1\"",
+            flags.flags[japiim],
+        )
+        assertEquals(2, reader.reads)
+
+        // Sem mudança: nada é lido de novo.
+        runDonations()
+        assertEquals(2, reader.reads)
+
+        // O usuário troca os números: a categoria mudou, os dois são conferidos de novo.
+        val japiimFixed = Files.move(japiim, september.resolve("2.1 Donativo - Japiim.pdf"))
+        val trintaFixed = Files.move(trinta, september.resolve("2. Donativo - Trinta e um de março.pdf"))
+        reader.contents[japiimFixed.fileName.toString()] = reader.contents.getValue(japiim.fileName.toString())
+        reader.contents[trintaFixed.fileName.toString()] = reader.contents.getValue(trinta.fileName.toString())
+        val fixed = runDonations()
+        assertEquals(ExpenseStatus.VERIFIED, fixed[japiimFixed.fileName.toString()])
+        assertEquals(ExpenseStatus.VERIFIED, fixed[trintaFixed.fileName.toString()])
+        assertEquals(4, reader.reads)
+        assertEquals(
+            "Trinta e Um de Março: 10/09/2026 10:36, R$ 800,00, de Filipe da Silva Costa para Danilo Cavalcante Braga",
+            evidences[trintaFixed.fileName.toString()],
         )
     }
 

@@ -1,8 +1,7 @@
 package com.bragadev.fiscal.presentation.organizer
 
 import com.bragadev.fiscal.domain.model.*
-import com.bragadev.fiscal.domain.rules.AccountSheetRules
-import com.bragadev.fiscal.domain.rules.BankStatementRules
+import com.bragadev.fiscal.domain.rules.*
 import com.bragadev.fiscal.presentation.common.UserMessage
 import java.nio.file.Path
 import java.time.YearMonth
@@ -22,6 +21,8 @@ data class OrganizerUiState(
     val expenseChecks: Map<String, ExpenseStatus> = emptyMap(),
     /** De onde veio o total quando o valor bateu (ex.: "R$ 50,00 abaixo de "TOTAL (R$)", página 1 (foto)"). */
     val expenseEvidence: Map<String, String> = emptyMap(),
+    /** "Checar pendências" em andamento (o botão mostra que está conferindo). */
+    val isCheckingAll: Boolean = false,
 ) {
     fun expenseStatus(fileName: String): ExpenseStatus? = expenseChecks[fileName.lowercase()]
 
@@ -30,18 +31,28 @@ data class OrganizerUiState(
     /** Só é possível organizar documentos com um mês identificado e liberado. */
     val canOrganize: Boolean get() = monthFolder?.isEditable == true
 
+    /** "Checar pendências" só aparece em conta com documentos conferidos (folha, donativos, despesas, relatório, extrato). */
+    val canCheckIssues: Boolean
+        get() = monthFolder?.account.let { account ->
+            AccountSheetRules.categoryFor(account) != null || ExpenseDocumentRules.categoryFor(account) != null ||
+                    BankStatementRules.categoryFor(account) != null || MonthlyReportRules.categoryFor(account) != null ||
+                    DonationRules.categoryFor(account) != null
+        }
+
     companion object {
         /** Como os arquivos desta categoria são conferidos (muda os textos do "certo" e do "conferindo"). */
         fun checkedDocumentOf(category: DocumentCategory?): CheckedDocument = when {
             BankStatementRules.isStatementCategory(category?.id) -> CheckedDocument.BANK_STATEMENT
             AccountSheetRules.isSheetCategory(category?.id) -> CheckedDocument.ACCOUNT_SHEET
+            MonthlyReportRules.isReportCategory(category?.id) -> CheckedDocument.MONTHLY_REPORT
+            DonationRules.isDonationCategory(category?.id) -> CheckedDocument.DONATION
             else -> CheckedDocument.EXPENSE
         }
     }
 }
 
-/** Documento conferido automaticamente: despesa, extrato bancário ou Folha de Contas. */
-enum class CheckedDocument { EXPENSE, BANK_STATEMENT, ACCOUNT_SHEET }
+/** Documento conferido automaticamente: despesa, extrato bancário, Folha de Contas, Relatório Mensal ou donativo. */
+enum class CheckedDocument { EXPENSE, BANK_STATEMENT, ACCOUNT_SHEET, MONTHLY_REPORT, DONATION }
 
 sealed interface OrganizerDialog {
     /**

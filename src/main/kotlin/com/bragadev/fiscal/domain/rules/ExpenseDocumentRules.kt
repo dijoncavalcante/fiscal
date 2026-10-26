@@ -395,7 +395,10 @@ object ExpenseDocumentRules {
         ExpenseRequirement.SIGNATURE ->
             if (signerName == null) SIGNER_NOT_CONFIGURED else "assinatura de $signerName"
         ExpenseRequirement.BANK_ACCOUNT, ExpenseRequirement.STATEMENT_MONTH,
-        ExpenseRequirement.SHEET_HEADER, ExpenseRequirement.SHEET_MONTH -> error("Item de outro documento: $requirement")
+        ExpenseRequirement.SHEET_HEADER, ExpenseRequirement.SHEET_MONTH,
+        ExpenseRequirement.REPORT_TITLE, ExpenseRequirement.REPORT_MONTH,
+        ExpenseRequirement.DONATION_DATA, ExpenseRequirement.DONATION_MONTH, ExpenseRequirement.DONATION_AMOUNT,
+        ExpenseRequirement.DONATION_SET -> error("Item de outro documento: $requirement")
     }
 
     /** Ninguém configurado: a pendência diz onde configurar. */

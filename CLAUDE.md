@@ -227,7 +227,8 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   `SignatureRole`), nunca no repositório nem usada na conferência. A mesma seção tem o bloco "Extratos bancários (as
   duas contas)" (`SignatureRole.BANK_STATEMENTS`, chave `statement_signer`; ver "Conferência dos extratos").
 - `ExpenseRequirements.key` (responsável + termo de isenção) é gravado em `expense_checks.requirements_key`: mudar
-  responsável ou termos confere de novo (o `OrganizerViewModel` observa essas Configurações e relê o mês).
+  responsável ou termos invalida o resultado guardado (o `OrganizerViewModel` observa essas Configurações e mostra
+  os documentos como "não conferido" até o próximo "Checar pendências").
 - Leitura (`PdfContentReaderImpl`): texto do PDFBox por página; página sem texto (cupom fotografado) passa pelo **OCR
   local** (`TesseractOcrEngine`, tess4j com o modelo `eng` que vem no jar — nada é baixado; carrega antes
   `msvcp140`/`vcruntime140` do Java embutido). Páginas com texto + imagem só vão ao OCR enquanto faltar algo
@@ -275,6 +276,12 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   mexida. Resultado guardado em `expense_checks` por tamanho + data: não repete OCR, e pendência automática removida
   pelo usuário não volta enquanto o arquivo não mudar. Falha passageira (arquivo em uso, OCR) = `NOT_CHECKED`, sem
   pendência. Tela: "certo" verde ao lado do nome (`MonthFileRow.expenseStatus`) ou indicador enquanto confere.
+- **Quando confere (pedido em 26/10/2026):** só (1) o documento que acabou de ser organizado no mês (arrastado ou
+  clicado na categoria; `OrganizerViewModel.pendingChecks`, parâmetro `only` do caso de uso) e (2) o botão
+  **"Checar pendências"** no cabeçalho do mês (`onCheckIssuesRequested`, `only = null`: lê só o que não tem
+  resultado guardado válido). Abrir o app, trocar de mês, mudanças no Explorer ou nas Configurações **não leem PDF**:
+  mostram o resultado guardado ou `UNCHECKED` (círculo vazio, "Ainda não conferido"). O botão aparece só em conta com
+  folha/despesas/extrato (`OrganizerUiState.canCheckIssues`) e, ao terminar, avisa quantos ficaram com pendência.
 
 ## Conferência dos extratos bancários (pedida em 22/10/2026)
 
@@ -310,6 +317,38 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
 - Folha da outra conta = "Folha de Contas da conta da Manutenção (…), não da conta da Congregação: troque pela folha
   certa" (caso real: a pasta de junho/2026 da Congregação tem a folha da Manutenção). Digitalizada (OCR) = "confira à
   mão". Nas 24 folhas reais de 2025-2026 (6 digitalizadas) só essa fica com pendência (`AccountSheetRulesTest`).
+
+## Conferência do Relatório Mensal (pedida em 26/10/2026)
+
+- "7. Relatório Mensal" (`congregacao.relatorio_mensal`) e "4. Relatório Mensal" (`manutencao.relatorio_mensal`),
+  regras puras em `MonthlyReportRules.check(content, account, month)`, pelo mesmo `CheckExpensesUseCase`
+  (`REPORT_RULES_VERSION`, pendência automática, "certo" verde com título + mês; `CheckedDocument.MONTHLY_REPORT`).
+- Na 1ª página: o título do formulário — Congregação "RELATÓRIO MENSAL DE CONTAS DA CONGREGAÇÃO (S-30)", Manutenção
+  "RELATÓRIO MENSAL DE CONTAS DA COMISSÃO DE FUNCIONAMENTO DO SALÃO DO REINO (S-44)" (no PDF quebra a linha antes de
+  "REINO") — e o primeiro "<mês> de <ano>" da página igual ao mês em edição (S-30: depois do nome da congregação;
+  S-44: sozinho, depois das instruções; a data da impressão do navegador é só números).
+- Relatório da outra conta = "Relatório Mensal da conta da Manutenção (S-44), não da conta da Congregação (S-30):
+  troque pelo relatório certo". Digitalizado (OCR) = "confira à mão". Os 24 relatórios reais de 2025-2026 (5
+  digitalizados) passam sem pendência (`MonthlyReportRulesTest`).
+
+## Conferência dos Donativos das Congregações (pedida em 26/10/2026)
+
+- "2. Donativos das Congregações" da Manutenção (`manutencao.donativos_congregacoes`), regras puras em
+  `DonationRules`. Diferente das outras, confere **a categoria inteira junta** (`CheckExpensesUseCase.checkDonations`):
+  chave do resultado guardado = mês + nome/tamanho/data de **todos** os donativos, então mudar ou renomear um confere
+  os dois de novo (`DONATION_RULES_VERSION`, `CheckedDocument.DONATION`).
+- Precisa de **dois** comprovantes de transferência, um de cada congregação, e a ordem segue a **data e hora** da
+  transferência: a primeira é o "2.", a segunda o "2.1" (`subNumber`; "2 Donativo" = "2."). Cada um: data no mês em
+  edição ("10 SET 2026 - 10:36:07"), valor `DonationRules.AMOUNT` (R$ 800,00), destino Danilo Cavalcante Braga
+  (CPF ***.638.182-**, Bradesco, Agência 3943, Conta 286256-5, Conta poupança) e origem da congregação: Japiim =
+  Walter Santana Mota do Rosário (Nu Pagamentos, 0001, 18938180-7, CPF ***.250.412-**); Trinta e Um de Março =
+  Filipe da Silva Costa (Nu Pagamentos, 0001, 15077760-0, CPF ***.369.732-**). A congregação é reconhecida pelo nome
+  **ou** pela conta da origem; o nome do arquivo citando a outra congregação pede para renomear.
+- Os comprovantes reais são **todos digitalizados** (OCR): números com um dígito de tolerância e letras no lugar de
+  dígitos ("1B2", "O0oL", "Tl MAI"); "Agência" só vale com o número logo depois (o "0001" está também no CNPJ). Na
+  foto o CPF não gera pendência se nome e conta da mesma pessoa foram lidos; o que não foi lido = "confira à mão".
+- Nos reais de 2025-2026: março a agosto/2026 passam; setembro/2026 Japiim (foto borrada, "Valor Ag 600,00") fica
+  com "confira à mão"; meses antigos acusam a numeração 2.1/2.2 e o valor de R$ 700,00 daquela época.
 
 ## Fechamento do mês e histórico
 
@@ -435,7 +474,9 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   `PdfContentReaderImplTest`
   (OCR de verdade numa página-foto gerada) e `ExpenseCheckDaoTest`. Extratos: `BankStatementRulesTest` (textos reais
   do next e do Nubank, PDF e OCR) e os casos de extrato em `CheckExpensesUseCaseTest`. Folha de Contas:
-  `AccountSheetRulesTest` e o caso da folha em `CheckExpensesUseCaseTest`.
+  `AccountSheetRulesTest` e o caso da folha em `CheckExpensesUseCaseTest`. Relatório Mensal: `MonthlyReportRulesTest`
+  e o caso do relatório em `CheckExpensesUseCaseTest`. Donativos: `DonationRulesTest` (OCR real dos comprovantes) e
+  o caso dos donativos (conferidos juntos, renomear confere de novo) em `CheckExpensesUseCaseTest`.
 - Telas que não dá para clicar no app (a janela Java não aceita automação): renderize num `runComposeUiTest`
   descartável e salve `onAllNodes(isRoot())[i].captureToImage()` em PNG para conferir (diálogos são outra raiz).
 - Teste visual sem mexer nos dados do usuário: rode com `APPDATA` apontando para uma pasta temporária **de caminho

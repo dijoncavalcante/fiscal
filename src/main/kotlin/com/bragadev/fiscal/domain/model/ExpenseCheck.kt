@@ -25,6 +25,24 @@ enum class ExpenseRequirement {
 
     /** Folha de Contas: mês e ano do mês em edição. */
     SHEET_MONTH,
+
+    /** Relatório Mensal: título do formulário da conta (S-30 na Congregação, S-44 na Manutenção). */
+    REPORT_TITLE,
+
+    /** Relatório Mensal: mês e ano do mês em edição. */
+    REPORT_MONTH,
+
+    /** Donativo: comprovante com o destino e a origem (congregação) combinados. */
+    DONATION_DATA,
+
+    /** Donativo: transferência feita no mês em edição. */
+    DONATION_MONTH,
+
+    /** Donativo: valor combinado (R$ 800,00). */
+    DONATION_AMOUNT,
+
+    /** Donativos: dois comprovantes, um de cada congregação, na ordem da transferência (2. e 2.1). */
+    DONATION_SET,
 }
 
 /**
@@ -162,6 +180,12 @@ const val STATEMENT_RULES_VERSION = 1
 /** Como [EXPENSE_RULES_VERSION], para a conferência da Folha de Contas (S-26). */
 const val SHEET_RULES_VERSION = 1
 
+/** Como [EXPENSE_RULES_VERSION], para a conferência do Relatório Mensal (S-30 / S-44). */
+const val REPORT_RULES_VERSION = 1
+
+/** Como [EXPENSE_RULES_VERSION], para a conferência dos Donativos das Congregações. */
+const val DONATION_RULES_VERSION = 1
+
 /** Situação de uma despesa na tela do mês em edição. */
 enum class ExpenseStatus {
     CHECKING,
@@ -170,4 +194,10 @@ enum class ExpenseStatus {
 
     /** Não foi possível conferir agora (ex.: arquivo aberto em outro programa); tenta de novo depois. */
     NOT_CHECKED,
+
+    /**
+     * Ainda não conferido: arquivo novo ou mudado desde a última conferência (ou mudou o responsável, os termos
+     * de isenção ou as regras). Só é conferido ao ser organizado ou com o botão "Checar pendências".
+     */
+    UNCHECKED,
 }

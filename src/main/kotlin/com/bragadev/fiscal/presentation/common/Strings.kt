@@ -260,6 +260,37 @@ object Strings {
     const val STATEMENT_VERIFIED = "Verificado: extrato da conta certa, do mês em edição e assinado"
     const val SHEET_CHECKING = "Conferindo título, conta e mês da Folha de Contas…"
     const val SHEET_VERIFIED = "Verificado: Folha de Contas (S-26) da conta certa e do mês em edição"
+    const val REPORT_CHECKING = "Conferindo título e mês do Relatório Mensal…"
+    const val REPORT_VERIFIED = "Verificado: Relatório Mensal da conta certa e do mês em edição"
+    const val DONATION_CHECKING = "Conferindo data, valor, destino e origem do donativo…"
+    const val DONATION_VERIFIED =
+        "Verificado: donativo do mês, com o valor, o destino e a origem certos e na ordem da transferência"
+    const val NOT_CHECKED_YET = "Ainda não conferido: clique em \"Checar pendências\" no topo do mês"
+    const val NOT_CHECKED_NOW =
+        "Não deu para conferir agora (arquivo aberto em outro programa?). Clique em \"Checar pendências\" para tentar de novo."
+
+    // Checar pendências
+    const val CHECK_ISSUES = "Checar pendências"
+    const val CHECKING_ISSUES = "Conferindo…"
+    const val CHECK_ISSUES_HINT =
+        "Confere a Folha de Contas, os donativos, as despesas, o Relatório Mensal e o extrato bancário deste mês que ainda não foram conferidos " +
+                "(arquivos novos ou mudados). Os já conferidos não são lidos de novo."
+    const val CHECK_ISSUES_NOTHING =
+        "Este mês não tem Folha de Contas, despesas, Relatório Mensal nem extrato bancário para conferir."
+
+    fun checkIssuesDone(withIssues: Int, notChecked: Int): String {
+        val issues = when (withIssues) {
+            0 -> "Conferência concluída: nenhum documento com pendência."
+            1 -> "Conferência concluída: 1 documento com pendência."
+            else -> "Conferência concluída: $withIssues documentos com pendência."
+        }
+        val skipped = when (notChecked) {
+            0 -> ""
+            1 -> " 1 não pôde ser lido agora (aberto em outro programa?)."
+            else -> " $notChecked não puderam ser lidos agora (abertos em outro programa?)."
+        }
+        return issues + skipped
+    }
 
     // Documentos: ordenação e busca
     const val REFRESH_FOLDER = "Atualizar a pasta"

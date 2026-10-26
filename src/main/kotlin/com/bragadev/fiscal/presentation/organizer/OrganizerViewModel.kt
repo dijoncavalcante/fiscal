@@ -28,6 +28,15 @@ class OrganizerViewModel(
 ) : ViewModel() {
     private var descriptionJob: Job? = null
     private var expenseJob: Job? = null
+
+    /**
+     * Arquivos (nome em minúsculas) que acabaram de ser organizados e ainda precisam ser conferidos. Os outros
+     * só mostram o resultado guardado: abrir o app ou trocar de mês não lê nenhum PDF.
+     */
+    private val pendingChecks = mutableSetOf<String>()
+
+    /** "Checar pendências" pedido e ainda não terminado (continua se a lista for relida no meio). */
+    private var checkAllRequested = false
     private val state = MutableStateFlow(OrganizerUiState(firstEditableMonth = periodPolicy.firstEditableMonth))
     val uiState: StateFlow<OrganizerUiState> = state.asStateFlow()
 
@@ -45,7 +54,8 @@ class OrganizerViewModel(
             }
         }
         scope.launch {
-            // Trocar quem assina (despesas ou extratos) ou os termos de isenção em Configurações confere tudo de novo.
+            // Trocar quem assina (despesas ou extratos) ou os termos de isenção em Configurações invalida os
+            // resultados guardados: os documentos voltam a "não conferido" até o próximo "Checar pendências".
             observeSettings().map { Triple(it.expenseSigners, it.expenseExemptTerms, it.statementSigner) }
                 .distinctUntilChanged().drop(1)
                 .collect { refreshChecklist() }
@@ -73,6 +83,14 @@ class OrganizerViewModel(
     }
 
     fun onCategoryClickedWithoutDocument() = showError(Strings.SELECT_OR_DRAG)
+
+    /** Botão "Checar pendências": confere a folha, as despesas e o extrato do mês que ainda não foram conferidos. */
+    fun onCheckIssuesRequested() {
+        if (state.value.isCheckingAll) return
+        checkAllRequested = true
+        state.update { it.copy(isCheckingAll = true) }
+        scope.launch { refreshChecklist() }
+    }
 
     fun onModeChosen(mode: OrganizeMode) {
         val proposal = state.value.dialog as? OrganizerDialog.Proposal ?: return
@@ -123,8 +141,10 @@ class OrganizerViewModel(
     private suspend fun showMonthFolder(folder: Path?) {
         val info = folder?.let { describeMonthFolder(it) }
         val groups = getCategoryTree(info?.account)
-        // Outro mês: as despesas são conferidas de novo (nomes iguais em meses diferentes são outros arquivos).
-        state.update { it.copy(monthFolder = info, groups = groups, expenseChecks = emptyMap()) }
+        // Outro mês: nomes iguais em meses diferentes são outros arquivos; um "Checar pendências" em andamento para.
+        pendingChecks.clear()
+        checkAllRequested = false
+        state.update { it.copy(monthFolder = info, groups = groups, expenseChecks = emptyMap(), isCheckingAll = false) }
         refreshChecklist()
     }
 
@@ -137,36 +157,67 @@ class OrganizerViewModel(
     }
 
     /**
-     * Confere as despesas e o extrato bancário em segundo plano (pode levar alguns segundos por arquivo novo,
-     * por causa do OCR). Cada resultado aparece assim que sai; se alguma pendência mudou, a lista é relida.
+     * Mostra a conferência da folha, das despesas e do extrato. Só lê os PDFs recém-organizados
+     * ([pendingChecks]) ou, com "Checar pendências", todos os que ainda não foram conferidos; os demais mostram o
+     * resultado guardado ou "não conferido". Roda em segundo plano (o OCR leva alguns segundos por arquivo); cada
+     * resultado aparece assim que sai e, se alguma pendência mudou, a lista é relida.
      */
     private fun startExpenseCheck(info: MonthFolderInfo?, checklist: MonthChecklist?) {
         expenseJob?.cancel()
         val names =
             if (info != null && checklist != null) checkExpenses.expenseFiles(info.account, checklist) else emptyList()
+        // Organizado numa categoria sem regras (ou já retirado do mês): nada a conferir.
+        pendingChecks.retainAll(names.map { it.lowercase() }.toSet())
+        val only = if (checkAllRequested) null else pendingChecks.toSet()
         val known = state.value.expenseChecks
         state.update { current ->
-            current.copy(expenseChecks = names.associate {
-                it.lowercase() to (known[it.lowercase()] ?: ExpenseStatus.CHECKING)
+            current.copy(expenseChecks = names.associate { name ->
+                val key = name.lowercase()
+                val willRead = only == null || key in only
+                val shown = known[key]?.takeIf { it == ExpenseStatus.VERIFIED || it == ExpenseStatus.HAS_ISSUES }
+                key to (shown ?: if (willRead) ExpenseStatus.CHECKING else ExpenseStatus.UNCHECKED)
             })
         }
-        if (info == null || checklist == null || names.isEmpty()) return
+        if (info == null || checklist == null || names.isEmpty()) return finishCheckAll()
         expenseJob = scope.launch {
             val flagsChanged =
-                checkExpenses(info.path, info.account, checklist, info.detectedMonth?.month) { name, status, evidence ->
-                val key = name.lowercase()
-                state.update {
-                    it.copy(
-                        expenseChecks = it.expenseChecks + (key to status),
-                        expenseEvidence = if (evidence == null) it.expenseEvidence - key else it.expenseEvidence + (key to evidence),
-                    )
+                checkExpenses(
+                    info.path,
+                    info.account,
+                    checklist,
+                    info.detectedMonth?.month,
+                    only
+                ) { name, status, evidence ->
+                    val key = name.lowercase()
+                    if (status != ExpenseStatus.UNCHECKED) pendingChecks.remove(key)
+                    state.update {
+                        it.copy(
+                            expenseChecks = it.expenseChecks + (key to status),
+                            expenseEvidence = if (evidence == null) it.expenseEvidence - key else it.expenseEvidence + (key to evidence),
+                        )
+                    }
                 }
-            }
             if (flagsChanged && state.value.monthFolder?.path == info.path) {
                 val updated = getMonthChecklist(info.path, info.account)
                 state.update { it.copy(checklist = updated) }
             }
+            if (only == null) finishCheckAll()
         }
+    }
+
+    /** Fim do "Checar pendências": avisa quantos documentos ficaram com pendência. */
+    private fun finishCheckAll() {
+        if (!checkAllRequested) return
+        checkAllRequested = false
+        val statuses = state.value.expenseChecks.values
+        val text = when {
+            statuses.isEmpty() -> Strings.CHECK_ISSUES_NOTHING
+            else -> Strings.checkIssuesDone(
+                withIssues = statuses.count { it == ExpenseStatus.HAS_ISSUES },
+                notChecked = statuses.count { it == ExpenseStatus.NOT_CHECKED },
+            )
+        }
+        state.update { it.copy(isCheckingAll = false, message = UserMessage(text)) }
     }
 
     /** Motivo para recusar a organização antes mesmo de calcular a proposta. */
@@ -278,6 +329,11 @@ class OrganizerViewModel(
     private fun handleOrganizeResult(plan: OrganizationPlan, result: OrganizeResult) {
         when (result) {
             is OrganizeResult.Done -> {
+                // O documento que chegou ao mês é conferido logo (se a categoria dele tiver regras).
+                val newPath = Path.of(result.operation.newPath)
+                if (newPath.parent == state.value.monthFolder?.path) {
+                    pendingChecks += newPath.fileName.toString().lowercase()
+                }
                 showMessage(UserMessage(Strings.ORGANIZED, undoOperationId = result.operation.id))
                 documentChanges.notifyChanged(selectPath = Path.of(result.operation.newPath))
             }

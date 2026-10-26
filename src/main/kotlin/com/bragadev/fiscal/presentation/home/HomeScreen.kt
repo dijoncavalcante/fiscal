@@ -190,6 +190,7 @@ private fun Workspace(
                 fileActions = fileActions,
                 navigator = navigator,
                 onConcludeMonth = onConcludeMonth,
+                onCheckIssues = organizerViewModel::onCheckIssuesRequested,
                 modifier = modifier,
                 collapse = collapse,
             )

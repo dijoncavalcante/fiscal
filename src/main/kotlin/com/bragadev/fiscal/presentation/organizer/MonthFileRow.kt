@@ -137,10 +137,12 @@ fun MonthFileRow(
 }
 
 /**
- * Ao lado do nome da despesa: "certo" verde quando cupom/nota, comprovante e assinatura foram encontrados, ou
- * um indicador enquanto confere. Com pendência não mostra nada: a própria pendência diz o que falta.
+ * Ao lado do nome da despesa: "certo" verde quando cupom/nota, comprovante e assinatura foram encontrados, um
+ * indicador enquanto confere ou um círculo vazio enquanto não foi conferido ("Checar pendências").
+ * Com pendência não mostra nada: a própria pendência diz o que falta.
  * O "certo" diz de onde veio o total do cupom/nota ([evidence]), para o usuário conferir num instante. No extrato
- * bancário, diz a conta, o período e quem assinou; na Folha de Contas, o nome da conta e o mês.
+ * bancário, diz a conta, o período e quem assinou; na Folha de Contas e no Relatório Mensal, o formulário e o mês; no donativo, a
+ * congregação, a data e hora, o valor e quem transferiu.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -155,6 +157,8 @@ private fun ExpenseStatusIcon(
             CheckedDocument.EXPENSE -> Strings.EXPENSE_CHECKING
             CheckedDocument.BANK_STATEMENT -> Strings.STATEMENT_CHECKING
             CheckedDocument.ACCOUNT_SHEET -> Strings.SHEET_CHECKING
+            CheckedDocument.MONTHLY_REPORT -> Strings.REPORT_CHECKING
+            CheckedDocument.DONATION -> Strings.DONATION_CHECKING
         }
         status == ExpenseStatus.VERIFIED && !hasIssue ->
             listOfNotNull(
@@ -162,9 +166,14 @@ private fun ExpenseStatusIcon(
                     CheckedDocument.EXPENSE -> Strings.EXPENSE_VERIFIED
                     CheckedDocument.BANK_STATEMENT -> Strings.STATEMENT_VERIFIED
                     CheckedDocument.ACCOUNT_SHEET -> Strings.SHEET_VERIFIED
+                    CheckedDocument.MONTHLY_REPORT -> Strings.REPORT_VERIFIED
+                    CheckedDocument.DONATION -> Strings.DONATION_VERIFIED
                 },
                 evidence,
             ).joinToString("\n")
+        // Com pendência, ela já diz o que fazer; sem, o círculo vazio lembra de clicar em "Checar pendências".
+        status == ExpenseStatus.UNCHECKED && !hasIssue -> Strings.NOT_CHECKED_YET
+        status == ExpenseStatus.NOT_CHECKED && !hasIssue -> Strings.NOT_CHECKED_NOW
         else -> return
     }
     TooltipBox(
@@ -175,6 +184,13 @@ private fun ExpenseStatusIcon(
         Box(Modifier.size(28.dp).semantics { contentDescription = description }, contentAlignment = Alignment.Center) {
             if (status == ExpenseStatus.CHECKING) {
                 CircularProgressIndicator(Modifier.size(13.dp), strokeWidth = 2.dp)
+            } else if (status == ExpenseStatus.UNCHECKED || status == ExpenseStatus.NOT_CHECKED) {
+                Icon(
+                    AppIcons.CircleOutline,
+                    contentDescription = null,
+                    Modifier.size(17.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             } else {
                 Icon(
                     AppIcons.CheckCircle,
