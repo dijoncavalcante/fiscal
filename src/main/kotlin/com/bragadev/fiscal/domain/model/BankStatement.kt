@@ -29,6 +29,9 @@ enum class SignatureRole(val account: AccountType?, val imageName: String) {
 
     /** "8. Extrato Bancário" da Congregação e "5. Extrato Bancário" da Manutenção. */
     BANK_STATEMENTS(null, "extratos"),
+
+    /** Servo de contas da congregação (pedido em 26/10/2026; ainda nenhum documento exige a assinatura dele). */
+    ACCOUNTS_SERVANT(null, "servo-de-contas"),
     ;
 
     companion object {

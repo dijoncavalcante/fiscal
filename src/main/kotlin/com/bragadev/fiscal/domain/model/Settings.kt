@@ -33,16 +33,27 @@ data class AppSettings(
     val expenseExemptTerms: List<String> = DEFAULT_EXPENSE_EXEMPT_TERMS,
     /** Quem assina os extratos bancários das duas contas (nome completo, como no certificado). `null` = ninguém. */
     val statementSigner: String? = null,
+    /** Servo de contas da congregação (nome completo, como no certificado). `null` = ninguém. */
+    val accountsServant: String? = null,
 ) {
     /** Nome configurado para quem assina; `null` = não configurado. */
-    fun signerFor(role: SignatureRole): String? =
-        role.account?.let(expenseSigners::get) ?: statementSigner.takeIf { role == SignatureRole.BANK_STATEMENTS }
+    fun signerFor(role: SignatureRole): String? = when (role) {
+        SignatureRole.BANK_STATEMENTS -> statementSigner
+        SignatureRole.ACCOUNTS_SERVANT -> accountsServant
+        else -> role.account?.let(expenseSigners::get)
+    }
 
     /** Grava (ou apaga, com nome vazio) quem assina. */
     fun withSigner(role: SignatureRole, name: String): AppSettings {
         val value = name.trim().takeIf { it.isNotEmpty() }
-        val account = role.account ?: return copy(statementSigner = value)
-        return copy(expenseSigners = if (value == null) expenseSigners - account else expenseSigners + (account to value))
+        return when (role) {
+            SignatureRole.BANK_STATEMENTS -> copy(statementSigner = value)
+            SignatureRole.ACCOUNTS_SERVANT -> copy(accountsServant = value)
+            else -> {
+                val account = role.account ?: return this
+                copy(expenseSigners = if (value == null) expenseSigners - account else expenseSigners + (account to value))
+            }
+        }
     }
 
     /** Usuário novo: falta a pasta de origem ou o mês e o assistente ainda não foi feito (a raiz das contas pode ser deduzida do mês). */

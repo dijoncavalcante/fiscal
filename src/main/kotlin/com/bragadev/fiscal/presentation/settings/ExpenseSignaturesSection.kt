@@ -50,20 +50,15 @@ fun ExpenseSignaturesSection(viewModel: ExpenseSignaturesViewModel) {
 @Composable
 private fun AccountSignatureBlock(state: AccountSignatureState, viewModel: ExpenseSignaturesViewModel) {
     val role = state.role
-    val isStatement = role.account == null
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(title(role), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-        if (isStatement) {
-            Text(
-                Strings.STATEMENT_SIGNER_SCOPE,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        scope(role)?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (state.savedName.isEmpty()) {
             IconText(
                 icon = AppIcons.Warning,
-                text = if (isStatement) Strings.STATEMENT_SIGNER_NOT_CONFIGURED else Strings.SIGNER_NOT_CONFIGURED,
+                text = notConfigured(role),
                 color = StatusColors.Warning,
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -81,7 +76,7 @@ private fun AccountSignatureBlock(state: AccountSignatureState, viewModel: Expen
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedButton(onClick = {
                 pickFiles(
-                    if (isStatement) Strings.STATEMENT_SIGNER_PDF_PICKER_TITLE else Strings.SIGNER_PDF_PICKER_TITLE,
+                    pdfPickerTitle(role),
                     null,
                     Strings.PDF_FILTER,
                     listOf("pdf"),
@@ -174,12 +169,21 @@ private fun ChangeSignerDialog(change: SignerChange, viewModel: ExpenseSignature
         onDismissRequest = viewModel::onDismissChange,
         modifier = Modifier.dialogKeys(viewModel::onConfirmChange, viewModel::onDismissChange),
         title = {
-            Text(if (change.role.account == null) Strings.STATEMENT_SIGNER_CHANGE_TITLE else Strings.SIGNER_CHANGE_TITLE)
+            Text(
+                when (change.role) {
+                    SignatureRole.BANK_STATEMENTS -> Strings.STATEMENT_SIGNER_CHANGE_TITLE
+                    SignatureRole.ACCOUNTS_SERVANT -> Strings.ACCOUNTS_SERVANT_CHANGE_TITLE
+                    else -> Strings.SIGNER_CHANGE_TITLE
+                },
+            )
         },
         text = {
             Text(
-                change.role.account?.let { Strings.signerChangeBody(it.displayName, change.from, change.to) }
-                    ?: Strings.statementSignerChangeBody(change.from, change.to),
+                when (change.role) {
+                    SignatureRole.BANK_STATEMENTS -> Strings.statementSignerChangeBody(change.from, change.to)
+                    SignatureRole.ACCOUNTS_SERVANT -> Strings.accountsServantChangeBody(change.from, change.to)
+                    else -> Strings.signerChangeBody(change.role.account?.displayName.orEmpty(), change.from, change.to)
+                },
                 Modifier.widthIn(max = 460.dp).padding(top = 4.dp),
             )
         },
@@ -197,8 +201,11 @@ private fun CertificateChoiceDialog(choice: CertificateChoice, viewModel: Expens
         text = {
             Column(Modifier.fillMaxWidth()) {
                 Text(
-                    choice.role.account?.let { Strings.signerChoiceBody(it.displayName) }
-                        ?: Strings.STATEMENT_SIGNER_CHOICE_BODY,
+                    when (choice.role) {
+                        SignatureRole.BANK_STATEMENTS -> Strings.STATEMENT_SIGNER_CHOICE_BODY
+                        SignatureRole.ACCOUNTS_SERVANT -> Strings.ACCOUNTS_SERVANT_CHOICE_BODY
+                        else -> Strings.signerChoiceBody(choice.role.account?.displayName.orEmpty())
+                    },
                     Modifier.padding(bottom = 8.dp),
                 )
                 choice.names.forEach { name ->
@@ -211,5 +218,28 @@ private fun CertificateChoiceDialog(choice: CertificateChoice, viewModel: Expens
     )
 }
 
-/** "Conta da Congregação" (despesas) ou "Extratos bancários (as duas contas)". */
-private fun title(role: SignatureRole): String = role.account?.displayName ?: Strings.STATEMENT_SIGNER_TITLE
+/** "Conta da Congregação" (despesas), "Extratos bancários (as duas contas)" ou "Servo de contas". */
+private fun title(role: SignatureRole): String = when (role) {
+    SignatureRole.BANK_STATEMENTS -> Strings.STATEMENT_SIGNER_TITLE
+    SignatureRole.ACCOUNTS_SERVANT -> Strings.ACCOUNTS_SERVANT_TITLE
+    else -> role.account?.displayName.orEmpty()
+}
+
+/** Explicação abaixo do título; as despesas não precisam (o texto da seção já explica). */
+private fun scope(role: SignatureRole): String? = when (role) {
+    SignatureRole.BANK_STATEMENTS -> Strings.STATEMENT_SIGNER_SCOPE
+    SignatureRole.ACCOUNTS_SERVANT -> Strings.ACCOUNTS_SERVANT_SCOPE
+    else -> null
+}
+
+private fun notConfigured(role: SignatureRole): String = when (role) {
+    SignatureRole.BANK_STATEMENTS -> Strings.STATEMENT_SIGNER_NOT_CONFIGURED
+    SignatureRole.ACCOUNTS_SERVANT -> Strings.ACCOUNTS_SERVANT_NOT_CONFIGURED
+    else -> Strings.SIGNER_NOT_CONFIGURED
+}
+
+private fun pdfPickerTitle(role: SignatureRole): String = when (role) {
+    SignatureRole.BANK_STATEMENTS -> Strings.STATEMENT_SIGNER_PDF_PICKER_TITLE
+    SignatureRole.ACCOUNTS_SERVANT -> Strings.ACCOUNTS_SERVANT_PDF_PICKER_TITLE
+    else -> Strings.SIGNER_PDF_PICKER_TITLE
+}

@@ -54,6 +54,7 @@ class SettingsPersistenceTest {
                 expenseSigners = signers,
                 expenseExemptTerms = listOf("Resolução", "Ônibus para o congresso"),
                 statementSigner = "Filipe da Silva Costa",
+                accountsServant = "Walter Santana Mota do Rosário",
             ),
         )
         database.close()
@@ -63,6 +64,7 @@ class SettingsPersistenceTest {
         val loaded = repository.load()
         assertEquals(signers, loaded.expenseSigners)
         assertEquals("Filipe da Silva Costa", loaded.statementSigner)
+        assertEquals("Walter Santana Mota do Rosário", loaded.accountsServant)
         assertEquals(listOf("Resolução", "Ônibus para o congresso"), loaded.expenseExemptTerms)
 
         // Remover o responsável da Manutenção apaga a chave; lista vazia de termos continua vazia.
@@ -71,10 +73,12 @@ class SettingsPersistenceTest {
                 expenseSigners = signers - AccountType.MANUTENCAO,
                 expenseExemptTerms = emptyList(),
                 statementSigner = null,
+                accountsServant = null,
             )
         )
         val again = repository.load()
         assertEquals(null, again.statementSigner)
+        assertEquals(null, again.accountsServant)
         assertEquals(mapOf(AccountType.CONGREGACAO to "Andrey Alves da Costa"), again.expenseSigners)
         assertEquals(emptyList(), again.expenseExemptTerms)
         reopened.close()
@@ -93,6 +97,7 @@ class SettingsPersistenceTest {
         // Ninguém configurado e a lista padrão de isenções.
         assertEquals(emptyMap(), loaded.expenseSigners)
         assertEquals(null, loaded.statementSigner)
+        assertEquals(null, loaded.accountsServant)
         assertEquals(AppSettings.DEFAULT_EXPENSE_EXEMPT_TERMS, loaded.expenseExemptTerms)
         database.close()
     }

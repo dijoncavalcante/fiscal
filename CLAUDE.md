@@ -223,9 +223,11 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
   sem nome = pendência "Falta assinatura do responsável (configure …)"). "Ler de um PDF assinado…" usa
   `DocumentContentReader.signerNames` (CN do certificado, sem o ":CPF"; "ANDREY ALVES DA COSTA" → "Andrey Alves da
   Costa"). Trocar um nome já gravado pede confirmação. Imagem do selo **só de referência**: copiada como PNG para
-  `%APPDATA%\Fiscal\assinaturas\<congregacao|manutencao|extratos>.png` (`SignatureImageStorage`, por
+  `%APPDATA%\Fiscal\assinaturas\<congregacao|manutencao|extratos|servo-de-contas>.png` (`SignatureImageStorage`, por
   `SignatureRole`), nunca no repositório nem usada na conferência. A mesma seção tem o bloco "Extratos bancários (as
-  duas contas)" (`SignatureRole.BANK_STATEMENTS`, chave `statement_signer`; ver "Conferência dos extratos").
+  duas contas)" (`SignatureRole.BANK_STATEMENTS`, chave `statement_signer`; ver "Conferência dos extratos") e o
+  bloco "Servo de contas" (`SignatureRole.ACCOUNTS_SERVANT`, chave `accounts_servant_signer`, pedido em 26/10/2026):
+  nome + imagem guardados, ainda sem nenhuma conferência que exija essa assinatura.
 - `ExpenseRequirements.key` (responsável + termo de isenção) é gravado em `expense_checks.requirements_key`: mudar
   responsável ou termos invalida o resultado guardado (o `OrganizerViewModel` observa essas Configurações e mostra
   os documentos como "não conferido" até o próximo "Checar pendências"). A chave leva também o mês em edição.
@@ -463,7 +465,8 @@ Os nomes de pasta variam muito (`1. JUNHO`, `10.Outubro`, `2.  Outubro`, `AGOSTO
 - Settings: `source_folder`, `month_folder`, `months_root`, `duplicate_policy`, `confirm_before_move`,
   `confirm_before_rename`, `document_sort`, `auto_clean_backups`, `backup_retention_days`, `theme_mode`,
   `onboarding_done`, `window_bounds`, `first_editable_month`, `expense_signer_congregacao`, `expense_signer_manutencao`,
-  `expense_exempt_terms`, `statement_signer` (`root_path` é chave legada, migrada para `source_folder`). Chave ausente
+  `expense_exempt_terms`, `statement_signer`, `accounts_servant_signer` (`root_path` é chave legada, migrada para
+  `source_folder`). Chave ausente
   ou valor
   inválido = padrão. Único caminho absoluto no código: `SettingsRepositoryImpl.DEFAULT_SUGGESTED_FOLDER =
   D:\Modelo\jw\pendriver` (sugestão inicial, usada só se existir).

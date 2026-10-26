@@ -174,7 +174,7 @@ class ExpenseSignaturesTest {
     fun `tela - digitar o nome, salvar, trocar com confirmacao e adicionar termo com Enter`() = runComposeUiTest {
         setContent { MaterialTheme { ExpenseSignaturesSection(viewModel) } }
 
-        // Campos: [0] Congregação, [1] Manutenção, [2] extratos bancários, [3] novo termo.
+        // Campos: [0] Congregação, [1] Manutenção, [2] extratos bancários, [3] servo de contas, [4] novo termo.
         onAllNodes(hasSetTextAction())[0].performTextInput("Andrey Alves da Costa")
         onAllNodesWithText(Strings.SAVE)[0].performClick()
         waitForIdle()
@@ -203,8 +203,24 @@ class ExpenseSignaturesTest {
         waitForIdle()
         assertEquals("Outro Responsável", settings.settings.value.statementSigner)
 
-        onAllNodes(hasSetTextAction())[3].performTextInput("Aluguel")
-        onAllNodes(hasSetTextAction())[3].performKeyInput { pressKey(Key.Enter) }
+        // Servo de contas: guardado à parte, não mexe nos outros.
+        onNodeWithText(Strings.ACCOUNTS_SERVANT_TITLE).assertExists()
+        onNodeWithText(Strings.ACCOUNTS_SERVANT_NOT_CONFIGURED).assertExists()
+        onAllNodes(hasSetTextAction())[3].performTextInput("Filipe da Silva Costa")
+        onAllNodesWithText(Strings.SAVE)[3].performClick()
+        waitForIdle()
+        assertEquals("Filipe da Silva Costa", settings.settings.value.accountsServant)
+        assertEquals(Strings.accountsServantSaved("Filipe da Silva Costa"), viewModel.uiState.value.message)
+        assertEquals("Outro Responsável", settings.settings.value.statementSigner)
+        onAllNodes(hasSetTextAction())[3].performTextReplacement("Outro Servo")
+        onAllNodesWithText(Strings.SAVE)[3].performClick()
+        onNodeWithText(Strings.ACCOUNTS_SERVANT_CHANGE_TITLE).assertExists()
+        onNodeWithText(Strings.SIGNER_CHANGE_CONFIRM).performClick()
+        waitForIdle()
+        assertEquals("Outro Servo", settings.settings.value.accountsServant)
+
+        onAllNodes(hasSetTextAction())[4].performTextInput("Aluguel")
+        onAllNodes(hasSetTextAction())[4].performKeyInput { pressKey(Key.Enter) }
         waitForIdle()
         assertEquals("Aluguel", settings.settings.value.expenseExemptTerms.last())
         onNodeWithText("Aluguel").assertExists()

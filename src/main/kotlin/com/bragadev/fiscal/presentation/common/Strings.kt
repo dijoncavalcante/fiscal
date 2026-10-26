@@ -228,6 +228,19 @@ object Strings {
 
     const val STATEMENT_SIGNER_CHOICE_BODY =
         "O PDF tem mais de uma assinatura. Escolha quem assina os extratos bancários:"
+    const val ACCOUNTS_SERVANT_TITLE = "Servo de contas"
+    const val ACCOUNTS_SERVANT_SCOPE =
+        "Assinatura do servo de contas da congregação. Por enquanto fica só guardada: nenhum documento é conferido " +
+                "com ela."
+    const val ACCOUNTS_SERVANT_NOT_CONFIGURED = "Ninguém configurado."
+    const val ACCOUNTS_SERVANT_PDF_PICKER_TITLE = "Escolha um PDF já assinado pelo servo de contas"
+    fun accountsServantSaved(name: String) = "Servo de contas salvo: $name."
+    const val ACCOUNTS_SERVANT_CLEARED = "Servo de contas removido."
+    const val ACCOUNTS_SERVANT_CHANGE_TITLE = "Trocar o servo de contas?"
+    fun accountsServantChangeBody(from: String, to: String) =
+        "O servo de contas passa a ser \"$to\" em vez de \"$from\"."
+
+    const val ACCOUNTS_SERVANT_CHOICE_BODY = "O PDF tem mais de uma assinatura. Escolha quem é o servo de contas:"
     const val SIGNATURE_IMAGE_CHOOSE = "Escolher imagem da assinatura…"
     const val SIGNATURE_IMAGE_REPLACE = "Trocar imagem…"
     const val SIGNATURE_IMAGE_REMOVE = "Remover imagem"

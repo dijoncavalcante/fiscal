@@ -173,6 +173,8 @@ class ExpenseSignaturesViewModel(
             updateAccount(role) { it.copy(draftName = name) }
             val account = role.account
             val message = when {
+                role == SignatureRole.ACCOUNTS_SERVANT && name.isEmpty() -> Strings.ACCOUNTS_SERVANT_CLEARED
+                role == SignatureRole.ACCOUNTS_SERVANT -> Strings.accountsServantSaved(name)
                 account == null && name.isEmpty() -> Strings.STATEMENT_SIGNER_CLEARED
                 account == null -> Strings.statementSignerSaved(name)
                 name.isEmpty() -> Strings.signerCleared(account.displayName)

@@ -45,6 +45,7 @@ class SettingsRepositoryImpl(
                 values[Keys.expenseSigner(account)]?.trim()?.takeIf { it.isNotEmpty() }?.let { account to it }
             }.toMap(),
             statementSigner = values[Keys.STATEMENT_SIGNER]?.trim()?.takeIf { it.isNotEmpty() },
+            accountsServant = values[Keys.ACCOUNTS_SERVANT]?.trim()?.takeIf { it.isNotEmpty() },
             expenseExemptTerms = values[Keys.EXPENSE_EXEMPT_TERMS]
                 ?.let { text -> text.lines().map(String::trim).filter(String::isNotEmpty) }
                 ?: defaults.expenseExemptTerms,
@@ -72,6 +73,7 @@ class SettingsRepositoryImpl(
                 Keys.FIRST_EDITABLE_MONTH to settings.firstEditableMonth.toString(),
                 Keys.EXPENSE_EXEMPT_TERMS to settings.expenseExemptTerms.joinToString("\n"),
                 Keys.STATEMENT_SIGNER to settings.statementSigner,
+                Keys.ACCOUNTS_SERVANT to settings.accountsServant,
             ) + AppSettings.EXPENSE_ACCOUNTS.associate { Keys.expenseSigner(it) to settings.expenseSigners[it] },
         )
         state.value = settings
@@ -98,6 +100,9 @@ class SettingsRepositoryImpl(
 
         /** Quem assina os extratos bancários das duas contas. */
         const val STATEMENT_SIGNER = "statement_signer"
+
+        /** Servo de contas da congregação. */
+        const val ACCOUNTS_SERVANT = "accounts_servant_signer"
 
         /** "expense_signer_congregacao", "expense_signer_manutencao". */
         fun expenseSigner(account: AccountType) = "expense_signer_${account.name.lowercase()}"
